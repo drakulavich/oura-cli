@@ -1,0 +1,10 @@
+node_modules
+dist
+*.db
+*.db-shm
+*.db-wal
+*.token
+.oura-token
+.env
+.env.local
+.DS_Store
