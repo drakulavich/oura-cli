@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/drakulavich/oura-cli/blob/main/docs/schemas/describe.json",
+  "title": "oura-cli describe manifest",
+  "type": "object",
+  "required": ["name", "version", "auth", "globalFlags", "exitCodes", "commands"],
+  "properties": {
+    "name":    { "const": "oura-cli" },
+    "version": { "type": "string" },
+    "auth": {
+      "type": "object",
+      "required": ["envVars", "tokenFile", "loginCommand"],
+      "properties": {
+        "envVars":      { "type": "array", "items": { "type": "string" } },
+        "tokenFile":    { "type": "string" },
+        "loginCommand": { "type": "string" }
+      }
+    },
+    "globalFlags": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/arg" }
+    },
+    "exitCodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "meaning"],
+        "properties": { "code": { "type": "integer" }, "meaning": { "type": "string" } }
+      }
+    },
+    "commands": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "description", "args"],
+        "properties": {
+          "name":         { "type": "string" },
+          "description":  { "type": "string" },
+          "args":         { "type": "array", "items": { "$ref": "#/$defs/arg" } },
+          "outputSchema": { "type": "string" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "arg": {
+      "type": "object",
+      "required": ["name", "type"],
+      "properties": {
+        "name":        { "type": "string" },
+        "type":        { "type": "string" },
+        "required":    { "type": "boolean" },
+        "format":      { "type": "string" },
+        "description": { "type": "string" },
+        "values":      { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}
