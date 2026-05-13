@@ -6,14 +6,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-### Added
-- Flakiness Report generation under `tools/flakiness/`. `bun run test:flakiness`
-  (or the new CI step) runs the suite and emits a spec-conformant
-  [Flakiness JSON Report](https://github.com/flakiness/flakiness-report) under
-  `flakiness-report/`, validated against `@flakiness/flakiness-report`'s Zod
-  schema. CI uploads `flakiness-report/` as an artifact, and pushes it to
-  flakiness.io when the `FLAKINESS_ACCESS_TOKEN` repo secret is set.
-
 ## [0.4.4] - 2026-05-13
 
 ### Added

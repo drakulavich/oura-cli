@@ -19,19 +19,8 @@ jobs:
       - name: Type-check
         run: bunx tsgo --noEmit
 
-      - name: Test + flakiness report
-        run: bun run tools/flakiness/run.ts
-        env:
-          FLAKINESS_PROJECT: drakulavich/oura-cli
-          FLAKINESS_ACCESS_TOKEN: ${{ secrets.FLAKINESS_ACCESS_TOKEN }}
-
-      - name: Upload flakiness report artifact
-        if: always()
-        uses: actions/upload-artifact@v5
-        with:
-          name: flakiness-report
-          path: flakiness-report/
-          retention-days: 30
+      - name: Test
+        run: bun test
 
       - name: Build
         run: bun run build
