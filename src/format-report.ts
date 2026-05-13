@@ -2,6 +2,22 @@ import chalk from 'chalk';
 import type { ReportData } from './db/report.js';
 import type { OutputFormat } from './lib/format-resolve.js';
 
+function colorizeScore(n: number): (s: string) => string {
+  if (n >= 85) return chalk.green;
+  if (n >= 70) return chalk.yellow;
+  return chalk.red;
+}
+
+function scoreCell(n: number | null, width: number): string {
+  if (n === null) return chalk.gray('—'.padStart(width));
+  return colorizeScore(n)(String(n).padStart(width));
+}
+
+function stepsCell(n: number | null, width: number): string {
+  if (n === null) return chalk.gray('—'.padStart(width));
+  return n.toLocaleString().padStart(width);
+}
+
 function fmtSeconds(s: number | null): string {
   if (s === null) return '—';
   const h = Math.floor(s / 3600);
@@ -76,11 +92,7 @@ export function formatReport(data: ReportData, format: OutputFormat, period: 'we
     lines.push(`  ${'Day'.padEnd(10)} ${'Sleep'.padStart(6)} ${'Ready'.padStart(6)} ${'Active'.padStart(7)} ${'Steps'.padStart(8)}`);
     lines.push(chalk.gray('  ' + '─'.repeat(52)));
     for (const d of data.days) {
-      const sleep = d.sleep !== null ? (d.sleep >= 85 ? chalk.green(String(d.sleep)) : d.sleep >= 70 ? chalk.yellow(String(d.sleep)) : chalk.red(String(d.sleep))) : chalk.gray('—');
-      const ready = d.readiness !== null ? (d.readiness >= 85 ? chalk.green(String(d.readiness)) : d.readiness >= 70 ? chalk.yellow(String(d.readiness)) : chalk.red(String(d.readiness))) : chalk.gray('—');
-      const active = d.activity !== null ? (d.activity >= 85 ? chalk.green(String(d.activity)) : d.activity >= 70 ? chalk.yellow(String(d.activity)) : chalk.red(String(d.activity))) : chalk.gray('—');
-      const steps = d.steps !== null ? d.steps.toLocaleString() : chalk.gray('—');
-      lines.push(`  ${d.dayLabel.padEnd(10)} ${sleep.padStart(6)} ${ready.padStart(6)} ${active.padStart(7)} ${steps.padStart(8)}`);
+      lines.push(`  ${d.dayLabel.padEnd(10)} ${scoreCell(d.sleep, 6)} ${scoreCell(d.readiness, 6)} ${scoreCell(d.activity, 7)} ${stepsCell(d.steps, 8)}`);
     }
     lines.push('');
   } else {
@@ -91,11 +103,10 @@ export function formatReport(data: ReportData, format: OutputFormat, period: 'we
     lines.push(`  ${'Week of'.padEnd(12)} ${'Sleep'.padStart(6)} ${'Ready'.padStart(6)} ${'Active'.padStart(7)} ${'Steps'.padStart(10)}`);
     lines.push(chalk.gray('  ' + '─'.repeat(60)));
     for (const b of buckets) {
-      const sleep = b.avgSleep !== null ? b.avgSleep.toFixed(0) : '—';
-      const ready = b.avgReadiness !== null ? b.avgReadiness.toFixed(0) : '—';
-      const active = b.avgActivity !== null ? b.avgActivity.toFixed(0) : '—';
-      const steps = b.totalSteps !== null ? b.totalSteps.toLocaleString() : '—';
-      lines.push(`  ${b.weekOf.padEnd(12)} ${sleep.padStart(6)} ${ready.padStart(6)} ${active.padStart(7)} ${steps.padStart(10)}`);
+      const avgSleepInt = b.avgSleep !== null ? Math.round(b.avgSleep) : null;
+      const avgReadyInt = b.avgReadiness !== null ? Math.round(b.avgReadiness) : null;
+      const avgActiveInt = b.avgActivity !== null ? Math.round(b.avgActivity) : null;
+      lines.push(`  ${b.weekOf.padEnd(12)} ${scoreCell(avgSleepInt, 6)} ${scoreCell(avgReadyInt, 6)} ${scoreCell(avgActiveInt, 7)} ${stepsCell(b.totalSteps, 10)}`);
     }
     lines.push('');
   }

@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-05-13
+
+### Fixed
+- `oura-cli report` daily table: Sleep / Readiness / Activity / Steps
+  columns now align under their headers. Previously, `chalk` ANSI codes
+  inflated the byte count of coloured score strings, so `.padStart(...)`
+  produced near-zero padding and adjacent scores ran together (e.g.
+  `87 85 90` instead of separate right-aligned columns). The same bug
+  affected the monthly bucket view.
+
 ## [0.3.3] - 2026-05-13
 
 ### Changed
@@ -158,6 +168,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Local SQLite cache at `~/.oura-cli/oura.db`.
 - Auth via `oura-cli login`, `OURA_TOKEN`, `OURA_TOKEN_PATH`, or `~/.oura-token`.
 
+[0.3.4]: https://github.com/drakulavich/oura-cli/releases/tag/v0.3.4
+[0.3.3]: https://github.com/drakulavich/oura-cli/releases/tag/v0.3.3
 [0.3.2]: https://github.com/drakulavich/oura-cli/releases/tag/v0.3.2
 [0.3.1]: https://github.com/drakulavich/oura-cli/releases/tag/v0.3.1
 [0.3.0]: https://github.com/drakulavich/oura-cli/releases/tag/v0.3.0
