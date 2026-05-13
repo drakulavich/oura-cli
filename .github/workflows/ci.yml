@@ -20,7 +20,19 @@ jobs:
         run: bunx tsgo --noEmit
 
       - name: Test
-        run: bun test
+        run: bun test --reporter=junit --reporter-outfile=test-results/junit.xml
+
+      - name: Flakiness convert
+        if: always()
+        run: npx --yes @flakiness/cli convert-junit --project drakulavich/oura-cli test-results/
+
+      - name: Upload flakiness report artifact
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: flakiness-report
+          path: flakiness-report/
+          retention-days: 30
 
       - name: Build
         run: bun run build

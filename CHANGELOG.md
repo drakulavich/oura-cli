@@ -6,6 +6,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- CI emits JUnit XML (`test-results/junit.xml`) from `bun test` and runs the
+  official [`flakiness convert-junit`](https://github.com/flakiness/flakiness-report)
+  bridge to produce a Flakiness JSON Report. The report is uploaded as a
+  workflow artifact and, when `FLAKINESS_ACCESS_TOKEN` is set in repo secrets,
+  pushed to [flakiness.io](https://flakiness.io) under the
+  `drakulavich/oura-cli` project. Zero new runtime/dev deps in `package.json` —
+  the converter runs via `npx --yes`.
+
 ## [0.4.4] - 2026-05-13
 
 ### Added

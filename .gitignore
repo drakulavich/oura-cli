@@ -8,3 +8,5 @@ dist
 .env
 .env.local
 .DS_Store
+test-results/
+flakiness-report/
