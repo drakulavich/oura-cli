@@ -9,8 +9,9 @@ import { healthcheckCommand } from './commands/healthcheck.js';
 import { manifestCommand } from './commands/manifest.js';
 import { createApiCommand } from './commands/api-command.js';
 import { commonArgs } from './commands/common.js';
+import { normalizeArgv } from './lib/argv-normalize.js';
 
-const VERSION = '0.4.0';
+const VERSION = '0.4.1';
 
 // Apply --no-color / NO_COLOR early, before any chalk usage in this process.
 if (process.argv.includes('--no-color') || process.env.NO_COLOR) {
@@ -42,4 +43,5 @@ const main = defineCommand({
   },
 });
 
-runMain(main);
+const normalized = normalizeArgv(process.argv);
+runMain(main, { rawArgs: normalized.slice(2) });

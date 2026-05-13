@@ -6,6 +6,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-05-13
+
+### Fixed
+- Global flags (`--format`, `--token`, `--db`, `--tz`, `--no-color`) placed
+  BEFORE the subcommand name are now hoisted to AFTER it before citty parses
+  argv. Restores the v0.3.x flag-first form like
+  `oura-cli --format json sleep today`. Regression introduced by the citty
+  migration in v0.4.0.
+
 ## [0.4.0] - 2026-05-13
 
 ### Changed
@@ -190,6 +199,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Local SQLite cache at `~/.oura-cli/oura.db`.
 - Auth via `oura-cli login`, `OURA_TOKEN`, `OURA_TOKEN_PATH`, or `~/.oura-token`.
 
+[0.4.1]: https://github.com/drakulavich/oura-cli/releases/tag/v0.4.1
 [0.4.0]: https://github.com/drakulavich/oura-cli/releases/tag/v0.4.0
 [0.3.4]: https://github.com/drakulavich/oura-cli/releases/tag/v0.3.4
 [0.3.3]: https://github.com/drakulavich/oura-cli/releases/tag/v0.3.3
