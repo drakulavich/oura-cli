@@ -11,10 +11,7 @@
 <p align="center"><b>Own your Oura Ring data.</b> Pull your sleep, readiness, activity, heart rate, SpO₂, stress, and workouts from the Oura Cloud API straight to your terminal. No mobile app. No telemetry. Just SQLite and your data.</p>
 
 <p align="center">
-  <a href="https://github.com/drakulavich/oura-cli/raw/main/assets/demo.webm">
-    <video src="https://github.com/drakulavich/oura-cli/raw/main/assets/demo.webm" width="720" controls muted playsinline></video>
-    <em>Watch the 25-second demo</em>
-  </a>
+  <img src="https://github.com/drakulavich/oura-cli/raw/main/assets/demo.svg" alt="oura-cli demo: --version, db today, db week, report, describe" width="720">
 </p>
 
 - **Offline-first.** Everything caches into `~/.oura-cli/oura.db` after one `oura-cli sync`. Reports keep working when your internet doesn't.
