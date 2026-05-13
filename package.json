@@ -22,6 +22,7 @@
     "build": "bun build src/index.ts --outdir dist --target bun --banner '#!/usr/bin/env bun'",
     "dev": "bun run src/index.ts",
     "test": "bun test",
+    "test:flakiness": "bun run tools/flakiness/run.ts",
     "prepublishOnly": "bun run build"
   },
   "exports": {
@@ -55,11 +56,13 @@
     "citty": "^0.2.2"
   },
   "devDependencies": {
+    "@flakiness/flakiness-report": "^0.33.0",
     "@types/bun": "^1.3.14",
     "@types/node": "^25.3.3",
     "@typescript/native-preview": "^7.0.0-dev.20260513.1",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
+    "fast-xml-parser": "^5.8.0",
     "typescript": "^6.0.3"
   }
 }
