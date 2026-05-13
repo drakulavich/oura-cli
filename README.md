@@ -7,120 +7,93 @@
   <a href="https://bun.sh"><img src="https://img.shields.io/badge/runtime-Bun-f9f1e1?logo=bun" alt="Bun"></a>
 </p>
 
-<p align="center"><b>Own your Oura Ring data.</b> Local CLI that pulls your biometrics from the Oura Cloud API, caches them in SQLite, and serves both your terminal and your AI agent from the same binary.</p>
+<p align="center"><b>Own your Oura Ring data.</b> Pull your sleep, readiness, activity, heart rate, SpO₂, stress, and workouts from the Oura Cloud API straight to your terminal. No mobile app. No telemetry. Just SQLite and your data.</p>
 
-- **Two audiences, one binary** — pretty tables when you're at a terminal, stable JSON when stdout is piped to a parent process
-- **Self-describing** — `oura-cli describe` emits a JSON manifest of every command, argument, and output schema. Agents discover capabilities without scraping `--help`
-- **Local-first** — everything lives in `~/.oura-cli/oura.db` after `oura-cli sync`. Query and report offline, no Oura mobile app required
-- **Documented contract** — JSON Schemas under `docs/schemas/`, semver-versioned, plus machine-readable errors and exit codes (0–4) for clean error handling in scripts and agents
+- **Offline-first.** Everything caches into `~/.oura-cli/oura.db` after one `oura-cli sync`. Reports keep working when your internet doesn't.
+- **Real terminal reports.** `oura-cli report` writes a weekly or monthly digest with averages, trend deltas, and "you slept poorly Tuesday" callouts. No dashboards, no logging in.
+- **Pipe-friendly.** Output auto-switches to stable JSON when stdout isn't a terminal. Analyse with `jq`, plot with `gnuplot`, or feed it into your own scripts.
+- **Single 142 kB binary, MIT, no telemetry.** Built on Bun; zero native dependencies.
 
-## Quick Start
-
-Runtime: **[Bun](https://bun.sh)** >= 1.0.
+## Install
 
 ```bash
-curl -fsSL https://bun.sh/install | bash   # skip if Bun is already installed
-
+curl -fsSL https://bun.sh/install | bash   # if you don't have Bun yet
 bun add -g @drakulavich/oura-cli
-oura-cli login          # paste your Personal Access Token (one-time)
-oura-cli sync           # backfill recent days into ~/.oura-cli/oura.db
-oura-cli report weekly  # weekly summary with trends and recommendations
 ```
 
-Get a Personal Access Token at <https://cloud.ouraring.com/personal-access-tokens>.
+You'll also need a [Personal Access Token from Oura](https://cloud.ouraring.com/personal-access-tokens). Paste it into `oura-cli login` once — it lands at `~/.oura-token` with `0600` perms.
 
-## For humans
-
-Output format auto-detects: tables in your terminal, JSON when piped.
+## First five minutes
 
 ```bash
-oura-cli sync                       # pull the latest from Oura Cloud
-oura-cli db today                   # today's summary
-oura-cli db date 2026-05-10         # any specific day
-oura-cli db week                    # last 7 days
-oura-cli db trends 30               # score trends across last 30 days
-oura-cli db stats                   # row counts, date range, personal bests
-oura-cli report weekly              # narrative weekly summary
+oura-cli login          # paste your PAT, one time
+oura-cli sync           # backfill recent days into ~/.oura-cli/oura.db
+oura-cli report         # weekly digest in the terminal
 ```
 
-Pipe a result to your favourite JSON tool — `--format` is auto-detected, no flag needed:
+That's it. Subsequent `oura-cli sync` pulls only new days.
+
+## Daily use
+
+### Today
+
+```bash
+oura-cli db today
+```
+
+Today's scores from the local cache. If you forgot to sync, run `oura-cli sync` first.
+
+### A specific day
+
+```bash
+oura-cli db date 2026-05-10
+```
+
+### Last week, at a glance
+
+```bash
+oura-cli db week                  # local cache summary, no API hit
+oura-cli sleep week               # fresh sleep details direct from Oura
+```
+
+### Reports
+
+```bash
+oura-cli report                   # weekly (default)
+oura-cli report --period month    # 30-day window with weekly buckets
+```
+
+Reports cover daily scores, averages, deltas vs the previous window, sleep details, and a short recommendation block.
+
+### Trends and stats
+
+```bash
+oura-cli db trends 30             # score trends across the last 30 days
+oura-cli db stats                 # row counts, date range, personal bests
+```
+
+### Per-endpoint detail
+
+When you want raw Oura V2 data, every endpoint shares the same shape — `today | date <day> | week`:
+
+```bash
+oura-cli sleep today
+oura-cli readiness date 2026-05-10
+oura-cli activity week
+oura-cli hr week
+oura-cli spo2 week
+oura-cli stress week
+oura-cli workout week
+```
+
+### Piping to other tools
+
+Output auto-switches to JSON the moment you pipe it:
 
 ```bash
 oura-cli sleep week | jq '.[] | {day, score, hrv: .contributors.hrv_balance}'
+oura-cli db trends 90 > trends.json
 ```
-
-Per-endpoint fetches mirror Oura's V2 API one-to-one and share the same subcommand shape:
-
-```bash
-oura-cli sleep today                # daily_sleep, today
-oura-cli readiness date 2026-05-10  # daily_readiness, specific day
-oura-cli activity week              # daily_activity, last 7 days
-oura-cli hr week                    # heartrate samples
-oura-cli spo2 week                  # daily_spo2
-oura-cli stress week                # daily_stress
-oura-cli workout week               # workouts
-```
-
-## For agents
-
-Designed for child-process invocation by LLM harnesses (Claude Code, Codex, generic MCP wrappers).
-
-```bash
-export OURA_TOKEN="…"          # no file or interactive flow needed
-oura-cli describe              # JSON manifest of commands, args, schemas
-oura-cli sleep today           # JSON (stdout is non-TTY for child processes)
-oura-cli healthcheck           # JSON: {ok, version, latencyMs}
-```
-
-**Stable JSON I/O contract.** Output shapes are versioned with the package; breaking changes are major semver bumps. Schemas live in `docs/schemas/`.
-
-**Machine-readable errors.** When format resolves to `json`, every error emits a single line to stderr:
-
-```json
-{"error":{"code":"TOKEN_MISSING","message":"…","hint":"Run `oura-cli login` or set OURA_TOKEN."}}
-```
-
-**Exit codes:**
-
-| Code | Meaning |
-|------|---------|
-| 0    | success |
-| 1    | user error (bad arguments) |
-| 2    | auth error (missing or invalid token) |
-| 3    | API or network error |
-| 4    | database or local storage error |
-
-## Manifest formats
-
-Two manifest commands, two audiences:
-
-- **`oura-cli describe`** — neutral, agent-friendly. Lists every command, its
-  args, output schema refs, and exit-code semantics. Use this when integrating
-  with generic LLM harnesses, MCP wrappers, or your own custom scripts.
-- **`oura-cli manifest`** — [OpenClaw](https://github.com/openclaw/openclaw)
-  `tool-registry` shape. Strictly smaller, optimised for OpenClaw's skill
-  discovery and health-aggregation flow. Use this only if you're plugging
-  oura-cli into an OpenClaw gateway.
-
-Both return JSON. `describe` references `manifest` via the
-`compatManifestCommand` field so an agent can discover the second format
-without prior knowledge.
-
-## What's Inside
-
-| Endpoint   | Source                              | Cached table          |
-|------------|-------------------------------------|-----------------------|
-| Sleep      | Oura V2 `daily_sleep`               | `daily_sleep`         |
-| Readiness  | Oura V2 `daily_readiness`           | `daily_readiness`     |
-| Activity   | Oura V2 `daily_activity`            | `daily_activity`      |
-| Heart rate | Oura V2 `heartrate`                 | `heartrate`           |
-| SpO₂       | Oura V2 `daily_spo2`                | `daily_spo2`          |
-| Stress     | Oura V2 `daily_stress`              | `daily_stress`        |
-| Workouts   | Oura V2 `workout`                   | `workouts`            |
-| Sleep model      | Oura V2 `sleep`               | `sleep_model`         |
-| Cardiovascular age | Oura V2 `cardiovascular_age` | `cardiovascular_age`  |
-
-Runtime: [Bun](https://bun.sh). Storage: built-in `bun:sqlite`. CLI parsing: [Commander](https://github.com/tj/commander.js). Output styling: [chalk](https://github.com/chalk/chalk). Zero native dependencies, single 142 kB `dist/index.js`.
 
 ## Configuration
 
@@ -134,20 +107,43 @@ Runtime: [Bun](https://bun.sh). Storage: built-in `bun:sqlite`. CLI parsing: [Co
 
 ## Security
 
-This tool reads your personal health data — handle the access token with care.
+This tool reads your personal health data — handle the token with care.
 
-- `~/.oura-token` is written with `0600` permissions on POSIX (`chmod 0600` in `oura-cli login`). On Windows the file is written but ACL hardening is left to you.
-- `OURA_TOKEN` as an environment variable is convenient for CI and containers, but it appears in `ps auxe`, heap dumps, and core dumps. Prefer the file-based path for interactive use.
-- `--token <pat>` is the least safe option: the value lands in your shell history. Avoid it outside of throw-away scripts.
-- Token revocation is done at <https://cloud.ouraring.com/personal-access-tokens>, not via this CLI.
-- API responses are truncated to 200 chars and `Bearer`/`"token":"…"` patterns are redacted before being printed in error messages.
+- `~/.oura-token` is written with `0600` permissions on POSIX (`oura-cli login` does it for you). On Windows the file is written but ACL hardening is left to you.
+- `OURA_TOKEN` as an env var is convenient for scripts and CI, but it shows up in `ps auxe`, heap dumps, and core dumps. Prefer the file for interactive use.
+- `--token <pat>` is the least safe option: the value lands in shell history. Avoid it outside throw-away scripts.
+- Revoke a token at [cloud.ouraring.com/personal-access-tokens](https://cloud.ouraring.com/personal-access-tokens), not via this CLI.
+- API error messages truncate response bodies to 200 chars and redact `Bearer` tokens and `"token":"…"` patterns before printing.
 
-oura-cli performs **no telemetry**. The only outbound network traffic is your authenticated Oura Cloud API calls.
+**oura-cli performs no telemetry.** The only outbound network traffic is your authenticated Oura Cloud API calls.
 
-## Integrations
+## What's inside
 
-- **OpenClaw** — drop into your LLM agent as an [OpenClaw skill](https://github.com/openclaw/openclaw). `oura-cli manifest` and `oura-cli healthcheck` report back in the tool-registry shape, so the agent can discover the binary and audit its DB health automatically.
-- **MCP** — `oura-cli describe` returns enough metadata to autogenerate an MCP server wrapper. A first-party `oura-mcp` companion is on the roadmap.
+| Endpoint   | Source                              | Cached table          |
+|------------|-------------------------------------|-----------------------|
+| Sleep      | Oura V2 `daily_sleep`               | `daily_sleep`         |
+| Readiness  | Oura V2 `daily_readiness`           | `daily_readiness`     |
+| Activity   | Oura V2 `daily_activity`            | `daily_activity`      |
+| Heart rate | Oura V2 `heartrate`                 | `heartrate`           |
+| SpO₂       | Oura V2 `daily_spo2`                | `daily_spo2`          |
+| Stress     | Oura V2 `daily_stress`              | `daily_stress`        |
+| Workouts   | Oura V2 `workout`                   | `workouts`            |
+| Sleep model      | Oura V2 `sleep`               | `sleep_model`         |
+| Cardiovascular age | Oura V2 `cardiovascular_age` | `cardiovascular_age`  |
+
+Runtime: [Bun](https://bun.sh). Storage: built-in `bun:sqlite`. CLI parsing: [Commander](https://github.com/tj/commander.js). Output styling: [chalk](https://github.com/chalk/chalk). One 142 kB `dist/index.js`, no native deps.
+
+## Automation (LLM agents, scripts, MCP)
+
+If you're driving the CLI from a script or LLM harness:
+
+- `oura-cli describe` — JSON manifest of every command, argument, and output schema. Agents discover capabilities without scraping `--help`.
+- `oura-cli healthcheck` — `{ok, version, latencyMs}` JSON for liveness probes.
+- Errors emit a stable JSON envelope on stderr: `{"error":{"code":"…","message":"…","hint":"…"}}`.
+- Documented exit codes: `0` success, `1` user error, `2` auth, `3` API, `4` storage.
+- JSON Schemas under [`docs/schemas/`](docs/schemas/) describe every output shape, semver-stable.
+
+Plays cleanly with [OpenClaw](https://github.com/openclaw/openclaw) — `oura-cli manifest` returns the tool-registry shape. A first-party `oura-mcp` companion is on the roadmap.
 
 ## Requirements
 
@@ -157,7 +153,7 @@ oura-cli performs **no telemetry**. The only outbound network traffic is your au
 
 ## Contributing
 
-Bug reports and pull requests welcome at [drakulavich/oura-cli/issues](https://github.com/drakulavich/oura-cli/issues).
+See [CONTRIBUTING.md](CONTRIBUTING.md). Bug reports and pull requests welcome at [drakulavich/oura-cli/issues](https://github.com/drakulavich/oura-cli/issues).
 
 ## License
 
