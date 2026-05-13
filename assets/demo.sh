@@ -6,32 +6,37 @@
 set -u
 
 PS1_PROMPT="$ "
-TYPE_RATE=16   # bytes/sec ≈ 60ms per char (matches VHS TypingSpeed)
+TYPE_RATE=10        # bytes/sec ≈ 100ms per char (deliberate, human pace)
+PRE_ENTER_PAUSE=0.4 # tiny beat after the command is fully typed, before Enter
+INTRO_PAUSE=1.5     # let the viewer orient on the empty prompt before anything types
 
 run() {
   local cmd="$1"
   local pause_after="${2:-1.5}"
   printf "%s" "$PS1_PROMPT"
   printf "%s" "$cmd" | pv -qL "$TYPE_RATE"
+  sleep "$PRE_ENTER_PAUSE"
   printf "\n"
   eval "$cmd"
   sleep "$pause_after"
 }
 
+sleep "$INTRO_PAUSE"
+
 # 1. orient
-run "oura-cli --version" 1.2
+run "oura-cli --version" 2.0
 
 # 2. today
-run "oura-cli db today" 2.5
+run "oura-cli db today" 4.0
 
 # 3. weekly cache view
-run "oura-cli db week" 3.5
+run "oura-cli db week" 5.5
 
-# 4. hero: narrative report
-run "oura-cli report" 6.0
+# 4. hero: narrative report (longest output, longest hold)
+run "oura-cli report" 9.0
 
 # 5. agent-friendly manifest
-run "oura-cli describe | jq '.commands[].name'" 3.0
+run "oura-cli describe | jq '.commands[].name'" 5.0
 
-# trailing breath
-sleep 0.8
+# closing breath
+sleep 2.5
