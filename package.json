@@ -11,7 +11,8 @@
     "readiness",
     "activity",
     "agent",
-    "mcp"
+    "mcp",
+    "openclaw"
   ],
   "type": "module",
   "bin": {
