@@ -6,6 +6,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-05-13
+
+### Fixed
+- `oura-cli describe` now reports the real CLI surface. Data commands
+  (sleep, readiness, activity, hr, spo2, stress, workout) advertise their
+  `today | date <day> | week` subcommands instead of fictional `--start/--end`
+  flags. `db` and `report` likewise list their real subcommands.
+
+### Added
+- `ManifestCommand.subcommands` field in the describe manifest, with a sibling
+  `$def` in `docs/schemas/describe.json`.
+
 ## [0.1.1] - 2026-05-13
 
 ### Added
@@ -30,5 +42,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Local SQLite cache at `~/.oura-cli/oura.db`.
 - Auth via `oura-cli login`, `OURA_TOKEN`, `OURA_TOKEN_PATH`, or `~/.oura-token`.
 
+[0.1.2]: https://github.com/drakulavich/oura-cli/releases/tag/v0.1.2
 [0.1.1]: https://github.com/drakulavich/oura-cli/releases/tag/v0.1.1
 [0.1.0]: https://github.com/drakulavich/oura-cli/releases/tag/v0.1.0

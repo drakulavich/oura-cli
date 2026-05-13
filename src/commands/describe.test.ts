@@ -31,4 +31,24 @@ describe('buildManifest', () => {
     const sleep = m.commands.find(c => c.name === 'sleep')!;
     expect(sleep.outputSchema).toBe('docs/schemas/sleep.json');
   });
+
+  it('lists subcommands for grouped data commands', () => {
+    const m = buildManifest('0.1.2');
+    const sleep = m.commands.find(c => c.name === 'sleep')!;
+    expect(sleep.subcommands).toBeDefined();
+    expect(sleep.subcommands!.map(s => s.name)).toEqual(['today', 'date', 'week']);
+
+    const dateSub = sleep.subcommands!.find(s => s.name === 'date')!;
+    expect(dateSub.args).toHaveLength(1);
+    expect(dateSub.args[0].name).toBe('<day>');
+  });
+
+  it('lists db subcommands including stats, trends, reset', () => {
+    const m = buildManifest('0.1.2');
+    const db = m.commands.find(c => c.name === 'db')!;
+    expect(db.subcommands!.map(s => s.name)).toContain('today');
+    expect(db.subcommands!.map(s => s.name)).toContain('stats');
+    expect(db.subcommands!.map(s => s.name)).toContain('trends');
+    expect(db.subcommands!.map(s => s.name)).toContain('reset');
+  });
 });

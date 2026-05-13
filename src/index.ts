@@ -9,7 +9,7 @@ import { emitError, exitCodeFor } from './lib/errors.js';
 import { resolveFormat } from './lib/format-resolve.js';
 import { openDatabase, ensureSchema } from './db/database.js';
 
-const VERSION = '0.1.1';
+const VERSION = '0.1.2';
 
 const program = new Command();
 
