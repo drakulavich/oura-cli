@@ -6,6 +6,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-05-13
+
+### Changed
+- Type-checker upgraded to TypeScript 7 via `@typescript/native-preview` (the
+  Go-based `tsgo` binary). `typescript` devDep bumped to `^6.0.3` (current
+  stable). CI now runs `bunx tsgo --noEmit` instead of `bunx tsc --noEmit`.
+- `tsconfig.json` declares `types: ["bun", "node"]` explicitly so `tsgo`
+  resolves ambient globals (`process`, `import.meta.dir`, `bun:test`).
+
 ## [0.4.2] - 2026-05-13
 
 ### Added

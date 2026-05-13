@@ -22,7 +22,7 @@ Runtime: [Bun](https://bun.sh/) >= 1.0. No Node.js fallback yet.
 
 ## Style
 
-- TypeScript strict mode is on; `bun test` and `bunx tsc --noEmit` should pass.
+- TypeScript strict mode is on; `bun test` and `bunx tsgo --noEmit` should pass. `tsgo` is the native Go-based TypeScript 7 compiler from `@typescript/native-preview`.
 - Prefer named exports. No default exports outside of `src/index.ts`.
 - Errors that reach the CLI surface should be `CliError` instances with a documented `ErrorCode`.
 - Output: JSON for agent/pipe contexts, table/text for TTY. Both modes are mandatory for new user-facing commands.
