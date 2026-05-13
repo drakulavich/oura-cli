@@ -5,12 +5,12 @@
 Output assets/demo.gif
 
 Set Shell "bash"
-Set FontSize 14
-Set Width 960
-Set Height 600
+Set FontSize 22
+Set Width 1500
+Set Height 940
 Set Theme "Catppuccin Mocha"
 Set TypingSpeed 100ms
-Set Padding 16
+Set Padding 24
 
 Sleep 1500ms
 
