@@ -13,6 +13,20 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+
       - run: bun install --frozen-lockfile
-      - run: bun test
-      - run: bun run build
+
+      - name: Type-check
+        run: bunx tsc --noEmit
+
+      - name: Test
+        run: bun test
+
+      - name: Build
+        run: bun run build
+
+      - name: npm audit (high+)
+        run: |
+          if command -v npm >/dev/null; then
+            npm audit --audit-level=high --omit=dev || echo "::warning::npm audit found issues"
+          fi

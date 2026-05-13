@@ -6,6 +6,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-05-13
+
+### Added
+- `docs/ARCHITECTURE.md` documents the four-layer structure
+  (`commands → api/db → lib`) and how to extend each layer. (#1, item 14)
+- `.github/workflows/release.yml` — tag-triggered npm publish with provenance,
+  GitHub Release creation with CHANGELOG-derived notes. Requires `NPM_TOKEN`
+  repo secret. (#1, items 15 & 17)
+- CI workflow gained a `tsc --noEmit` type-check step and an informational
+  `npm audit --audit-level=high` step. (#1, item 16)
+- CONTRIBUTING.md "Releasing" subsection documents the tag-driven flow.
+
+### Removed
+- Internal back-compat aliases `getWeeklyReport` / `formatWeeklyReport` /
+  `WeeklyReportData` left over from v0.3.0. The package exports nothing
+  internal, so these were dead code.
+
 ## [0.3.0] - 2026-05-13
 
 ### Changed (CLI surface)
@@ -121,6 +138,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Local SQLite cache at `~/.oura-cli/oura.db`.
 - Auth via `oura-cli login`, `OURA_TOKEN`, `OURA_TOKEN_PATH`, or `~/.oura-token`.
 
+[0.3.1]: https://github.com/drakulavich/oura-cli/releases/tag/v0.3.1
 [0.3.0]: https://github.com/drakulavich/oura-cli/releases/tag/v0.3.0
 [0.2.1]: https://github.com/drakulavich/oura-cli/releases/tag/v0.2.1
 [0.2.0]: https://github.com/drakulavich/oura-cli/releases/tag/v0.2.0

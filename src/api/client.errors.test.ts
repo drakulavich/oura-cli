@@ -5,8 +5,8 @@ import { CliError } from '../lib/errors.js';
 const realFetch = globalThis.fetch;
 
 function mockFetch(response: { status: number; body: string }) {
-  globalThis.fetch = async () =>
-    new Response(response.body, { status: response.status, statusText: 'mocked' });
+  globalThis.fetch = (async () =>
+    new Response(response.body, { status: response.status, statusText: 'mocked' })) as unknown as typeof globalThis.fetch;
 }
 
 describe('OuraClient.fetch error paths', () => {

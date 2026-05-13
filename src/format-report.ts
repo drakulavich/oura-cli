@@ -154,7 +154,3 @@ export function formatReport(data: ReportData, format: OutputFormat, period: 'we
   return lines.join('\n');
 }
 
-// Backward-compat alias
-export function formatWeeklyReport(data: ReportData, format: OutputFormat): string {
-  return formatReport(data, format, 'week');
-}

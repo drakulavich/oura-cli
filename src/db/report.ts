@@ -39,8 +39,6 @@ export interface ReportData {
   recommendations: string[];
 }
 
-// Keep backward-compat alias
-export type WeeklyReportData = ReportData;
 
 function dayLabel(dateStr: string): string {
   const d = new Date(dateStr + 'T12:00:00Z');
@@ -159,7 +157,3 @@ export function getReport(db: Database, days: number): ReportData {
   return { period, weekStart, weekEnd, days: dailyRows, averages, spo2, patterns: { lowSleep, lowReadiness, highActivity }, sleepDetails, recommendations };
 }
 
-// Backward-compat alias
-export function getWeeklyReport(db: Database): ReportData {
-  return getReport(db, 7);
-}

@@ -7,7 +7,7 @@ describe('healthcheck/manifest commands (smoke)', () => {
     await proc.exited;
     const parsed = JSON.parse(out);
     expect(parsed.ok).toBe(true);
-    expect(parsed.version).toBe('0.3.0');
+    expect(parsed.version).toBe('0.3.1');
     expect(typeof parsed.latencyMs).toBe('number');
   });
 
@@ -17,7 +17,7 @@ describe('healthcheck/manifest commands (smoke)', () => {
     await proc.exited;
     const m = JSON.parse(out);
     expect(m.id).toBe('oura-cli');
-    expect(m.version).toBe('0.3.0');
+    expect(m.version).toBe('0.3.1');
     expect(m.runtime).toBe('bun');
     expect(m.bin).toBe('oura-cli');
     expect(Array.isArray(m.commands)).toBe(true);

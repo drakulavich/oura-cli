@@ -27,15 +27,18 @@ Runtime: [Bun](https://bun.sh/) >= 1.0. No Node.js fallback yet.
 - Errors that reach the CLI surface should be `CliError` instances with a documented `ErrorCode`.
 - Output: JSON for agent/pipe contexts, table/text for TTY. Both modes are mandatory for new user-facing commands.
 
-## Releasing
+## Releasing (maintainers)
 
-Releases are tagged manually (auto-release is planned, see audit #15):
+Releases are tag-driven now (per audit #15):
 
 1. Bump `package.json` version and `VERSION` constant in `src/index.ts`.
 2. Add a `## [x.y.z] - YYYY-MM-DD` section to `CHANGELOG.md`.
-3. `bun test && bun run build`.
-4. `git tag vx.y.z && git push origin main vx.y.z`.
-5. `npm publish --access public`.
+3. Commit, then `git tag vx.y.z && git push origin main vx.y.z`.
+4. The `release.yml` workflow runs tests, publishes to npm (with provenance), and creates a GitHub Release whose body is the matching CHANGELOG section.
+
+If the workflow fails, fix forward — the published version is permanent. Do not re-use a tag.
+
+The `NPM_TOKEN` secret must be configured in GitHub repo settings (Settings → Secrets and variables → Actions). Generate at https://www.npmjs.com/settings/[user]/tokens with type "Automation" and publish scope.
 
 ## Reporting bugs
 
