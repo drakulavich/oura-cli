@@ -6,6 +6,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-05-13
+
+### Added
+- `CONTRIBUTING.md` — local setup, PR expectations, release flow (#1, item 13).
+- `README.md` "Security" section — token storage, env exposure, telemetry
+  statement (#1, items 19 & 20).
+
+### Changed
+- `describe.test.ts` — replaced per-element `.toContain` loops with sorted
+  `.toEqual` for clearer diff on failure (#1, item 12).
+
 ## [0.2.0] - 2026-05-13
 
 ### Changed
@@ -86,6 +97,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Local SQLite cache at `~/.oura-cli/oura.db`.
 - Auth via `oura-cli login`, `OURA_TOKEN`, `OURA_TOKEN_PATH`, or `~/.oura-token`.
 
+[0.2.1]: https://github.com/drakulavich/oura-cli/releases/tag/v0.2.1
 [0.2.0]: https://github.com/drakulavich/oura-cli/releases/tag/v0.2.0
 [0.1.3]: https://github.com/drakulavich/oura-cli/releases/tag/v0.1.3
 [0.1.2]: https://github.com/drakulavich/oura-cli/releases/tag/v0.1.2

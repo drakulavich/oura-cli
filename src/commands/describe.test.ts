@@ -21,10 +21,8 @@ describe('buildManifest', () => {
   });
 
   it('lists every supported subcommand', () => {
-    const names = m.commands.map(c => c.name);
-    for (const expected of ['login', 'describe', 'sleep', 'readiness', 'activity', 'hr', 'spo2', 'stress', 'workout', 'sync', 'db', 'report']) {
-      expect(names).toContain(expected);
-    }
+    const expected = ['login', 'describe', 'sleep', 'readiness', 'activity', 'hr', 'spo2', 'stress', 'workout', 'sync', 'db', 'report'].sort();
+    expect(m.commands.map(c => c.name).sort()).toEqual(expected);
   });
 
   it('includes compatManifestCommand pointing to oura-cli manifest', () => {

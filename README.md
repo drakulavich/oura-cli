@@ -132,6 +132,18 @@ Runtime: [Bun](https://bun.sh). Storage: built-in `bun:sqlite`. CLI parsing: [Co
 | Timezone         | `--tz`      | `OURA_TZ`          | system timezone, else `UTC` |
 | Output format    | `--format`  |                    | auto-detect (TTY → table)   |
 
+## Security
+
+This tool reads your personal health data — handle the access token with care.
+
+- `~/.oura-token` is written with `0600` permissions on POSIX (`chmod 0600` in `oura-cli login`). On Windows the file is written but ACL hardening is left to you.
+- `OURA_TOKEN` as an environment variable is convenient for CI and containers, but it appears in `ps auxe`, heap dumps, and core dumps. Prefer the file-based path for interactive use.
+- `--token <pat>` is the least safe option: the value lands in your shell history. Avoid it outside of throw-away scripts.
+- Token revocation is done at <https://cloud.ouraring.com/personal-access-tokens>, not via this CLI.
+- API responses are truncated to 200 chars and `Bearer`/`"token":"…"` patterns are redacted before being printed in error messages.
+
+oura-cli performs **no telemetry**. The only outbound network traffic is your authenticated Oura Cloud API calls.
+
 ## Integrations
 
 - **OpenClaw** — drop into your LLM agent as an [OpenClaw skill](https://github.com/openclaw/openclaw). `oura-cli manifest` and `oura-cli healthcheck` report back in the tool-registry shape, so the agent can discover the binary and audit its DB health automatically.
