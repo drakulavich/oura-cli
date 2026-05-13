@@ -6,6 +6,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-05-13
+
+### Changed
+- README refocused on the human reader: tagline, bullets, and "First five
+  minutes" address terminal users first; automation/agents/MCP content moved
+  to a single short section near the end.
+
+### Build
+- `release.yml` workflow re-enables `npm publish --provenance` now that the
+  repository is public.
+
 ## [0.3.2] - 2026-05-13
 
 ### Changed
