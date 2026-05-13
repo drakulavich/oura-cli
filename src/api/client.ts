@@ -53,7 +53,12 @@ export class OuraClient {
       throw new CliError('API_ERROR', `Oura API ${response.status}: ${body}`);
     }
 
-    const json = await response.json();
-    return (json as { data: T[] }).data ?? [];
+    let json: unknown;
+    try {
+      json = await response.json();
+    } catch {
+      throw new CliError('API_ERROR', 'Empty response body from Oura API.');
+    }
+    return ((json as { data: T[] }).data) ?? [];
   }
 }

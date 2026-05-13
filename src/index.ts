@@ -10,7 +10,7 @@ import { emitError, exitCodeFor } from './lib/errors.js';
 import { resolveFormat } from './lib/format-resolve.js';
 import { openDatabase, ensureSchema } from './db/database.js';
 
-const VERSION = '0.2.1';
+const VERSION = '0.3.0';
 
 // Apply --no-color / NO_COLOR early, before any chalk usage in this process.
 if (process.argv.includes('--no-color') || process.env.NO_COLOR) {
@@ -84,7 +84,7 @@ program
         { name: 'workout',     description: 'Fetch workout data from Oura API.',             examples: ['oura-cli workout --start 2026-05-01'] },
         { name: 'sync',        description: 'Sync all Oura collections into the local DB.',  examples: ['oura-cli sync'] },
         { name: 'db',          description: 'Query the local SQLite cache.',                 examples: ['oura-cli db today'] },
-        { name: 'report',      description: 'Render a weekly or monthly summary report.',    examples: ['oura-cli report weekly'] },
+        { name: 'report',      description: 'Render a weekly or monthly summary report.',    examples: ['oura-cli report --period week'] },
         { name: 'healthcheck', description: 'Quick local DB health probe.',                  examples: ['oura-cli healthcheck'] },
         { name: 'manifest',    description: 'Print openclaw-tool-registry-compatible manifest as JSON.', examples: ['oura-cli manifest'] },
       ],

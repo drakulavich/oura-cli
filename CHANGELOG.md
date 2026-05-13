@@ -6,6 +6,30 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-13
+
+### Changed (CLI surface)
+- `oura-cli report weekly` is now `oura-cli report --period week` (default).
+  `--period month` adds a 30-day report with weekly-bucket display.
+  (#1, item 9). The old `weekly` subcommand is removed.
+- `oura-cli db import` is now an alias of `oura-cli sync` — both run the same
+  handler. (#1, item 8)
+- Empty `200` response from the Oura API now throws `CliError('API_ERROR',
+  'Empty response body from Oura API.')` instead of a raw JSON parse error.
+
+### Added
+- AJV-based test coverage for every `docs/schemas/*.json` file: validates
+  JSON syntax, compiles against JSON Schema 2020-12, and asserts the
+  describe-manifest shape against `describe.json`. (#1, item 10)
+- Fixture-based tests for `OuraClient.fetch` error paths (401, 403, 429, 500,
+  empty body, Bearer redaction). (#1, item 11)
+
+### Renamed (internal API)
+- `getWeeklyReport(db)` → `getReport(db, days)` in `src/db/report.ts`.
+- `formatWeeklyReport(data, format)` → `formatReport(data, format, period)` in
+  `src/format-report.ts`.
+- Type `WeeklyReportData` → `ReportData`.
+
 ## [0.2.1] - 2026-05-13
 
 ### Added
@@ -97,6 +121,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Local SQLite cache at `~/.oura-cli/oura.db`.
 - Auth via `oura-cli login`, `OURA_TOKEN`, `OURA_TOKEN_PATH`, or `~/.oura-token`.
 
+[0.3.0]: https://github.com/drakulavich/oura-cli/releases/tag/v0.3.0
 [0.2.1]: https://github.com/drakulavich/oura-cli/releases/tag/v0.2.1
 [0.2.0]: https://github.com/drakulavich/oura-cli/releases/tag/v0.2.0
 [0.1.3]: https://github.com/drakulavich/oura-cli/releases/tag/v0.1.3

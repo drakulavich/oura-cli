@@ -1,6 +1,7 @@
 import type { Database } from '../lib/db.js';
 
-export interface WeeklyReportData {
+export interface ReportData {
+  period: 'week' | 'month';
   weekStart: string;
   weekEnd: string;
   days: {
@@ -38,6 +39,9 @@ export interface WeeklyReportData {
   recommendations: string[];
 }
 
+// Keep backward-compat alias
+export type WeeklyReportData = ReportData;
+
 function dayLabel(dateStr: string): string {
   const d = new Date(dateStr + 'T12:00:00Z');
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -47,22 +51,23 @@ function dayLabel(dateStr: string): string {
   return `${day} ${dd}/${mm}`;
 }
 
-export function getWeeklyReport(db: Database): WeeklyReportData {
+export function getReport(db: Database, days: number): ReportData {
+  const period: 'week' | 'month' = days <= 7 ? 'week' : 'month';
   const today = new Date();
   const weekEnd = today.toISOString().slice(0, 10);
-  const weekStartDate = new Date(today.getTime() - 6 * 86400000);
+  const weekStartDate = new Date(today.getTime() - (days - 1) * 86400000);
   const weekStart = weekStartDate.toISOString().slice(0, 10);
-  const prevWeekEnd = new Date(today.getTime() - 7 * 86400000).toISOString().slice(0, 10);
-  const prevWeekStart = new Date(today.getTime() - 13 * 86400000).toISOString().slice(0, 10);
+  const prevWeekEnd = new Date(today.getTime() - days * 86400000).toISOString().slice(0, 10);
+  const prevWeekStart = new Date(today.getTime() - (days * 2 - 1) * 86400000).toISOString().slice(0, 10);
 
   // Daily table
-  const days: WeeklyReportData['days'] = [];
-  for (let i = 6; i >= 0; i--) {
+  const dailyRows: ReportData['days'] = [];
+  for (let i = days - 1; i >= 0; i--) {
     const d = new Date(today.getTime() - i * 86400000).toISOString().slice(0, 10);
     const sl = db.query('SELECT score FROM daily_sleep WHERE day=?').get(d) as { score: number | null } | undefined;
     const rd = db.query('SELECT score FROM daily_readiness WHERE day=?').get(d) as { score: number | null } | undefined;
     const ac = db.query('SELECT score, steps FROM daily_activity WHERE day=?').get(d) as { score: number | null; steps: number | null } | undefined;
-    days.push({
+    dailyRows.push({
       day: d,
       dayLabel: dayLabel(d),
       sleep: sl?.score ?? null,
@@ -72,7 +77,7 @@ export function getWeeklyReport(db: Database): WeeklyReportData {
     });
   }
 
-  // Averages with week-over-week comparison
+  // Averages with period-over-period comparison
   const metrics: [string, string, string, boolean][] = [
     ['Sleep', 'daily_sleep', 'score', false],
     ['Readiness', 'daily_readiness', 'score', false],
@@ -80,7 +85,7 @@ export function getWeeklyReport(db: Database): WeeklyReportData {
     ['Steps', 'daily_activity', 'steps', true],
   ];
 
-  const averages: WeeklyReportData['averages'] = [];
+  const averages: ReportData['averages'] = [];
   for (const [label, table, col, isSteps] of metrics) {
     const curr = db.query(
       `SELECT AVG(${col}) as avg, MIN(${col}) as min, MAX(${col}) as max, COUNT(${col}) as cnt FROM ${table} WHERE day BETWEEN ? AND ?`
@@ -151,5 +156,10 @@ export function getWeeklyReport(db: Database): WeeklyReportData {
     recommendations.push('steps_great');
   }
 
-  return { weekStart, weekEnd, days, averages, spo2, patterns: { lowSleep, lowReadiness, highActivity }, sleepDetails, recommendations };
+  return { period, weekStart, weekEnd, days: dailyRows, averages, spo2, patterns: { lowSleep, lowReadiness, highActivity }, sleepDetails, recommendations };
+}
+
+// Backward-compat alias
+export function getWeeklyReport(db: Database): ReportData {
+  return getReport(db, 7);
 }

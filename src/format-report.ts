@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import type { WeeklyReportData } from './db/report.js';
+import type { ReportData } from './db/report.js';
 import type { OutputFormat } from './lib/format-resolve.js';
 
 function fmtSeconds(s: number | null): string {
@@ -23,33 +23,85 @@ const RECOMMENDATIONS: Record<string, string> = {
   steps_great: 'Great activity! Step goal achieved.',
 };
 
-export function formatWeeklyReport(data: WeeklyReportData, format: OutputFormat): string {
+interface WeekBucket {
+  weekOf: string;
+  avgSleep: number | null;
+  avgReadiness: number | null;
+  avgActivity: number | null;
+  totalSteps: number | null;
+}
+
+function bucketDaysIntoWeeks(days: ReportData['days']): WeekBucket[] {
+  const buckets: WeekBucket[] = [];
+  // Group by chunks of 7 from the oldest day forward
+  for (let i = 0; i < days.length; i += 7) {
+    const chunk = days.slice(i, i + 7);
+    const weekOf = chunk[0].day;
+
+    const sleepVals = chunk.map(d => d.sleep).filter((v): v is number => v !== null);
+    const readinessVals = chunk.map(d => d.readiness).filter((v): v is number => v !== null);
+    const activityVals = chunk.map(d => d.activity).filter((v): v is number => v !== null);
+    const stepsVals = chunk.map(d => d.steps).filter((v): v is number => v !== null);
+
+    buckets.push({
+      weekOf,
+      avgSleep: sleepVals.length > 0 ? sleepVals.reduce((a, b) => a + b, 0) / sleepVals.length : null,
+      avgReadiness: readinessVals.length > 0 ? readinessVals.reduce((a, b) => a + b, 0) / readinessVals.length : null,
+      avgActivity: activityVals.length > 0 ? activityVals.reduce((a, b) => a + b, 0) / activityVals.length : null,
+      totalSteps: stepsVals.length > 0 ? stepsVals.reduce((a, b) => a + b, 0) : null,
+    });
+  }
+  return buckets;
+}
+
+export function formatReport(data: ReportData, format: OutputFormat, period: 'week' | 'month'): string {
   if (format === 'json') return JSON.stringify(data, null, 2);
 
   const lines: string[] = [];
 
   // Header
   lines.push('');
-  lines.push(chalk.bold('  Oura Weekly Report'));
+  if (period === 'week') {
+    lines.push(chalk.bold('  Oura Weekly Report'));
+  } else {
+    lines.push(chalk.bold('  Oura Monthly Report'));
+  }
   lines.push(chalk.gray(`  ${data.weekStart} — ${data.weekEnd}`));
   lines.push('');
 
-  // Daily table
-  lines.push(chalk.bold('  Last 7 Days:'));
-  lines.push(chalk.gray('  ' + '─'.repeat(52)));
-  lines.push(`  ${'Day'.padEnd(10)} ${'Sleep'.padStart(6)} ${'Ready'.padStart(6)} ${'Active'.padStart(7)} ${'Steps'.padStart(8)}`);
-  lines.push(chalk.gray('  ' + '─'.repeat(52)));
-  for (const d of data.days) {
-    const sleep = d.sleep !== null ? (d.sleep >= 85 ? chalk.green(String(d.sleep)) : d.sleep >= 70 ? chalk.yellow(String(d.sleep)) : chalk.red(String(d.sleep))) : chalk.gray('—');
-    const ready = d.readiness !== null ? (d.readiness >= 85 ? chalk.green(String(d.readiness)) : d.readiness >= 70 ? chalk.yellow(String(d.readiness)) : chalk.red(String(d.readiness))) : chalk.gray('—');
-    const active = d.activity !== null ? (d.activity >= 85 ? chalk.green(String(d.activity)) : d.activity >= 70 ? chalk.yellow(String(d.activity)) : chalk.red(String(d.activity))) : chalk.gray('—');
-    const steps = d.steps !== null ? d.steps.toLocaleString() : chalk.gray('—');
-    lines.push(`  ${d.dayLabel.padEnd(10)} ${sleep.padStart(6)} ${ready.padStart(6)} ${active.padStart(7)} ${steps.padStart(8)}`);
+  if (period === 'week') {
+    // Daily table — 7 rows
+    lines.push(chalk.bold('  Last 7 Days:'));
+    lines.push(chalk.gray('  ' + '─'.repeat(52)));
+    lines.push(`  ${'Day'.padEnd(10)} ${'Sleep'.padStart(6)} ${'Ready'.padStart(6)} ${'Active'.padStart(7)} ${'Steps'.padStart(8)}`);
+    lines.push(chalk.gray('  ' + '─'.repeat(52)));
+    for (const d of data.days) {
+      const sleep = d.sleep !== null ? (d.sleep >= 85 ? chalk.green(String(d.sleep)) : d.sleep >= 70 ? chalk.yellow(String(d.sleep)) : chalk.red(String(d.sleep))) : chalk.gray('—');
+      const ready = d.readiness !== null ? (d.readiness >= 85 ? chalk.green(String(d.readiness)) : d.readiness >= 70 ? chalk.yellow(String(d.readiness)) : chalk.red(String(d.readiness))) : chalk.gray('—');
+      const active = d.activity !== null ? (d.activity >= 85 ? chalk.green(String(d.activity)) : d.activity >= 70 ? chalk.yellow(String(d.activity)) : chalk.red(String(d.activity))) : chalk.gray('—');
+      const steps = d.steps !== null ? d.steps.toLocaleString() : chalk.gray('—');
+      lines.push(`  ${d.dayLabel.padEnd(10)} ${sleep.padStart(6)} ${ready.padStart(6)} ${active.padStart(7)} ${steps.padStart(8)}`);
+    }
+    lines.push('');
+  } else {
+    // Monthly — weekly buckets table
+    const buckets = bucketDaysIntoWeeks(data.days);
+    lines.push(chalk.bold('  Last 30 Days:'));
+    lines.push(chalk.gray('  ' + '─'.repeat(60)));
+    lines.push(`  ${'Week of'.padEnd(12)} ${'Sleep'.padStart(6)} ${'Ready'.padStart(6)} ${'Active'.padStart(7)} ${'Steps'.padStart(10)}`);
+    lines.push(chalk.gray('  ' + '─'.repeat(60)));
+    for (const b of buckets) {
+      const sleep = b.avgSleep !== null ? b.avgSleep.toFixed(0) : '—';
+      const ready = b.avgReadiness !== null ? b.avgReadiness.toFixed(0) : '—';
+      const active = b.avgActivity !== null ? b.avgActivity.toFixed(0) : '—';
+      const steps = b.totalSteps !== null ? b.totalSteps.toLocaleString() : '—';
+      lines.push(`  ${b.weekOf.padEnd(12)} ${sleep.padStart(6)} ${ready.padStart(6)} ${active.padStart(7)} ${steps.padStart(10)}`);
+    }
+    lines.push('');
   }
-  lines.push('');
 
   // Averages
-  lines.push(chalk.bold('  Averages (this week vs previous):'));
+  lines.push(chalk.bold('  Averages (this period vs previous):'));
   for (const a of data.averages) {
     const avgStr = fmtNumber(a.avg, a.isSteps);
     let changeStr = '';
@@ -100,4 +152,9 @@ export function formatWeeklyReport(data: WeeklyReportData, format: OutputFormat)
   }
 
   return lines.join('\n');
+}
+
+// Backward-compat alias
+export function formatWeeklyReport(data: ReportData, format: OutputFormat): string {
+  return formatReport(data, format, 'week');
 }

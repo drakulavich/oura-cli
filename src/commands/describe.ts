@@ -162,10 +162,9 @@ export function buildManifest(version: string): Manifest {
       },
       {
         name: 'report',
-        description: 'Render a narrative health report. Pick a subcommand.',
-        args: [],
-        subcommands: [
-          { name: 'weekly', description: 'Weekly health summary with trends and recommendations.', args: [] },
+        description: 'Generate a narrative health report from local data.',
+        args: [
+          { name: '--period', type: 'enum', values: ['week', 'month'], description: 'Report window (default week).' },
         ],
       },
     ],

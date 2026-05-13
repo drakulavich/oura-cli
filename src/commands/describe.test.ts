@@ -53,4 +53,13 @@ describe('buildManifest', () => {
     expect(db.subcommands!.map(s => s.name)).toContain('trends');
     expect(db.subcommands!.map(s => s.name)).toContain('reset');
   });
+
+  it('report command has --period flag, no subcommands', () => {
+    const m = buildManifest('0.3.0');
+    const report = m.commands.find(c => c.name === 'report')!;
+    expect(report.subcommands).toBeUndefined();
+    const periodArg = report.args.find(a => a.name === '--period');
+    expect(periodArg).toBeDefined();
+    expect(periodArg!.values).toEqual(['week', 'month']);
+  });
 });

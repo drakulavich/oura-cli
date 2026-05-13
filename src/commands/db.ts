@@ -2,32 +2,21 @@ import { Command } from 'commander';
 import { mkdirSync, unlinkSync } from 'fs';
 import { dirname } from 'path';
 import { openDatabase, ensureSchema, getDbPath } from '../db/database.js';
-import { importDaily } from '../db/import.js';
 import { importFromCSV } from '../db/csv-import.js';
 import { getDaySummary, getTrends, getStats } from '../db/queries.js';
 import { formatDaySummary, formatWeekTable, formatTrends, formatStats } from '../format.js';
-import { getClient, todayDate } from './helpers.js';
+import { todayDate } from './helpers.js';
 import { resolveFormat } from '../lib/format-resolve.js';
+import { runSync } from './sync.js';
 
 export function dbCommand(): Command {
   const cmd = new Command('db').description('Query and manage the local SQLite database');
 
   cmd.command('import')
-    .description('Sync new data from Oura API into local database')
+    .description('Sync new data from Oura API into local database (alias of sync)')
     .action(async (_, command) => {
       const opts = command.parent!.parent!.opts();
-      const format = resolveFormat({ explicit: opts.format, isTty: process.stdout.isTTY === true });
-      const dbPath = getDbPath({ dbPath: opts.db });
-      mkdirSync(dirname(dbPath), { recursive: true });
-      const db = openDatabase({ dbPath: opts.db });
-      ensureSchema(db);
-      const client = getClient(opts);
-      const log = format === 'table' ? console.log : undefined;
-      const result = await importDaily(db, client, log);
-      if (format === 'json') {
-        console.log(JSON.stringify(result, null, 2));
-      }
-      db.close();
+      await runSync(opts);
     });
 
   cmd.command('today')
