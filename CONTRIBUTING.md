@@ -27,6 +27,25 @@ Runtime: [Bun](https://bun.sh/) >= 1.0. No Node.js fallback yet.
 - Errors that reach the CLI surface should be `CliError` instances with a documented `ErrorCode`.
 - Output: JSON for agent/pipe contexts, table/text for TTY. Both modes are mandatory for new user-facing commands.
 
+## Regenerating the demo
+
+The README screencast at `assets/demo.webm` is generated from a checked-in
+[VHS](https://github.com/charmbracelet/vhs) script. After a CLI surface change
+(renamed commands or flags, altered output format), regenerate it:
+
+```bash
+brew install vhs                       # one-time; pulls in ttyd + ffmpeg
+brew install --cask chromium           # one-time; VHS drives a headless browser
+xattr -dr com.apple.quarantine /Applications/Chromium.app  # macOS only
+oura-cli sync                          # fresh data in the local cache
+unset OURA_TOKEN                       # don't let an env token leak into the recording
+vhs assets/demo.tape                   # writes assets/demo.webm
+```
+
+Keep the recording under 40 seconds and the file under 2 MB. The tape
+deliberately omits `login` and `sync` — the demo focuses on what a first-time
+user reads, not what they type to set up.
+
 ## Releasing (maintainers)
 
 Releases are tag-driven now (per audit #15):

@@ -6,6 +6,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-05-13
+
+### Added
+- README screencast (`assets/demo.webm`, ~270 KB) showing `--version`,
+  `db today`, `db week`, the narrative `report`, and the agent-discoverable
+  `describe` manifest. Generated reproducibly from `assets/demo.tape` via
+  [VHS](https://github.com/charmbracelet/vhs); see CONTRIBUTING.md for the
+  regeneration command. The `<video>` element renders inline on GitHub; the
+  fallback link survives on npmjs.com where `<video>` is stripped.
+- CONTRIBUTING.md "Regenerating the demo" subsection.
+
 ## [0.4.3] - 2026-05-13
 
 ### Changed
@@ -215,6 +226,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Local SQLite cache at `~/.oura-cli/oura.db`.
 - Auth via `oura-cli login`, `OURA_TOKEN`, `OURA_TOKEN_PATH`, or `~/.oura-token`.
 
+[0.4.4]: https://github.com/drakulavich/oura-cli/releases/tag/v0.4.4
+[0.4.3]: https://github.com/drakulavich/oura-cli/releases/tag/v0.4.3
+[0.4.2]: https://github.com/drakulavich/oura-cli/releases/tag/v0.4.2
 [0.4.1]: https://github.com/drakulavich/oura-cli/releases/tag/v0.4.1
 [0.4.0]: https://github.com/drakulavich/oura-cli/releases/tag/v0.4.0
 [0.3.4]: https://github.com/drakulavich/oura-cli/releases/tag/v0.3.4
