@@ -29,27 +29,23 @@ Runtime: [Bun](https://bun.sh/) >= 1.0. No Node.js fallback yet.
 
 ## Regenerating the demo
 
-The README screencast at `assets/demo.svg` is an animated SVG rendered from an
-asciinema cast. Pipeline: `assets/demo.sh` (driver) → `asciinema record` →
-`assets/demo.cast` → `svg-term` → `assets/demo.svg`.
+The README screencast at `assets/demo.gif` is generated from a checked-in
+[VHS](https://github.com/charmbracelet/vhs) tape script. The GIF is tracked
+with Git LFS (see `.gitattributes`).
 
 After a CLI surface change (renamed commands or flags, altered output format),
 regenerate it:
 
 ```bash
-brew install asciinema pv              # one-time; pv rate-limits stdout for typing animation
-bun add -g svg-term-cli                # one-time
+brew install vhs                       # one-time; pulls in ttyd + ffmpeg
+brew install --cask chromium           # one-time; VHS drives a headless browser
+git lfs install                        # one-time per clone
 oura-cli sync                          # fresh data in the local cache
 unset OURA_TOKEN                       # don't let an env token leak into the recording
-asciinema rec --overwrite --window-size 110x30 --command "bash assets/demo.sh" assets/demo.cast
-# asciinema 3.x writes cast v3; svg-term needs v2:
-{ head -1 assets/demo.cast | jq -c '{version:2, width:.term.cols, height:.term.rows, timestamp:.timestamp, env:.env}'; tail -n +2 assets/demo.cast; } > assets/demo.v2.cast
-svg-term --in assets/demo.v2.cast --out assets/demo.svg --window \
-  --term iterm2 --profile assets/catppuccin-mocha.itermcolors --padding 16
-rm assets/demo.v2.cast
+vhs assets/demo.tape                   # writes assets/demo.gif
 ```
 
-Keep the recording under 30 seconds and the SVG under 150 KB. The driver
+Keep the recording under 40 seconds and the GIF under 2 MB. The tape
 deliberately omits `login` and `sync` — the demo focuses on what a first-time
 user reads, not what they type to set up.
 
