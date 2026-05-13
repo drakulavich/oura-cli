@@ -6,6 +6,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-05-13
+
+### Added
+- `oura-cli healthcheck` — emits `{ok, version, latencyMs}` JSON for openclaw
+  tool-registry compatibility.
+- `oura-cli manifest` — emits openclaw-tool-registry-compatible package
+  manifest (separate from `oura-cli describe` which targets generic agents).
+
+### Fixed
+- Restored compatibility with `tool-registry healthcheck` aggregator that
+  expects `oura-cli healthcheck` to return parseable JSON.
+
 ## [0.1.0] - 2026-05-12
 
 ### Added
@@ -18,4 +30,5 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Local SQLite cache at `~/.oura-cli/oura.db`.
 - Auth via `oura-cli login`, `OURA_TOKEN`, `OURA_TOKEN_PATH`, or `~/.oura-token`.
 
+[0.1.1]: https://github.com/drakulavich/oura-cli/releases/tag/v0.1.1
 [0.1.0]: https://github.com/drakulavich/oura-cli/releases/tag/v0.1.0

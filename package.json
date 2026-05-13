@@ -1,11 +1,21 @@
 {
   "name": "@drakulavich/oura-cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Oura Ring CLI — query and analyze Oura Ring health data from the command line, designed for humans and AI agents.",
-  "keywords": ["oura", "oura-ring", "cli", "health", "sleep", "readiness", "activity", "agent", "mcp"],
+  "keywords": [
+    "oura",
+    "oura-ring",
+    "cli",
+    "health",
+    "sleep",
+    "readiness",
+    "activity",
+    "agent",
+    "mcp"
+  ],
   "type": "module",
   "bin": {
-    "oura-cli": "./dist/index.js"
+    "oura-cli": "dist/index.js"
   },
   "scripts": {
     "build": "bun build src/index.ts --outdir dist --target bun --banner '#!/usr/bin/env bun'",
@@ -16,7 +26,13 @@
   "exports": {
     ".": "./src/index.ts"
   },
-  "files": ["dist", "docs/schemas", "README.md", "LICENSE", "CHANGELOG.md"],
+  "files": [
+    "dist",
+    "docs/schemas",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
   "license": "MIT",
   "author": "drakulavich",
   "homepage": "https://github.com/drakulavich/oura-cli",
