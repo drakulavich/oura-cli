@@ -9,7 +9,7 @@ describe('healthcheck and manifest commands', () => {
 
       const parsed = JSON.parse(out);
       expect(parsed.ok).toBe(true);
-      expect(parsed.version).toBe('0.3.4');
+      expect(parsed.version).toBe('0.4.0');
       expect(typeof parsed.latencyMs).toBe('number');
     });
   });
@@ -22,7 +22,7 @@ describe('healthcheck and manifest commands', () => {
 
       const m = JSON.parse(out);
       expect(m.id).toBe('oura-cli');
-      expect(m.version).toBe('0.3.4');
+      expect(m.version).toBe('0.4.0');
       expect(m.runtime).toBe('bun');
       expect(m.bin).toBe('oura-cli');
       expect(Array.isArray(m.commands)).toBe(true);

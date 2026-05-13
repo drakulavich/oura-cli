@@ -6,6 +6,28 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-05-13
+
+### Changed
+- **Internal:** migrated CLI parsing from `commander` to `citty`. No CLI
+  surface changes — same commands, flags, outputs, exit codes, and error
+  envelope. Bundle size drops from ~153 KB to ~99 KB.
+- Help text formatting differs slightly (citty's auto-generated help has
+  a slightly different layout than commander's). All commands, flags, and
+  positional args are described the same way.
+
+### Removed
+- `commander` dependency.
+- `getGlobalOpts(command)` helper in `src/commands/helpers.ts` (no longer
+  needed — citty passes args directly to each `run` function).
+
+### Added
+- `citty` dependency (already used by the sibling `kesha-voice-kit` project).
+- `src/commands/common.ts` — shared `commonArgs` spec, `handleError`, and
+  `applyNoColor` helpers spread into every leaf command.
+- `src/commands/healthcheck.ts` and `src/commands/manifest.ts` — extracted
+  from the inline definitions in `src/index.ts` for symmetry.
+
 ## [0.3.4] - 2026-05-13
 
 ### Fixed
@@ -168,6 +190,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Local SQLite cache at `~/.oura-cli/oura.db`.
 - Auth via `oura-cli login`, `OURA_TOKEN`, `OURA_TOKEN_PATH`, or `~/.oura-token`.
 
+[0.4.0]: https://github.com/drakulavich/oura-cli/releases/tag/v0.4.0
 [0.3.4]: https://github.com/drakulavich/oura-cli/releases/tag/v0.3.4
 [0.3.3]: https://github.com/drakulavich/oura-cli/releases/tag/v0.3.3
 [0.3.2]: https://github.com/drakulavich/oura-cli/releases/tag/v0.3.2

@@ -1,4 +1,4 @@
-import { Command } from 'commander';
+import { defineCommand } from 'citty';
 
 export interface ManifestArg {
   name: string;
@@ -171,10 +171,12 @@ export function buildManifest(version: string): Manifest {
   };
 }
 
-export function describeCommand(version: string): Command {
-  return new Command('describe')
-    .description('Emit a machine-readable manifest of commands, args, and outputs.')
-    .action(() => {
+export function describeCommand(version: string) {
+  return defineCommand({
+    meta: { name: 'describe', description: 'Emit a machine-readable manifest of commands, args, and outputs.' },
+    args: {},
+    run() {
       console.log(JSON.stringify(buildManifest(version), null, 2));
-    });
+    },
+  });
 }

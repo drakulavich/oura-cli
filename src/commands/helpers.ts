@@ -1,14 +1,5 @@
-import type { Command } from 'commander';
 import { OuraClient } from '../api/client.js';
 import { todayLocal, resolveDefaultTimezone } from '../lib/time.js';
-
-export function getGlobalOpts(command: Command): Record<string, unknown> {
-  let node: Command | null = command;
-  while (node?.parent) {
-    node = node.parent;
-  }
-  return node?.opts() ?? {};
-}
 
 export function getClient(opts: { token?: string }): OuraClient {
   return new OuraClient(opts.token ? { token: opts.token } : {});

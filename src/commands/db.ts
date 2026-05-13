@@ -1,4 +1,4 @@
-import { Command } from 'commander';
+import { defineCommand } from 'citty';
 import { mkdirSync, unlinkSync } from 'fs';
 import { dirname } from 'path';
 import { openDatabase, ensureSchema, getDbPath } from '../db/database.js';
@@ -7,108 +7,158 @@ import { getDaySummary, getTrends, getStats } from '../db/queries.js';
 import { formatDaySummary, formatWeekTable, formatTrends, formatStats } from '../format.js';
 import { todayDate } from './helpers.js';
 import { resolveFormat } from '../lib/format-resolve.js';
+import { commonArgs, handleError, applyNoColor } from './common.js';
 import { runSync } from './sync.js';
 
-export function dbCommand(): Command {
-  const cmd = new Command('db').description('Query and manage the local SQLite database');
+export const dbCommand = defineCommand({
+  meta: { name: 'db', description: 'Query and manage the local SQLite database' },
+  subCommands: {
+    import: defineCommand({
+      meta: { name: 'import', description: 'Sync new data from Oura API into local database (alias of sync)' },
+      args: { ...commonArgs },
+      async run({ args }) {
+        applyNoColor(args);
+        try {
+          await runSync({ format: args.format, db: args.db, token: args.token, tz: args.tz });
+        } catch (err) {
+          handleError(err, args);
+        }
+      },
+    }),
 
-  cmd.command('import')
-    .description('Sync new data from Oura API into local database (alias of sync)')
-    .action(async (_, command) => {
-      const opts = command.parent!.parent!.opts();
-      await runSync(opts);
-    });
+    today: defineCommand({
+      meta: { name: 'today', description: "Today's summary from local database" },
+      args: { ...commonArgs },
+      run({ args }) {
+        applyNoColor(args);
+        try {
+          const format = resolveFormat({ explicit: args.format, isTty: process.stdout.isTTY === true });
+          const db = openDatabase({ dbPath: args.db });
+          ensureSchema(db);
+          const summary = getDaySummary(db, todayDate(args.tz));
+          console.log(formatDaySummary(summary, format));
+          db.close();
+        } catch (err) {
+          handleError(err, args);
+        }
+      },
+    }),
 
-  cmd.command('today')
-    .description("Today's summary from local database")
-    .action((_, command) => {
-      const opts = command.parent!.parent!.opts();
-      const format = resolveFormat({ explicit: opts.format, isTty: process.stdout.isTTY === true });
-      const db = openDatabase({ dbPath: opts.db });
-      ensureSchema(db);
-      const summary = getDaySummary(db, todayDate());
-      console.log(formatDaySummary(summary, format));
-      db.close();
-    });
+    date: defineCommand({
+      meta: { name: 'date', description: 'Summary for specific date from local database' },
+      args: {
+        ...commonArgs,
+        day: { type: 'positional', required: true, description: 'Target date (YYYY-MM-DD)' },
+      },
+      run({ args }) {
+        applyNoColor(args);
+        try {
+          const format = resolveFormat({ explicit: args.format, isTty: process.stdout.isTTY === true });
+          const db = openDatabase({ dbPath: args.db });
+          ensureSchema(db);
+          const summary = getDaySummary(db, args.day);
+          console.log(formatDaySummary(summary, format));
+          db.close();
+        } catch (err) {
+          handleError(err, args);
+        }
+      },
+    }),
 
-  cmd.command('date <day>')
-    .description('Summary for specific date from local database')
-    .action((day: string, _, command) => {
-      const opts = command.parent!.parent!.opts();
-      const format = resolveFormat({ explicit: opts.format, isTty: process.stdout.isTTY === true });
-      const db = openDatabase({ dbPath: opts.db });
-      ensureSchema(db);
-      const summary = getDaySummary(db, day);
-      console.log(formatDaySummary(summary, format));
-      db.close();
-    });
+    week: defineCommand({
+      meta: { name: 'week', description: 'Last 7 days from local database' },
+      args: { ...commonArgs },
+      run({ args }) {
+        applyNoColor(args);
+        try {
+          const format = resolveFormat({ explicit: args.format, isTty: process.stdout.isTTY === true });
+          const db = openDatabase({ dbPath: args.db });
+          ensureSchema(db);
+          const days: ReturnType<typeof getDaySummary>[] = [];
+          for (let i = 6; i >= 0; i--) {
+            const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+            days.push(getDaySummary(db, d));
+          }
+          console.log(formatWeekTable(days, format));
+          db.close();
+        } catch (err) {
+          handleError(err, args);
+        }
+      },
+    }),
 
-  cmd.command('week')
-    .description('Last 7 days from local database')
-    .action((_, command) => {
-      const opts = command.parent!.parent!.opts();
-      const format = resolveFormat({ explicit: opts.format, isTty: process.stdout.isTTY === true });
-      const db = openDatabase({ dbPath: opts.db });
-      ensureSchema(db);
-      const days: ReturnType<typeof getDaySummary>[] = [];
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
-        days.push(getDaySummary(db, d));
-      }
-      console.log(formatWeekTable(days, format));
-      db.close();
-    });
+    trends: defineCommand({
+      meta: { name: 'trends', description: 'Score and metric trends over N days (default: 30)' },
+      args: {
+        ...commonArgs,
+        days: { type: 'positional', required: false, description: 'Window size in days (default: 30)' },
+      },
+      run({ args }) {
+        applyNoColor(args);
+        try {
+          const format = resolveFormat({ explicit: args.format, isTty: process.stdout.isTTY === true });
+          const n = args.days ? parseInt(args.days as string, 10) : 30;
+          const db = openDatabase({ dbPath: args.db });
+          ensureSchema(db);
+          const trends = getTrends(db, n);
+          console.log(formatTrends(trends, n, format));
+          db.close();
+        } catch (err) {
+          handleError(err, args);
+        }
+      },
+    }),
 
-  cmd.command('trends [days]')
-    .description('Score and metric trends over N days (default: 30)')
-    .action((days: string | undefined, _, command) => {
-      const opts = command.parent!.parent!.opts();
-      const format = resolveFormat({ explicit: opts.format, isTty: process.stdout.isTTY === true });
-      const n = days ? parseInt(days, 10) : 30;
-      const db = openDatabase({ dbPath: opts.db });
-      ensureSchema(db);
-      const trends = getTrends(db, n);
-      console.log(formatTrends(trends, n, format));
-      db.close();
-    });
+    stats: defineCommand({
+      meta: { name: 'stats', description: 'Row counts, date range, and record highs from local database' },
+      args: { ...commonArgs },
+      run({ args }) {
+        applyNoColor(args);
+        try {
+          const format = resolveFormat({ explicit: args.format, isTty: process.stdout.isTTY === true });
+          const db = openDatabase({ dbPath: args.db });
+          ensureSchema(db);
+          const stats = getStats(db);
+          console.log(formatStats(stats, format));
+          db.close();
+        } catch (err) {
+          handleError(err, args);
+        }
+      },
+    }),
 
-  cmd.command('stats')
-    .description('Row counts, date range, and record highs from local database')
-    .action((_, command) => {
-      const opts = command.parent!.parent!.opts();
-      const format = resolveFormat({ explicit: opts.format, isTty: process.stdout.isTTY === true });
-      const db = openDatabase({ dbPath: opts.db });
-      ensureSchema(db);
-      const stats = getStats(db);
-      console.log(formatStats(stats, format));
-      db.close();
-    });
-
-  cmd.command('reset')
-    .description('Destroy and rebuild database from exported CSV files')
-    .option('--force', 'Confirm destructive reset')
-    .action((resetOpts, command) => {
-      if (!resetOpts.force) {
-        console.log(JSON.stringify({ error: 'Use --force to confirm destructive reset.' }));
-        process.exit(1);
-      }
-      const opts = command.parent!.parent!.opts();
-      const format = resolveFormat({ explicit: opts.format, isTty: process.stdout.isTTY === true });
-      const dbPath = getDbPath({ dbPath: opts.db });
-      try { unlinkSync(dbPath); } catch { /* file may not exist */ }
-      try { unlinkSync(dbPath + '-wal'); } catch { /* ignore */ }
-      try { unlinkSync(dbPath + '-shm'); } catch { /* ignore */ }
-      const log = format === 'table' ? console.log : undefined;
-      log?.('Database deleted.');
-      mkdirSync(dirname(dbPath), { recursive: true });
-      const db = openDatabase({ dbPath: opts.db });
-      ensureSchema(db);
-      importFromCSV(db, log ?? (() => {}));
-      if (format === 'json') {
-        console.log(JSON.stringify({ status: 'reset complete' }));
-      }
-      db.close();
-    });
-
-  return cmd;
-}
+    reset: defineCommand({
+      meta: { name: 'reset', description: 'Destroy and rebuild database from exported CSV files' },
+      args: {
+        ...commonArgs,
+        force: { type: 'boolean', default: false, description: 'Confirm destructive reset' },
+      },
+      run({ args }) {
+        applyNoColor(args);
+        try {
+          if (!args.force) {
+            console.log(JSON.stringify({ error: 'Use --force to confirm destructive reset.' }));
+            process.exit(1);
+          }
+          const format = resolveFormat({ explicit: args.format, isTty: process.stdout.isTTY === true });
+          const dbPath = getDbPath({ dbPath: args.db });
+          try { unlinkSync(dbPath); } catch { /* file may not exist */ }
+          try { unlinkSync(dbPath + '-wal'); } catch { /* ignore */ }
+          try { unlinkSync(dbPath + '-shm'); } catch { /* ignore */ }
+          const log = format === 'table' ? console.log : undefined;
+          log?.('Database deleted.');
+          mkdirSync(dirname(dbPath), { recursive: true });
+          const db = openDatabase({ dbPath: args.db });
+          ensureSchema(db);
+          importFromCSV(db, log ?? (() => {}));
+          if (format === 'json') {
+            console.log(JSON.stringify({ status: 'reset complete' }));
+          }
+          db.close();
+        } catch (err) {
+          handleError(err, args);
+        }
+      },
+    }),
+  },
+});
