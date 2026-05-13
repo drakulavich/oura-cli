@@ -6,6 +6,27 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-05-13
+
+### Fixed
+- `--token <pat>` global flag now uses the value as an inline token instead of
+  trying to read it as a file path (#1, item 1).
+- `--no-color` is now wired through to chalk and honors the `NO_COLOR` env
+  variable; it was previously advertised in the `describe` manifest but never
+  took effect (#1, item 2).
+- `todayDate()` and `dateRange()` now use the configured/system timezone via
+  `todayLocal(resolveDefaultTimezone())` instead of UTC-only `.toISOString()`,
+  so users in non-UTC timezones get the correct "today" near midnight (#1,
+  item 3).
+- Single-day `start == end` API calls verified safe: `oura-cli sleep today`
+  (which calls `client.fetch(endpoint, today, today)`) returns data correctly.
+  No change needed to `api-command.ts` (#1, item 4).
+
+### Note
+- Several smells covered in the audit issue (#1) remain open for v0.2+:
+  closed `ErrorCode` union, manifest documentation, commander chain helper,
+  schema-validated test fixtures.
+
 ## [0.1.2] - 2026-05-13
 
 ### Fixed
@@ -42,6 +63,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Local SQLite cache at `~/.oura-cli/oura.db`.
 - Auth via `oura-cli login`, `OURA_TOKEN`, `OURA_TOKEN_PATH`, or `~/.oura-token`.
 
+[0.1.3]: https://github.com/drakulavich/oura-cli/releases/tag/v0.1.3
 [0.1.2]: https://github.com/drakulavich/oura-cli/releases/tag/v0.1.2
 [0.1.1]: https://github.com/drakulavich/oura-cli/releases/tag/v0.1.1
 [0.1.0]: https://github.com/drakulavich/oura-cli/releases/tag/v0.1.0

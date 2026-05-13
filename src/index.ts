@@ -1,4 +1,5 @@
 import { Command } from 'commander';
+import chalk from 'chalk';
 import { createApiCommand } from './commands/api-command.js';
 import { dbCommand } from './commands/db.js';
 import { syncCommand } from './commands/sync.js';
@@ -9,7 +10,12 @@ import { emitError, exitCodeFor } from './lib/errors.js';
 import { resolveFormat } from './lib/format-resolve.js';
 import { openDatabase, ensureSchema } from './db/database.js';
 
-const VERSION = '0.1.2';
+const VERSION = '0.1.3';
+
+// Apply --no-color / NO_COLOR early, before any chalk usage in this process.
+if (process.argv.includes('--no-color') || process.env.NO_COLOR) {
+  chalk.level = 0;
+}
 
 const program = new Command();
 
@@ -20,7 +26,8 @@ program
   .option('--format <format>', 'Output format: table | json (default auto-detect by TTY)')
   .option('--token <pat>', 'Inline access token (prefer env vars or `oura-cli login`)')
   .option('--db <path>', 'Path to SQLite database file (env: OURA_DB_PATH)')
-  .option('--tz <timezone>', 'Display timezone (env: OURA_TZ; default auto-detect)');
+  .option('--tz <timezone>', 'Display timezone (env: OURA_TZ; default auto-detect)')
+  .option('--no-color', 'Disable ANSI colors in human output (also honors NO_COLOR env)');
 
 program.addCommand(loginCommand());
 program.addCommand(describeCommand(VERSION));

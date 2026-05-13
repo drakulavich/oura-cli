@@ -1,15 +1,19 @@
 import { OuraClient } from '../api/client.js';
+import { todayLocal, resolveDefaultTimezone } from '../lib/time.js';
 
 export function getClient(opts: { token?: string }): OuraClient {
-  return new OuraClient(opts.token ? { tokenPath: opts.token } : {});
+  return new OuraClient(opts.token ? { token: opts.token } : {});
 }
 
-export function todayDate(): string {
-  return new Date().toISOString().slice(0, 10);
+export function todayDate(timezone?: string): string {
+  return todayLocal(timezone ?? resolveDefaultTimezone());
 }
 
-export function dateRange(days: number): { start: string; end: string } {
-  const end = todayDate();
-  const start = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+export function dateRange(days: number, timezone?: string): { start: string; end: string } {
+  const tz = timezone ?? resolveDefaultTimezone();
+  const end = todayLocal(tz);
+  // step back `days` days from today in the same TZ
+  const startMs = new Date(`${end}T00:00:00Z`).getTime() - (days - 1) * 86400000;
+  const start = new Date(startMs).toISOString().slice(0, 10);
   return { start, end };
 }
