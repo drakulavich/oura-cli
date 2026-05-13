@@ -9,34 +9,37 @@ Set FontSize 22
 Set Width 1500
 Set Height 940
 Set Theme "Catppuccin Mocha"
-Set TypingSpeed 100ms
+Set TypingSpeed 60ms
 Set Padding 24
 
-Sleep 1500ms
-
+# 1. orient the viewer
 Type "oura-cli --version"
 Sleep 400ms
 Enter
-Sleep 4000ms
+Sleep 1200ms
 
+# 2. today's summary (colour)
 Type "oura-cli db today"
 Sleep 400ms
 Enter
-Sleep 4000ms
+Sleep 2500ms
 
+# 3. weekly cache view (v0.3.4 column-alignment fix is visible here)
 Type "oura-cli db week"
 Sleep 400ms
 Enter
-Sleep 4000ms
+Sleep 3500ms
 
+# 4. hero: full narrative weekly report
 Type "oura-cli report"
 Sleep 400ms
 Enter
-Sleep 4000ms
+Sleep 6000ms
 
+# 5. agent-friendly manifest
 Type "oura-cli describe | jq '.commands[].name'"
 Sleep 400ms
 Enter
-Sleep 4000ms
+Sleep 3000ms
 
-Sleep 1500ms
+Sleep 800ms
