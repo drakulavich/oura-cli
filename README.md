@@ -17,7 +17,7 @@
 - **Offline-first.** Everything caches into `~/.oura-cli/oura.db` after one `oura-cli sync`. Reports keep working when your internet doesn't.
 - **Real terminal reports.** `oura-cli report` writes a weekly or monthly digest with averages, trend deltas, and "you slept poorly Tuesday" callouts. No dashboards, no logging in.
 - **Pipe-friendly.** Output auto-switches to stable JSON when stdout isn't a terminal. Analyse with `jq`, plot with `gnuplot`, or feed it into your own scripts.
-- **Single 142 kB binary, MIT, no telemetry.** Built on Bun; zero native dependencies.
+- **Single 100 kB binary, MIT, no telemetry.** Built on Bun; zero native dependencies.
 
 ## Install
 
@@ -136,7 +136,7 @@ This tool reads your personal health data — handle the token with care.
 | Sleep model      | Oura V2 `sleep`               | `sleep_model`         |
 | Cardiovascular age | Oura V2 `cardiovascular_age` | `cardiovascular_age`  |
 
-Runtime: [Bun](https://bun.sh). Storage: built-in `bun:sqlite`. CLI parsing: [Commander](https://github.com/tj/commander.js). Output styling: [chalk](https://github.com/chalk/chalk). One 142 kB `dist/index.js`, no native deps.
+Runtime: [Bun](https://bun.sh). Storage: built-in `bun:sqlite`. CLI parsing: [citty](https://github.com/unjs/citty). Output styling: [chalk](https://github.com/chalk/chalk). One 100 kB `dist/index.js`, no native deps.
 
 ## Automation (LLM agents, scripts, MCP)
 
