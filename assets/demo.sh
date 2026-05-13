@@ -23,20 +23,12 @@ run() {
 
 sleep "$INTRO_PAUSE"
 
-# 1. orient
-run "oura-cli --version" 2.0
-
-# 2. today
-run "oura-cli db today" 4.0
-
-# 3. weekly cache view
-run "oura-cli db week" 5.5
-
-# 4. hero: narrative report (longest output, longest hold)
-run "oura-cli report" 9.0
-
-# 5. agent-friendly manifest
-run "oura-cli describe | jq '.commands[].name'" 5.0
+# Each command's output is held for 4 seconds before the next one starts.
+run "oura-cli --version"                       4
+run "oura-cli db today"                        4
+run "oura-cli db week"                         4
+run "oura-cli report"                          4
+run "oura-cli describe | jq '.commands[].name'" 4
 
 # closing breath
 sleep 2.5
