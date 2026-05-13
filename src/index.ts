@@ -11,7 +11,7 @@ import { createApiCommand } from './commands/api-command.js';
 import { commonArgs } from './commands/common.js';
 import { normalizeArgv } from './lib/argv-normalize.js';
 
-const VERSION = '0.4.1';
+const VERSION = '0.4.2';
 
 // Apply --no-color / NO_COLOR early, before any chalk usage in this process.
 if (process.argv.includes('--no-color') || process.env.NO_COLOR) {

@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-05-13
+
+### Added
+- `OpenClaw compatible` badge in the README and a matching `openclaw` keyword
+  in `package.json`. Surfaces the existing `manifest`/`healthcheck` shapes that
+  already integrate with the OpenClaw tool-registry.
+
 ## [0.4.1] - 2026-05-13
 
 ### Fixed
