@@ -13,30 +13,32 @@ afterEach(() => {
 });
 
 describe('Database', () => {
-  it('creates database with schema', () => {
-    const db = openDatabase({ dbPath: TEST_DB });
-    ensureSchema(db);
+  describe('schema initialisation', () => {
+    it('creates all expected tables so queries can run without setup errors', () => {
+      const db = openDatabase({ dbPath: TEST_DB });
+      ensureSchema(db);
 
-    const tables = db.query(
-      "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-    ).all() as { name: string }[];
+      const tables = db.query(
+        "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+      ).all() as { name: string }[];
+      const tableNames = tables.map(t => t.name);
 
-    const tableNames = tables.map(t => t.name);
-    expect(tableNames).toContain('daily_sleep');
-    expect(tableNames).toContain('heartrate');
-    expect(tableNames).toContain('workouts');
-    expect(tableNames).toContain('_schema_version');
+      expect(tableNames).toEqual(expect.arrayContaining([
+        'daily_sleep', 'heartrate', 'workouts', '_schema_version',
+      ]));
 
-    db.close();
-  });
+      db.close();
+    });
 
-  it('sets schema version', () => {
-    const db = openDatabase({ dbPath: TEST_DB });
-    ensureSchema(db);
+    it('records the current schema version so incremental migrations can be tracked', () => {
+      const db = openDatabase({ dbPath: TEST_DB });
+      ensureSchema(db);
 
-    const row = db.query('SELECT MAX(version) as version FROM _schema_version').get() as { version: number };
-    expect(row.version).toBe(2);
+      const row = db.query('SELECT MAX(version) as version FROM _schema_version').get() as { version: number };
 
-    db.close();
+      expect(row.version).toBe(2);
+
+      db.close();
+    });
   });
 });

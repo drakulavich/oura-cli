@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import { ensureSchema } from './database.js';
-import { getDaySummary, getTrends, getStats } from './queries.js';
+import { getDaySummary, getStats } from './queries.js';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { unlinkSync } from 'fs';
@@ -26,22 +26,31 @@ afterAll(() => {
   try { unlinkSync(TEST_DB + '-shm'); } catch {}
 });
 
-describe('Queries', () => {
-  it('getDaySummary returns scores', () => {
-    const summary = getDaySummary(db, '2026-03-01');
-    expect(summary.sleep_score).toBe(82);
-    expect(summary.activity_score).toBe(90);
-    expect(summary.steps).toBe(8000);
+describe('getDaySummary', () => {
+  describe('when data exists for the requested date', () => {
+    it('returns the sleep score, activity score, and step count for that day', () => {
+      const summary = getDaySummary(db, '2026-03-01');
+
+      expect(summary.sleep_score).toBe(82);
+      expect(summary.activity_score).toBe(90);
+      expect(summary.steps).toBe(8000);
+    });
   });
 
-  it('getDaySummary returns nulls for missing day', () => {
-    const summary = getDaySummary(db, '2099-01-01');
-    expect(summary.sleep_score).toBeNull();
-  });
+  describe('when no data exists for the requested date', () => {
+    it('returns null scores so callers can distinguish missing data from a zero score', () => {
+      const summary = getDaySummary(db, '2099-01-01');
 
-  it('getStats returns table counts', () => {
+      expect(summary.sleep_score).toBeNull();
+    });
+  });
+});
+
+describe('getStats', () => {
+  it('reports the row count for each table so users can verify their local cache', () => {
     const stats = getStats(db);
     const sleepTable = stats.tables.find(t => t.table === 'daily_sleep');
+
     expect(sleepTable?.rows).toBe(2);
   });
 });

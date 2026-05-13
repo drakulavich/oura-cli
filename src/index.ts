@@ -10,7 +10,7 @@ import { emitError, exitCodeFor } from './lib/errors.js';
 import { resolveFormat } from './lib/format-resolve.js';
 import { openDatabase, ensureSchema } from './db/database.js';
 
-const VERSION = '0.3.1';
+const VERSION = '0.3.2';
 
 // Apply --no-color / NO_COLOR early, before any chalk usage in this process.
 if (process.argv.includes('--no-color') || process.env.NO_COLOR) {

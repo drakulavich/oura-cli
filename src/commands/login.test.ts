@@ -11,19 +11,26 @@ afterEach(() => {
 });
 
 describe('writeToken', () => {
-  it('writes the token to disk', () => {
-    writeToken(tmpPath, 'abc-123');
-    expect(readFileSync(tmpPath, 'utf-8')).toBe('abc-123');
+  describe('when given a valid token', () => {
+    it('persists the token to the configured file path so future commands can read it', () => {
+      writeToken(tmpPath, 'abc-123');
+
+      expect(readFileSync(tmpPath, 'utf-8')).toBe('abc-123');
+    });
+
+    it('saves the token with owner-only permissions on POSIX so other users on the same host cannot read it', () => {
+      if (process.platform === 'win32') return;
+
+      writeToken(tmpPath, 'abc-123');
+
+      const mode = statSync(tmpPath).mode & 0o777;
+      expect(mode).toBe(0o600);
+    });
   });
 
-  it('rejects empty / whitespace tokens', () => {
-    expect(() => writeToken(tmpPath, '   ')).toThrow(/empty/i);
-  });
-
-  it('sets owner-only permissions on POSIX', () => {
-    if (process.platform === 'win32') return;
-    writeToken(tmpPath, 'abc-123');
-    const mode = statSync(tmpPath).mode & 0o777;
-    expect(mode).toBe(0o600);
+  describe('when given an empty or whitespace-only token', () => {
+    it('throws an error explaining the token cannot be empty', () => {
+      expect(() => writeToken(tmpPath, '   ')).toThrow(/empty/i);
+    });
   });
 });

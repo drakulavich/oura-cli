@@ -6,6 +6,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-05-13
+
+### Changed
+- All tests rewritten in a behavior-first style (Kent C. Dodds /
+  Luca Rossi influence). No new behavioral coverage; the rewrite
+  improves readability, drops internal-state peeks, and reorganises
+  scenarios into nested describes. First release published via the
+  tag-driven `release.yml` workflow.
+
 ## [0.3.1] - 2026-05-13
 
 ### Added
@@ -138,6 +147,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Local SQLite cache at `~/.oura-cli/oura.db`.
 - Auth via `oura-cli login`, `OURA_TOKEN`, `OURA_TOKEN_PATH`, or `~/.oura-token`.
 
+[0.3.2]: https://github.com/drakulavich/oura-cli/releases/tag/v0.3.2
 [0.3.1]: https://github.com/drakulavich/oura-cli/releases/tag/v0.3.1
 [0.3.0]: https://github.com/drakulavich/oura-cli/releases/tag/v0.3.0
 [0.2.1]: https://github.com/drakulavich/oura-cli/releases/tag/v0.2.1

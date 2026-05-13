@@ -1,6 +1,6 @@
 {
   "name": "@drakulavich/oura-cli",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Oura Ring CLI — query and analyze Oura Ring health data from the command line, designed for humans and AI agents.",
   "keywords": [
     "oura",

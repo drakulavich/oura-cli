@@ -12,7 +12,7 @@ describe('JSON schemas in docs/schemas/', () => {
 
   const files = readdirSync(SCHEMAS_DIR).filter(f => f.endsWith('.json'));
 
-  it('contains the expected schemas', () => {
+  it('contains the expected set of schema files', () => {
     expect(files.sort()).toEqual([
       'activity.json', 'describe.json', 'hr.json', 'readiness.json',
       'sleep.json', 'spo2.json', 'stress.json', 'workout.json',
@@ -20,9 +20,9 @@ describe('JSON schemas in docs/schemas/', () => {
   });
 
   for (const file of files) {
-    it(`${file} is valid JSON Schema 2020-12 and compiles`, () => {
+    it(`${file} parses as valid JSON Schema 2020-12 so agents can rely on its shape`, () => {
       const raw = readFileSync(join(SCHEMAS_DIR, file), 'utf-8');
-      const schema = JSON.parse(raw); // throws on malformed JSON
+      const schema = JSON.parse(raw);
       const validate = ajv.compile(schema);
       expect(typeof validate).toBe('function');
     });
@@ -32,7 +32,7 @@ describe('JSON schemas in docs/schemas/', () => {
     const { buildManifest } = await import('../commands/describe.js');
     const manifest = buildManifest('0.3.0');
     const schema = JSON.parse(readFileSync(join(SCHEMAS_DIR, 'describe.json'), 'utf-8'));
-    // Use a fresh Ajv instance to avoid "schema already exists" error from the loop above
+    // Fresh Ajv instance to avoid "schema already exists" collision with the loop above
     const ajv2 = new Ajv({ strict: false });
     addFormats(ajv2);
     const validate = ajv2.compile(schema);

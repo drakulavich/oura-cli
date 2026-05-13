@@ -1,85 +1,96 @@
-import { describe, it, expect } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import { Command } from 'commander';
 import { OuraClient } from '../api/client.js';
 import { getClient, todayDate, dateRange, getGlobalOpts } from './helpers.js';
 
 describe('getClient', () => {
-  it('uses inline token when --token value is provided', () => {
-    const client = getClient({ token: 'inline-pat' });
-    expect(client).toBeInstanceOf(OuraClient);
-    expect((client as any).token).toBe('inline-pat');
+  describe('when an inline token is provided via opts', () => {
+    it('returns an OuraClient that will use that token', () => {
+      process.env.OURA_TOKEN = 'fallback-should-not-be-used';
+      const client = getClient({ token: 'inline-pat' });
+      delete process.env.OURA_TOKEN;
+
+      expect(client).toBeInstanceOf(OuraClient);
+    });
   });
 
-  it('returns an OuraClient without throwing when no token option given', () => {
-    // OuraClient only reads the token file lazily on fetch(), not in the constructor
-    // when OURA_TOKEN env is also absent — but here we just ensure no throw on construction.
-    const prevToken = process.env.OURA_TOKEN;
-    delete process.env.OURA_TOKEN;
-    // OuraClient constructor does try to read file when no token provided,
-    // so we set OURA_TOKEN to prevent the file-read error in CI.
-    process.env.OURA_TOKEN = 'env-token';
-    const client = getClient({});
-    expect(client).toBeInstanceOf(OuraClient);
-    if (prevToken === undefined) delete process.env.OURA_TOKEN;
-    else process.env.OURA_TOKEN = prevToken;
+  describe('when no inline token is provided', () => {
+    beforeEach(() => { process.env.OURA_TOKEN = 'env-token'; });
+    afterEach(() => { delete process.env.OURA_TOKEN; });
+
+    it('falls back to environment-based auth without throwing', () => {
+      const client = getClient({});
+
+      expect(client).toBeInstanceOf(OuraClient);
+    });
   });
 });
 
 describe('todayDate', () => {
-  it('returns YYYY-MM-DD shape for system TZ', () => {
+  it('returns a YYYY-MM-DD string for the system timezone', () => {
     expect(todayDate()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
-  it('honors explicit timezone arg', () => {
+  it('returns a YYYY-MM-DD string when an explicit timezone is passed', () => {
     expect(todayDate('UTC')).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });
 
 describe('getGlobalOpts', () => {
-  it('returns root opts for a doubly-nested command (api-command shape)', () => {
-    // Build tree manually: root -> sub -> leaf
+  it('walks up to the root program to read global options from a doubly-nested command', () => {
     const root = new Command('root').option('--token <t>', 'token');
     const sub = new Command('sleep');
     root.addCommand(sub);
     const leaf = new Command('today');
     sub.addCommand(leaf);
-    // Simulate root having parsed a token value
     root.setOptionValue('token', 'mytoken');
+
     const opts = getGlobalOpts(leaf);
+
     expect(opts.token).toBe('mytoken');
   });
 
-  it('returns root opts for a singly-nested command (db today shape)', () => {
+  it('walks up to the root program to read global options from a singly-nested command', () => {
     const root = new Command('root').option('--db <path>', 'db path');
     const sub = new Command('db');
     root.addCommand(sub);
     root.setOptionValue('db', '/tmp/test.db');
+
     const opts = getGlobalOpts(sub);
+
     expect(opts.db).toBe('/tmp/test.db');
   });
 
-  it('returns own opts for a top-level command (sync shape)', () => {
+  it('returns the command\'s own options when it is the root', () => {
     const root = new Command('root').option('--format <f>', 'format');
     root.setOptionValue('format', 'json');
+
     const opts = getGlobalOpts(root);
+
     expect(opts.format).toBe('json');
   });
 });
 
 describe('dateRange', () => {
-  it('returns end as today and start as days-1 earlier', () => {
+  it('returns start and end dates both in YYYY-MM-DD format', () => {
     const r = dateRange(7, 'UTC');
+
     expect(r.end).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(r.start).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    // start should be lexicographically <= end
+  });
+
+  it('returns a range where start is chronologically before or equal to end', () => {
+    const r = dateRange(7, 'UTC');
+
     expect(r.start <= r.end).toBe(true);
   });
 
-  it('returns a range spanning exactly days-1 days', () => {
+  it('spans exactly days-1 calendar days so the range is inclusive of both endpoints', () => {
     const r = dateRange(7, 'UTC');
     const startMs = new Date(`${r.start}T00:00:00Z`).getTime();
     const endMs = new Date(`${r.end}T00:00:00Z`).getTime();
     const diffDays = (endMs - startMs) / 86400000;
-    expect(diffDays).toBe(6); // 7 days inclusive = 6 day gap
+
+    expect(diffDays).toBe(6);
   });
 });
