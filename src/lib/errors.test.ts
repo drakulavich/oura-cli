@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { CliError, exitCodeFor, formatError, type ErrorEnvelope } from './errors.js';
+import { CliError, exitCodeFor, formatError, redactSecrets, type ErrorEnvelope } from './errors.js';
 
 describe('CliError', () => {
   it('carries code, message, and hint', () => {
@@ -18,12 +18,34 @@ describe('exitCodeFor', () => {
     expect(exitCodeFor(new CliError('DB_ERROR', 'fail'))).toBe(4);
   });
 
-  it('returns 1 for unknown CliError codes', () => {
-    expect(exitCodeFor(new CliError('WEIRD', 'x'))).toBe(1);
+  it('maps UNKNOWN code to exit 1', () => {
+    expect(exitCodeFor(new CliError('UNKNOWN', 'x'))).toBe(1);
   });
 
   it('returns 1 for non-CliError throwables', () => {
     expect(exitCodeFor(new Error('plain'))).toBe(1);
+  });
+});
+
+describe('redactSecrets', () => {
+  it('redacts Bearer tokens of 8+ alnum chars', () => {
+    const result = redactSecrets('Authorization: Bearer abc123def456ghi789jkl012mno345pqr');
+    expect(result).toBe('Authorization: Bearer [REDACTED]');
+  });
+
+  it('does not redact short Bearer values (< 8 chars)', () => {
+    const result = redactSecrets('Bearer short');
+    expect(result).toContain('short');
+  });
+
+  it('redacts "token" JSON field values of 8+ chars', () => {
+    const result = redactSecrets('{"token":"supersecrettoken123"}');
+    expect(result).toBe('{"token":"[REDACTED]"}');
+  });
+
+  it('leaves strings without secrets unchanged', () => {
+    const result = redactSecrets('{"error":"not found"}');
+    expect(result).toBe('{"error":"not found"}');
   });
 });
 

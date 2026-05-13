@@ -6,6 +6,29 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-05-13
+
+### Changed
+- **BREAKING (typescript only):** `ErrorCode` is now a closed union of the
+  documented codes (`BAD_ARGS`, `TOKEN_MISSING`, `TOKEN_INVALID`, `API_ERROR`,
+  `DB_ERROR`, `UNKNOWN`). External code constructing `CliError` with a custom
+  string code will fail to compile. Runtime behaviour for already-built code
+  is unchanged. (#1, item 5)
+- `exitCodeFor` is now an exhaustive `switch` over the closed union; future
+  additions to `ErrorCode` require a corresponding branch.
+
+### Added
+- `describe` manifest now includes `compatManifestCommand: "oura-cli manifest"`
+  so agents can discover the OpenClaw-compatible second manifest. (#1, item 6)
+- README documents the two-manifest split under "Manifest formats".
+- `getGlobalOpts(command)` helper in `src/commands/helpers.ts` walks the
+  commander parent chain to the root program; api-command.ts and others now
+  use it instead of `command.parent!.parent!.opts()`. (#1, item 7)
+
+### Security
+- API error messages now redact `Bearer <token>` and `"token":"<value>"`
+  patterns and truncate bodies past 200 chars before printing. (#1, item 18)
+
 ## [0.1.3] - 2026-05-13
 
 ### Fixed
@@ -63,6 +86,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Local SQLite cache at `~/.oura-cli/oura.db`.
 - Auth via `oura-cli login`, `OURA_TOKEN`, `OURA_TOKEN_PATH`, or `~/.oura-token`.
 
+[0.2.0]: https://github.com/drakulavich/oura-cli/releases/tag/v0.2.0
 [0.1.3]: https://github.com/drakulavich/oura-cli/releases/tag/v0.1.3
 [0.1.2]: https://github.com/drakulavich/oura-cli/releases/tag/v0.1.2
 [0.1.1]: https://github.com/drakulavich/oura-cli/releases/tag/v0.1.1

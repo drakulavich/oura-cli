@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'bun:test';
+import { Command } from 'commander';
 import { OuraClient } from '../api/client.js';
-import { getClient, todayDate, dateRange } from './helpers.js';
+import { getClient, todayDate, dateRange, getGlobalOpts } from './helpers.js';
 
 describe('getClient', () => {
   it('uses inline token when --token value is provided', () => {
@@ -31,6 +32,37 @@ describe('todayDate', () => {
 
   it('honors explicit timezone arg', () => {
     expect(todayDate('UTC')).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
+describe('getGlobalOpts', () => {
+  it('returns root opts for a doubly-nested command (api-command shape)', () => {
+    // Build tree manually: root -> sub -> leaf
+    const root = new Command('root').option('--token <t>', 'token');
+    const sub = new Command('sleep');
+    root.addCommand(sub);
+    const leaf = new Command('today');
+    sub.addCommand(leaf);
+    // Simulate root having parsed a token value
+    root.setOptionValue('token', 'mytoken');
+    const opts = getGlobalOpts(leaf);
+    expect(opts.token).toBe('mytoken');
+  });
+
+  it('returns root opts for a singly-nested command (db today shape)', () => {
+    const root = new Command('root').option('--db <path>', 'db path');
+    const sub = new Command('db');
+    root.addCommand(sub);
+    root.setOptionValue('db', '/tmp/test.db');
+    const opts = getGlobalOpts(sub);
+    expect(opts.db).toBe('/tmp/test.db');
+  });
+
+  it('returns own opts for a top-level command (sync shape)', () => {
+    const root = new Command('root').option('--format <f>', 'format');
+    root.setOptionValue('format', 'json');
+    const opts = getGlobalOpts(root);
+    expect(opts.format).toBe('json');
   });
 });
 

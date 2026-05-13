@@ -90,6 +90,22 @@ oura-cli healthcheck           # JSON: {ok, version, latencyMs}
 | 3    | API or network error |
 | 4    | database or local storage error |
 
+## Manifest formats
+
+Two manifest commands, two audiences:
+
+- **`oura-cli describe`** — neutral, agent-friendly. Lists every command, its
+  args, output schema refs, and exit-code semantics. Use this when integrating
+  with generic LLM harnesses, MCP wrappers, or your own custom scripts.
+- **`oura-cli manifest`** — [OpenClaw](https://github.com/openclaw/openclaw)
+  `tool-registry` shape. Strictly smaller, optimised for OpenClaw's skill
+  discovery and health-aggregation flow. Use this only if you're plugging
+  oura-cli into an OpenClaw gateway.
+
+Both return JSON. `describe` references `manifest` via the
+`compatManifestCommand` field so an agent can discover the second format
+without prior knowledge.
+
 ## What's Inside
 
 | Endpoint   | Source                              | Cached table          |

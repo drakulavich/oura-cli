@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { homedir } from 'os';
-import { CliError } from '../lib/errors.js';
+import { CliError, redactSecrets } from '../lib/errors.js';
 import type { OuraEndpoint } from './types.js';
 
 const BASE_URL = 'https://api.ouraring.com/v2/usercollection';
@@ -44,7 +44,9 @@ export class OuraClient {
     });
 
     if (!response.ok) {
-      const body = await response.text();
+      const rawBody = await response.text();
+      const redacted = redactSecrets(rawBody);
+      const body = redacted.length > 200 ? redacted.slice(0, 200) + '… (truncated)' : redacted;
       if (response.status === 401 || response.status === 403) {
         throw new CliError('TOKEN_INVALID', `Oura API ${response.status}: ${body}`);
       }

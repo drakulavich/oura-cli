@@ -7,6 +7,7 @@
   "properties": {
     "name":    { "const": "oura-cli" },
     "version": { "type": "string" },
+    "compatManifestCommand": { "type": "string" },
     "auth": {
       "type": "object",
       "required": ["envVars", "tokenFile", "loginCommand"],

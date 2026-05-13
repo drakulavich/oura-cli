@@ -27,6 +27,10 @@ describe('buildManifest', () => {
     }
   });
 
+  it('includes compatManifestCommand pointing to oura-cli manifest', () => {
+    expect(m.compatManifestCommand).toBe('oura-cli manifest');
+  });
+
   it('uses stable output schema refs for data commands', () => {
     const sleep = m.commands.find(c => c.name === 'sleep')!;
     expect(sleep.outputSchema).toBe('docs/schemas/sleep.json');

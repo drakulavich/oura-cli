@@ -26,6 +26,7 @@ export interface ManifestCommand {
 export interface Manifest {
   name: string;
   version: string;
+  compatManifestCommand?: string;
   auth: {
     envVars: string[];
     tokenFile: string;
@@ -41,6 +42,7 @@ export function buildManifest(version: string): Manifest {
   return {
     name: 'oura-cli',
     version,
+    compatManifestCommand: 'oura-cli manifest',
     auth: {
       envVars: ['OURA_TOKEN', 'OURA_TOKEN_PATH'],
       tokenFile: '~/.oura-token',

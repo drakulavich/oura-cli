@@ -6,7 +6,7 @@ export type ErrorCode =
   | 'TOKEN_INVALID'
   | 'API_ERROR'
   | 'DB_ERROR'
-  | string;
+  | 'UNKNOWN';
 
 export class CliError extends Error {
   constructor(public code: ErrorCode, message: string, public hint?: string) {
@@ -20,17 +20,22 @@ export interface ErrorEnvelope {
   text: string;
 }
 
-const EXIT_CODE_BY_CODE: Record<string, number> = {
-  BAD_ARGS: 1,
-  TOKEN_MISSING: 2,
-  TOKEN_INVALID: 2,
-  API_ERROR: 3,
-  DB_ERROR: 4,
-};
-
 export function exitCodeFor(err: unknown): number {
-  if (err instanceof CliError) return EXIT_CODE_BY_CODE[err.code] ?? 1;
-  return 1;
+  if (!(err instanceof CliError)) return 1;
+  switch (err.code) {
+    case 'BAD_ARGS':       return 1;
+    case 'TOKEN_MISSING':
+    case 'TOKEN_INVALID':  return 2;
+    case 'API_ERROR':      return 3;
+    case 'DB_ERROR':       return 4;
+    case 'UNKNOWN':        return 1;
+  }
+}
+
+export function redactSecrets(s: string): string {
+  return s
+    .replace(/Bearer\s+[A-Za-z0-9._\-]{8,}/g, 'Bearer [REDACTED]')
+    .replace(/"token"\s*:\s*"[^"]{8,}"/g, '"token":"[REDACTED]"');
 }
 
 export function formatError(err: unknown, format: 'json' | 'table'): ErrorEnvelope {
