@@ -28,12 +28,16 @@ jobs:
           mkdir -p test-results
           bun test --reporter=junit --reporter-outfile=test-results/junit.xml
 
-      - name: Convert and upload to Flakiness.io
+      - name: Convert JUnit to Flakiness Report
         if: always()
         run: |
           curl -LsSf https://cli.flakiness.io/install.sh | sh
           flakiness convert-junit test-results/junit.xml --category bun --project drakulavich/oura-cli
-          flakiness upload ./flakiness-report
+
+      - name: Upload to Flakiness.io
+        if: always()
+        continue-on-error: true  # flakiness.io project may not exist yet
+        run: flakiness upload ./flakiness-report
 
       - name: Build
         run: bun run build
