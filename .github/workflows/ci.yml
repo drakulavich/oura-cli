@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read   # required for actions/checkout
+  id-token: write  # required for GitHub OIDC → flakiness.io
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -19,20 +23,15 @@ jobs:
       - name: Type-check
         run: bunx tsgo --noEmit
 
-      - name: Test
+      - name: Run tests
         run: bun test --reporter=junit --reporter-outfile=test-results/junit.xml
 
-      - name: Flakiness convert
+      - name: Convert and upload to Flakiness.io
         if: always()
-        run: npx --yes @flakiness/cli convert-junit --project drakulavich/oura-cli test-results/
-
-      - name: Upload flakiness report artifact
-        if: always()
-        uses: actions/upload-artifact@v5
-        with:
-          name: flakiness-report
-          path: flakiness-report/
-          retention-days: 30
+        run: |
+          curl -LsSf https://cli.flakiness.io/install.sh | sh
+          flakiness convert-junit test-results/junit.xml --category bun --project drakulavich/oura-cli
+          flakiness upload ./flakiness-report
 
       - name: Build
         run: bun run build
