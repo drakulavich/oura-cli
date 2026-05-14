@@ -10,7 +10,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - CI now ships test runs to [flakiness.io](https://flakiness.io). `bun test`
   emits JUnit XML, the [official `flakiness` CLI](https://github.com/flakiness/flakiness-report)
   converts it to a Flakiness JSON Report (`--category bun`) and uploads to the
-  `drakulavich/oura-cli` project. Auth via GitHub OIDC — no
+  `Laputa/oura-cli` project. Auth via GitHub OIDC — no
   `FLAKINESS_ACCESS_TOKEN` secret needed; the workflow grants `id-token: write`
   permission for the upload. Zero new runtime/dev deps; the CLI is installed
   ad-hoc via `curl https://cli.flakiness.io/install.sh | sh`.

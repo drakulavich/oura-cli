@@ -32,11 +32,10 @@ jobs:
         if: always()
         run: |
           curl -LsSf https://cli.flakiness.io/install.sh | sh
-          flakiness convert-junit test-results/junit.xml --category bun --project drakulavich/oura-cli
+          flakiness convert-junit test-results/junit.xml --category bun --project Laputa/oura-cli
 
       - name: Upload to Flakiness.io
         if: always()
-        continue-on-error: true  # flakiness.io project may not exist yet
         run: flakiness upload ./flakiness-report
 
       - name: Build
