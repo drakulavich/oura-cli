@@ -30,13 +30,11 @@ jobs:
 
       - name: Convert JUnit to Flakiness Report
         if: always()
-        run: |
-          curl -LsSf https://cli.flakiness.io/install.sh | sh
-          flakiness convert-junit test-results/junit.xml --category bun --project Laputa/oura-cli
+        run: bunx flakiness convert-junit test-results/junit.xml --category bun --project Laputa/oura-cli
 
       - name: Upload to Flakiness.io
         if: always()
-        run: flakiness upload ./flakiness-report
+        run: bunx flakiness upload ./flakiness-report
 
       - name: Build
         run: bun run build
