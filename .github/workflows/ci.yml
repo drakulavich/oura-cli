@@ -24,7 +24,9 @@ jobs:
         run: bunx tsgo --noEmit
 
       - name: Run tests
-        run: bun test --reporter=junit --reporter-outfile=test-results/junit.xml
+        run: |
+          mkdir -p test-results
+          bun test --reporter=junit --reporter-outfile=test-results/junit.xml
 
       - name: Convert and upload to Flakiness.io
         if: always()
