@@ -1,7 +1,7 @@
 <h1 align="center">oura-cli</h1>
 
 <p align="center">
-  <a href="https://github.com/drakulavich/oura-cli/actions/workflows/ci.yml"><img src="https://github.com/drakulavich/oura-cli/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://flakiness.io/Laputa/oura-cli"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fflakiness.io%2Fapi%2Fbadge%3Finput%3D%257B%2522badgeToken%2522%253A%2522badge-2qTwJcrJSmhJmKfKklQkKG%2522%257D" alt="Tests"></a>
   <a href="https://www.npmjs.com/package/@drakulavich/oura-cli"><img src="https://img.shields.io/npm/v/@drakulavich/oura-cli" alt="npm version"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
   <a href="https://bun.sh"><img src="https://img.shields.io/badge/runtime-Bun-f9f1e1?logo=bun" alt="Bun"></a>
