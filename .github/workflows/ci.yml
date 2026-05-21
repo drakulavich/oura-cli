@@ -30,12 +30,7 @@ jobs:
 
       - name: Convert JUnit to Flakiness Report
         if: always()
-        run: bunx flakiness convert-junit test-results/junit.xml --category bun --project Laputa/oura-cli
-
-      - name: Upload to Flakiness.io
-        if: always()
-        continue-on-error: true
-        run: bunx flakiness upload ./flakiness-report
+        run: bunx @flakiness/junit-xml test-results/junit.xml --category bun --flakiness-project Laputa/oura-cli
 
       - name: Build
         run: bun run build
