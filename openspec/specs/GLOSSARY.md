@@ -14,7 +14,7 @@ you need a new term, add it here first.
 | **sync** | The command that backfills new days of each Data type from the Oura Cloud API into the Local cache; incremental on re-run (`src/commands/sync.ts`). |
 | **db** | The command that queries the Local cache (e.g. `db today`, `db week`) without hitting the network (`src/commands/db.ts`, `src/db/queries.ts`). |
 | **report** | The command that renders a weekly or monthly digest — averages, trend deltas, and callouts — from the Local cache (`src/commands/report.ts`, `src/db/report.ts`). |
-| **Output mode** | How a command formats results: **JSON** when stdout is not a TTY (pipe/agent), **table/text** on a TTY (`src/lib/format-resolve.ts`, `src/format.ts`). |
+| **Output mode** | How a command formats results: **table/text** on a TTY, **JSON** when stdout is not a TTY, overridable with `--format <json\|table>` (`src/commands/common.ts`, resolved in `src/lib/format-resolve.ts`, rendered in `src/format.ts`). |
 | **CliError** | The error type for failures that reach the CLI surface; carries a documented `ErrorCode` (`src/lib/errors.ts`). |
 | **ErrorCode** | The stable identifier on a `CliError` that maps to an exit code and a documented failure mode (`src/lib/errors.ts`). |
 | **manifest** | The agent-facing command that emits a machine-readable description of the CLI's commands and flags (`src/commands/manifest.ts`). |

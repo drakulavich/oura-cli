@@ -38,9 +38,9 @@ Specs reference these named personas instead of a generic "user":
   track their own sleep and readiness in the terminal. Cares about offline reads,
   accurate digests, and that the Personal Access Token never leaves the local
   `~/.oura-token` file (0600).
-- **Marcus, the data scripter** — pipes `oura-cli … --json` into `jq`, plots, and
-  his own scripts. Cares about stable JSON output, the TTY-vs-pipe output switch,
-  and documented exit codes.
+- **Marcus, the data scripter** — pipes `oura-cli … --format json` into `jq`, plots,
+  and his own scripts. Cares about stable JSON output (also auto-selected when
+  stdout is not a TTY), the TTY-vs-pipe output switch, and documented exit codes.
 - **Aria, the agent author** — drives oura-cli from an LLM agent via the
   `manifest` / `healthcheck` / `describe` surface (OpenClaw consumes the manifest's
   tool-registry shape). Cares about the machine-readable manifest, structured
