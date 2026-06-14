@@ -1,0 +1,33 @@
+schema: spec-driven
+
+context: |
+  oura-cli (`@drakulavich/oura-cli`): a Bun-native CLI that pulls Oura Ring health
+  data — sleep, readiness, activity, heart rate, SpO2, stress, and workouts — from
+  the Oura Cloud API into a Local cache (SQLite at `~/.oura-cli/oura.db`) for
+  offline, pipe-friendly reads. No mobile app, no telemetry.
+  Commands: `login` (stores a Personal Access Token at `~/.oura-token`, 0600),
+  `sync` (backfill new days into the cache), `report` (weekly/monthly digest with
+  averages and trend deltas), `db` (query cached data), and the agent-facing
+  `describe` / `manifest` / `healthcheck` / `api-command`. Output auto-switches to
+  stable JSON when stdout is not a TTY, and table/text on a TTY.
+  Conventions: Bun >= 1.0 (no Node fallback); TypeScript strict with
+  `bunx tsgo --noEmit`; named exports only (no default export outside
+  `src/index.ts`); tests required and co-located as `*.test.ts` run by `bun test`;
+  new commands live under `src/commands/`, library helpers under `src/lib/`, with
+  dependency rules in `docs/ARCHITECTURE.md`; errors that reach the CLI surface are
+  `CliError` instances carrying a documented `ErrorCode`; both JSON and table output
+  are mandatory for new user-facing commands; CHANGELOG follows Keep a Changelog;
+  OpenClaw-compatible — `oura-cli manifest` returns the tool-registry shape.
+  See openspec/specs/README.md for personas and reading order, GLOSSARY.md for
+  canonical terms.
+
+rules:
+  proposal:
+    - Always include a "Non-goals" section
+  specs:
+    - Use glossary terms from openspec/specs/GLOSSARY.md verbatim
+    - Every requirement needs at least one happy-path and one error/edge scenario
+    - State outcomes, not implementation mechanisms, in requirement text
+    - Reference named personas (Quinn/Marcus/Aria), never a generic "user"
+    - Record anything uncertain or where spec and code disagree under "Open Issues" — never invent a resolution
+    - Trace each requirement to code with file:line refs in a Technical Note
