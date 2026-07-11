@@ -31,7 +31,26 @@ Skip (type-only / glue / generated):
 
 ## Findings
 
-None this run. `src/format.ts` behaved as its code reads. A couple of
+### 🔴 CI red on `main` — `bun.lock` drift (pre-existing, NOT from this run)
+
+`bun install --frozen-lockfile` (the first CI step) fails on **every** PR and on
+`main` itself with `error: lockfile had changes, but lockfile is frozen`.
+
+Root cause: dependabot PR #12 ("bump @types/node from 25.9.4 to 26.0.0") bumped
+`package.json` to `"@types/node": "^26.0.0"` but the committed `bun.lock` still
+resolves `@types/node@25.7.0` (manifest range `^25.3.3`). A frozen install
+regenerates the lockfile, sees the drift, and aborts — so tests never run and
+the JUnit step then fails too (`test-results/junit.xml is not accessible`).
+
+Reproduced locally with `bun install --frozen-lockfile` on a clean checkout of
+the committed lockfile (bun 1.3.11 and CI's 1.3.14 both fail). This is out of the
+test-gap-filler mandate (production/dependency config, not tests) and unrelated
+to the coverage work, so it is intentionally **not** fixed here. Fix belongs in a
+separate deps PR: run `bun install` and commit the updated `bun.lock`.
+
+### format.ts characterization notes (not bugs)
+
+`src/format.ts` behaved as its code reads. A couple of
 intentional-but-worth-noting behaviours were pinned as characterization tests
 (not bugs):
 
