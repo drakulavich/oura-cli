@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
+import { describe, it, expect } from 'bun:test';
 import chalk from 'chalk';
 import { formatDaySummary, formatWeekTable, formatTrends, formatStats } from './format.js';
 import type { DaySummary, TrendRow, DbStats } from './db/queries.js';
@@ -6,18 +6,22 @@ import type { DaySummary, TrendRow, DbStats } from './db/queries.js';
 // Strip ANSI escape codes to assert on *visible* text, regardless of chalk level.
 const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, '');
 
-// chalk auto-detects a non-TTY test env and disables colour (level 0), which would
-// make the scoreColor() threshold branches indistinguishable in the output. Force a
-// colour level so the green/yellow/red/gray branches are actually exercised, then
-// restore it so we don't leak colour state into other test files sharing the process.
-let originalLevel: number;
-beforeAll(() => {
-  originalLevel = chalk.level;
+// chalk.level lives on chalk's shared default instance, and other test files mutate it
+// (e.g. src/index-flags.test.ts sets it to 0 and never restores it). A file-wide
+// beforeAll/afterAll would still leave the colour branches at the mercy of file ordering.
+// Instead, force a colour level *only* around the assertions that actually check ANSI
+// output, and always restore the previous value — so these tests exercise the
+// green/yellow/red/gray branches deterministically no matter how the suite is scheduled,
+// and never leak colour state to other files.
+function withColor(fn: () => void): void {
+  const prev = chalk.level;
   chalk.level = 1;
-});
-afterAll(() => {
-  chalk.level = originalLevel;
-});
+  try {
+    fn();
+  } finally {
+    chalk.level = prev;
+  }
+}
 
 function makeDay(overrides: Partial<DaySummary> = {}): DaySummary {
   return {
@@ -56,18 +60,22 @@ describe('formatDaySummary', () => {
   });
 
   it('colours scores green (>=85), yellow (70-84) and red (<70) by threshold', () => {
-    const out = formatDaySummary(
-      makeDay({ sleep_score: 85, readiness_score: 70, activity_score: 69 }),
-      'table',
-    );
-    expect(out).toContain(chalk.green('85'));
-    expect(out).toContain(chalk.yellow('70'));
-    expect(out).toContain(chalk.red('69'));
+    withColor(() => {
+      const out = formatDaySummary(
+        makeDay({ sleep_score: 85, readiness_score: 70, activity_score: 69 }),
+        'table',
+      );
+      expect(out).toContain(chalk.green('85'));
+      expect(out).toContain(chalk.yellow('70'));
+      expect(out).toContain(chalk.red('69'));
+    });
   });
 
   it('renders a gray em dash for a null score', () => {
-    const out = formatDaySummary(makeDay({ sleep_score: null }), 'table');
-    expect(out).toContain(chalk.gray('—'));
+    withColor(() => {
+      const out = formatDaySummary(makeDay({ sleep_score: null }), 'table');
+      expect(out).toContain(chalk.gray('—'));
+    });
   });
 
   it('renders a gray em dash for null steps but the number for zero steps', () => {
