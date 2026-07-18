@@ -17,10 +17,14 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+      # Trusted Publishing (tokenless OIDC) requires Node >=22.14.0 and npm >=11.5.1.
       - uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: 'lts/*'
           registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
+      - name: Ensure npm supports Trusted Publishing
+        run: npm install -g npm@latest && npm --version
       - run: bun install --frozen-lockfile
       - run: bun test
       - run: bun run build
