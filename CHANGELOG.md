@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-07-18
+
 ### Removed
 - Dropped the unused `@typescript/native-preview` devDependency. The
   type-check now runs on the stable `typescript` compiler again: CI uses
