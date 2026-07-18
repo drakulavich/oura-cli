@@ -6,6 +6,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Removed
+- Dropped the unused `@typescript/native-preview` devDependency. The
+  type-check now runs on the stable `typescript` compiler again: CI uses
+  `bunx tsc --noEmit` in place of `bunx tsgo --noEmit`.
+
 ### Added
 - CI now ships test runs to [flakiness.io](https://flakiness.io). `bun test`
   emits JUnit XML, the [official `flakiness` CLI](https://github.com/flakiness/flakiness-report)
