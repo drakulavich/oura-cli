@@ -11,7 +11,7 @@ context: |
   `describe` / `manifest` / `healthcheck` / `api-command`. Output auto-switches to
   stable JSON when stdout is not a TTY, and table/text on a TTY.
   Conventions: Bun >= 1.0 (no Node fallback); TypeScript strict with
-  `bunx tsgo --noEmit`; named exports only (no default export outside
+  `bunx tsc --noEmit`; named exports only (no default export outside
   `src/index.ts`); tests required and co-located as `*.test.ts` run by `bun test`;
   new commands live under `src/commands/`, library helpers under `src/lib/`, with
   dependency rules in `docs/ARCHITECTURE.md`; errors that reach the CLI surface are
