@@ -18,7 +18,7 @@ jobs:
         with:
           bun-version: latest
       # Trusted Publishing (tokenless OIDC) requires Node >=22.14.0 and npm >=11.5.1.
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 'lts/*'
           registry-url: 'https://registry.npmjs.org'
