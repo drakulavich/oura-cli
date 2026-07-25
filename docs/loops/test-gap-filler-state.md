@@ -8,13 +8,13 @@ never production code). Boy-scout principle: leave the codebase safer than found
 | Run date   | Module            | Test file             | Notes |
 |------------|-------------------|-----------------------|-------|
 | 2026-07-11 | `src/format.ts`   | `src/format.test.ts`  | Characterization tests for the terminal formatters: `formatDaySummary`, `formatWeekTable`, `formatTrends`, `formatStats`. Covers score-colour thresholds, null/em-dash fallbacks, conditional rows (SpO2/Temp/Stress/sleep block), temp-deviation sign handling, JSON mode, and empty-input branches. |
+| 2026-07-25 | `src/db/report.ts` | `src/db/report.test.ts` | Characterization tests for `getReport` (report data assembly). Covers period classification (`week`/`month` at the `days <= 7` boundary); daily-row window shape (length, chronological order, `weekStart`/`weekEnd` bounds, `dayLabel` format, null-fill for missing days); averages (avg/min/max, `isSteps` flag, period-over-period `diff`/`prevAvg` incl. the empty-previous-window null branch, metric omission on empty data); SpO2 rounding + null branch; patterns (lowSleep/lowReadiness `< 70` ascending, highActivity `>= 90` descending with steps, threshold exclusions); sleepDetails (long_sleep-only averaging, null when only other sleep types); and recommendations (low/great thresholds + mid-range gaps). Seeds a fresh in-memory sqlite db per test with rows at day offsets relative to `now`. |
 
 ## Queue (candidate modules, roughly prioritised)
 
 Modules with real logic and no dedicated test file yet:
 
-- `src/db/report.ts` — report data assembly (averages, patterns, recommendations). High value.
-- `src/db/csv-import.ts` — CSV parsing / row mapping into the db. Edge cases: malformed rows, empty files.
+- `src/db/csv-import.ts` — CSV parsing / row mapping into the db. Edge cases: malformed rows, empty files. **Next up.**
 - `src/commands/sync.ts` — sync orchestration (mock HTTP + db boundaries).
 - `src/commands/db.ts` — db subcommand handlers.
 - `src/commands/api-command.ts` — generic API command dispatch/mapping.
@@ -47,6 +47,30 @@ the committed lockfile (bun 1.3.11 and CI's 1.3.14 both fail). This is out of th
 test-gap-filler mandate (production/dependency config, not tests) and unrelated
 to the coverage work, so it is intentionally **not** fixed here. Fix belongs in a
 separate deps PR: run `bun install` and commit the updated `bun.lock`.
+
+### report.ts characterization notes (2026-07-25 run — no bugs)
+
+`src/db/report.ts` behaved exactly as its code reads; no suspected bugs. A few
+intentional-but-subtle behaviours were pinned as characterization tests:
+
+- Period boundary is `days <= 7` → `week`, so a 7-day window is a "week" and an
+  8-day window is a "month".
+- `dayLabel` builds from `new Date(day + 'T12:00:00Z')` and UTC getters, so labels
+  are UTC-based (`<Wkd> DD/MM`).
+- Averages omit a metric entirely (rather than emitting zeros) when the current
+  window has no rows; `diff`/`prevAvg` are null when the previous window is empty.
+- SpO2 avg/min/max are rounded to one decimal via `+x.toFixed(1)`.
+- Pattern thresholds are strict/inclusive as written: lowSleep/lowReadiness use
+  `score < 70` (ascending), highActivity uses `score >= 90` (descending).
+- `sleepDetails` averages only `type='long_sleep'` rows and is null when the
+  window has no long_sleep rows (presence is decided by `AVG(total_sleep_duration)
+  IS NOT NULL`).
+- Recommendation thresholds leave deliberate gaps (e.g. sleep 75–84 and >= 85 is
+  "great", < 75 is "low"; 75–84 yields nothing).
+
+CI note: the `bun install --frozen-lockfile` drift documented for the 2026-07-11
+run was resolved on PR #13's branch; a clean `bun install` on this checkout is
+in sync with `bun.lock`.
 
 ### format.ts characterization notes (not bugs)
 
