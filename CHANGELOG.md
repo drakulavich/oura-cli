@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- `OuraStressDay.day_summary`, `OuraWorkout.label` and `OuraSleepModel.type` are
+  now typed `string | null`, matching the Oura OpenAPI spec (checked against
+  1.37), which marks all three nullable. The runtime already tolerated a null
+  in each — the declared types just claimed otherwise, so code reading them
+  could assume a value that never arrives.
+
 ## [0.4.5] - 2026-07-18
 
 ### Removed
