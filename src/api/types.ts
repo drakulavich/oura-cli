@@ -57,7 +57,7 @@ export interface OuraSpO2Day {
 export interface OuraStressDay {
   id: string;
   day: string;
-  day_summary: string;
+  day_summary?: string | null;
   recovery_high: number | null;
   stress_high: number | null;
 }
@@ -84,7 +84,7 @@ export interface OuraWorkout {
   start_datetime: string;
   end_datetime: string;
   intensity: string;
-  label: string;
+  label?: string | null;
   source: string;
 }
 
@@ -107,7 +107,7 @@ export interface OuraSleepModel {
   restless_periods: number | null;
   time_in_bed: number | null;
   total_sleep_duration: number | null;
-  type: string;
+  type?: string | null;
 }
 
 export type OuraEndpoint =

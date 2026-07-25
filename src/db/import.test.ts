@@ -1,6 +1,9 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import { ensureSchema } from './database.js';
+import { importDaily } from './import.js';
+import type { OuraClient } from '../api/client.js';
+import type { OuraEndpoint } from '../api/types.js';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { unlinkSync } from 'fs';
@@ -27,6 +30,76 @@ describe('Import', () => {
 
       const row = db.query('SELECT score FROM daily_sleep WHERE id = ?').get('id1') as { score: number };
       expect(row.score).toBe(85);
+
+      db.close();
+    });
+  });
+
+  describe('nullable upstream fields', () => {
+    // The Oura spec marks daily_stress.day_summary, workout.label and sleep.type
+    // as nullable; every column backing them is nullable TEXT.
+    const rows: Partial<Record<OuraEndpoint, unknown[]>> = {
+      daily_stress: [{ id: 's1', day: '2026-03-05', day_summary: null, recovery_high: null, stress_high: null }],
+      workout: [{
+        id: 'w1', day: '2026-03-05', activity: 'walking', calories: null, distance: null,
+        start_datetime: '2026-03-05T10:00:00Z', end_datetime: '2026-03-05T10:30:00Z',
+        intensity: 'easy', label: null, source: 'manual',
+      }],
+      sleep: [{
+        id: 'p1', day: '2026-03-05', average_breath: null, average_heart_rate: null, average_hrv: null,
+        awake_time: null, bedtime_end: '2026-03-05T07:00:00Z', bedtime_start: '2026-03-04T23:00:00Z',
+        deep_sleep_duration: null, efficiency: null, latency: null, light_sleep_duration: null,
+        lowest_heart_rate: null, period: null, rem_sleep_duration: null, restless_periods: null,
+        time_in_bed: null, total_sleep_duration: null, type: null,
+      }],
+    };
+    const client = {
+      fetch: async <T,>(endpoint: OuraEndpoint) => (rows[endpoint] ?? []) as T[],
+    } as unknown as OuraClient;
+
+    it('stores a null day_summary, label and sleep type without failing the sync', async () => {
+      const db = new Database(TEST_DB);
+      ensureSchema(db);
+
+      await importDaily(db, client);
+
+      const stress = db.query('SELECT day_summary FROM daily_stress WHERE id = ?').get('s1') as { day_summary: string | null };
+      expect(stress.day_summary).toBeNull();
+
+      const sleep = db.query('SELECT type FROM sleep_model WHERE id = ?').get('p1') as { type: string | null };
+      expect(sleep.type).toBeNull();
+
+      // Workouts are the exception: import.ts coerces a null label to '' rather
+      // than storing NULL. Asserted so the coercion stays a deliberate choice.
+      const workout = db.query('SELECT label FROM workouts WHERE id = ?').get('w1') as { label: string | null };
+      expect(workout.label).toBe('');
+
+      db.close();
+    });
+
+    it('treats an omitted property the same as an explicit null, since the spec marks all three optional', async () => {
+      const omitted: Partial<Record<OuraEndpoint, unknown[]>> = {
+        daily_stress: [{ id: 's2', day: '2026-03-06', recovery_high: null, stress_high: null }],
+        sleep: [{
+          id: 'p2', day: '2026-03-06', average_breath: null, average_heart_rate: null, average_hrv: null,
+          awake_time: null, bedtime_end: '2026-03-06T07:00:00Z', bedtime_start: '2026-03-05T23:00:00Z',
+          deep_sleep_duration: null, efficiency: null, latency: null, light_sleep_duration: null,
+          lowest_heart_rate: null, period: null, rem_sleep_duration: null, restless_periods: null,
+          time_in_bed: null, total_sleep_duration: null,
+        }],
+      };
+      const db = new Database(TEST_DB);
+      ensureSchema(db);
+
+      await importDaily(db, {
+        fetch: async <T,>(endpoint: OuraEndpoint) => (omitted[endpoint] ?? []) as T[],
+      } as unknown as OuraClient);
+
+      const stress = db.query('SELECT day_summary FROM daily_stress WHERE id = ?').get('s2') as { day_summary: string | null };
+      expect(stress.day_summary).toBeNull();
+
+      const sleep = db.query('SELECT type FROM sleep_model WHERE id = ?').get('p2') as { type: string | null };
+      expect(sleep.type).toBeNull();
 
       db.close();
     });
