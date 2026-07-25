@@ -15,7 +15,7 @@ and updates this file. See the loop task for classification rules.
 - **Upstream 1.35 → 1.37 diff:** 0 paths added or removed, 0 schemas added or
   removed, 1 schema changed — `ValidationError` gained `ctx` and `input`
   (Pydantic v2 error shape). Response payloads are untouched.
-- **Action:** three code-vs-spec mismatches filed (below); hash recipe repaired.
+- **Action:** three code-vs-spec mismatches filed as #23 (below); hash recipe repaired.
 
 ### Egress limitation — RESOLVED
 
@@ -26,8 +26,7 @@ one full run has passed without a regression, then delete it.
 ### Findings this run
 
 Nothing drifted, but diffing code against a real spec for the first time
-surfaced three fields the CLI declared non-null that the spec marks nullable
-(none of them in a `required` list):
+surfaced three fields the CLI declared non-null that the spec marks nullable:
 
 | Field | Spec (1.37) | Declared |
 | --- | --- | --- |
@@ -35,8 +34,12 @@ surfaced three fields the CLI declared non-null that the spec marks nullable
 | `workout.label` | `anyOf[string, null]` | `string` |
 | `sleep.type` | `anyOf[PublicSleepType, null]` | `string` |
 
+All three are also absent from each schema's `required` list, so the property
+can be omitted, not merely null.
+
 Not a break: every backing column is nullable `TEXT` and `importDaily` already
-wrote `w.label ?? ''`. Fixed in #23.
+wrote `w.label ?? ''`. Filed as #23 — still open as of this run, so the
+declarations in `src/api/types.ts` are unchanged at this commit.
 
 Two of the three are enums upstream (`restored|normal|stressful`,
 `deleted|sleep|long_sleep|late_nap|rest`) but typed as open `string`. Narrowing
@@ -117,4 +120,4 @@ the CLI's typed surface.
 | Date | Spec version | Outcome |
 | --- | --- | --- |
 | 2026-07-17 | unverified (egress blocked) | baseline established from code |
-| 2026-07-25 | 1.37 (verified live) | no drift; 3 nullability mismatches → #23; field hashes recomputed after the baseline recipe proved unreproducible |
+| 2026-07-25 | 1.37 (verified live) | no drift; 3 nullability/optionality mismatches filed as #23; field hashes recomputed after the baseline recipe proved unreproducible |
