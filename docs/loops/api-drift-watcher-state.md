@@ -6,7 +6,8 @@ and updates this file. See the loop task for classification rules.
 
 ## Latest run
 
-- **Date:** 2026-07-25 (first run with a real spec to diff against)
+- **Date:** 2026-07-25 (first run with a real spec to diff against; run from a
+  local CLI session, not the scheduled sandbox — see the egress note below)
 - **Spec version checked:** `openapi-1.37.json`, fetched live and confirmed —
   `1.38`+ return 404, so 1.37 is current. The 2026-07-17 baseline guessed 1.35;
   1.35 and 1.36 are both still served.
@@ -17,11 +18,16 @@ and updates this file. See the loop task for classification rules.
   (Pydantic v2 error shape). Response payloads are untouched.
 - **Action:** three code-vs-spec mismatches filed as #23 (below); hash recipe repaired.
 
-### Egress limitation — RESOLVED
+### Egress limitation — STILL OPEN (#21)
 
-`cloud.ouraring.com` is reachable again; the `403` on `CONNECT` recorded on
-2026-07-17 is gone. No allowlist action is outstanding. Keep this section until
-one full run has passed without a regression, then delete it.
+This run reached `cloud.ouraring.com` and fetched the spec, but from a **local
+CLI session with no egress proxy configured** — not from the sandboxed
+scheduled environment whose proxy returned the `403` on `CONNECT` in #21. The
+two take different network paths, so this run is not evidence that the
+allowlist changed.
+
+#21 stays open until a *scheduled* run reaches the host. Close it on that run,
+not on this one.
 
 ### Findings this run
 
@@ -120,4 +126,4 @@ the CLI's typed surface.
 | Date | Spec version | Outcome |
 | --- | --- | --- |
 | 2026-07-17 | unverified (egress blocked) | baseline established from code |
-| 2026-07-25 | 1.37 (verified live) | no drift; 3 nullability/optionality mismatches filed as #23; field hashes recomputed after the baseline recipe proved unreproducible |
+| 2026-07-25 | 1.37 (verified live, local session) | no drift; 3 nullability/optionality mismatches filed as #23; field hashes recomputed after the baseline recipe proved unreproducible |
