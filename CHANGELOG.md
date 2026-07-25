@@ -8,10 +8,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 - `OuraStressDay.day_summary`, `OuraWorkout.label` and `OuraSleepModel.type` are
-  now typed `string | null`, matching the Oura OpenAPI spec (checked against
-  1.37), which marks all three nullable. The runtime already tolerated a null
-  in each — the declared types just claimed otherwise, so code reading them
-  could assume a value that never arrives.
+  now typed `?: string | null`, matching the Oura OpenAPI spec (checked against
+  1.37), which marks all three nullable and omits them from `required`. The
+  declared types claimed a value is always present, so code reading them could
+  assume one that never arrives. `importDaily` now maps an absent value to
+  `NULL` explicitly instead of relying on `bun:sqlite` silently coercing
+  `undefined`.
 
 ## [0.4.5] - 2026-07-18
 

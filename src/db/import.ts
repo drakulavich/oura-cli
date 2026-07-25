@@ -78,7 +78,7 @@ export async function importDaily(db: Database, client: OuraClient, log?: (msg: 
   const stressData = await client.fetch<OuraStressDay>('daily_stress', startDate, today);
   const insertStress = db.query('INSERT OR REPLACE INTO daily_stress VALUES (?,?,?,?,?)');
   for (const s of stressData) {
-    insertStress.run(s.id, s.day, s.day_summary, s.recovery_high, s.stress_high);
+    insertStress.run(s.id, s.day, s.day_summary ?? null, s.recovery_high, s.stress_high);
     _log(`  + stress ${s.day}`);
   }
   counts.daily_stress = stressData.length;
@@ -100,7 +100,7 @@ export async function importDaily(db: Database, client: OuraClient, log?: (msg: 
       sp.awake_time, sp.bedtime_end, sp.bedtime_start, sp.deep_sleep_duration,
       sp.efficiency, sp.latency, sp.light_sleep_duration, sp.lowest_heart_rate,
       sp.period, sp.rem_sleep_duration, sp.restless_periods, sp.time_in_bed,
-      sp.total_sleep_duration, sp.type,
+      sp.total_sleep_duration, sp.type ?? null,
     );
     _log(`  + sleep_period ${sp.day} (${sp.type})`);
   }

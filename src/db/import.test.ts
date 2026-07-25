@@ -76,5 +76,32 @@ describe('Import', () => {
 
       db.close();
     });
+
+    it('treats an omitted property the same as an explicit null, since the spec marks all three optional', async () => {
+      const omitted: Partial<Record<OuraEndpoint, unknown[]>> = {
+        daily_stress: [{ id: 's2', day: '2026-03-06', recovery_high: null, stress_high: null }],
+        sleep: [{
+          id: 'p2', day: '2026-03-06', average_breath: null, average_heart_rate: null, average_hrv: null,
+          awake_time: null, bedtime_end: '2026-03-06T07:00:00Z', bedtime_start: '2026-03-05T23:00:00Z',
+          deep_sleep_duration: null, efficiency: null, latency: null, light_sleep_duration: null,
+          lowest_heart_rate: null, period: null, rem_sleep_duration: null, restless_periods: null,
+          time_in_bed: null, total_sleep_duration: null,
+        }],
+      };
+      const db = new Database(TEST_DB);
+      ensureSchema(db);
+
+      await importDaily(db, {
+        fetch: async <T,>(endpoint: OuraEndpoint) => (omitted[endpoint] ?? []) as T[],
+      } as unknown as OuraClient);
+
+      const stress = db.query('SELECT day_summary FROM daily_stress WHERE id = ?').get('s2') as { day_summary: string | null };
+      expect(stress.day_summary).toBeNull();
+
+      const sleep = db.query('SELECT type FROM sleep_model WHERE id = ?').get('p2') as { type: string | null };
+      expect(sleep.type).toBeNull();
+
+      db.close();
+    });
   });
 });
