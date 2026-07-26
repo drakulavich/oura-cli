@@ -26,9 +26,9 @@ Commands are `defineCommand`/`runMain` from `citty`. `docs/ARCHITECTURE.md` stil
 
 ### LAYERS DEPEND ONLY DOWNWARD
 
-`src/lib/` (generic helpers, no domain knowledge) → `src/api/` (HTTP; knows nothing about SQLite) → `src/db/` (SQL; knows nothing about output formatting) → `src/commands/` (format resolution and **all** stdout/stderr) → `src/index.ts` (wiring only).
+`src/lib/` (generic helpers, no domain knowledge) → `src/api/` (HTTP; knows nothing about SQLite) → `src/db/` (SQL and the local cache; imports `api/` for row types and sync, but knows nothing about output formatting) → `src/commands/` (format resolution; every `console.log`/`process.stdout` write lives here) → `src/index.ts` (wiring only).
 
-A layer reaching sideways or upward is the main architectural mistake here. Details and per-module responsibilities: `docs/ARCHITECTURE.md`.
+Reaching *upward* is the mistake to avoid — `lib/` must not import `api/`, `api/` must not import `db/`. Per-module responsibilities: `docs/ARCHITECTURE.md`, which is accurate on layering but stale elsewhere (see the citty note above).
 
 ### EVERY USER-FACING COMMAND NEEDS BOTH OUTPUT MODES
 
@@ -36,7 +36,7 @@ JSON for agent and pipe contexts, table/text for a TTY — both are mandatory, n
 
 ### ERRORS THAT REACH THE CLI SURFACE ARE `CliError`
 
-Use `CliError` with a documented `ErrorCode` from `src/lib/errors.ts`; `src/index.ts` catches through `emitError` + `exitCodeFor`. A raw `throw` bypasses both the exit-code mapping and the format-aware error output.
+Use `CliError` with a documented `ErrorCode` from `src/lib/errors.ts`. The boundary is `handleError()` in `src/commands/common.ts` — it calls `emitError(err, fmt)` then `process.exit(exitCodeFor(err))` — and each command wires it in its own `catch`. `src/index.ts` only calls `runMain` and catches nothing, so a command that forgets `handleError` loses both the exit-code mapping and the format-aware error output.
 
 ### KEEP `bun.lock` IN SYNC
 
