@@ -28,15 +28,19 @@ Commands are `defineCommand`/`runMain` from `citty`. `docs/ARCHITECTURE.md` stil
 
 `src/lib/` (generic helpers, no domain knowledge) → `src/api/` (HTTP; knows nothing about SQLite) → `src/db/` (SQL and the local cache; imports `api/` for row types and sync, but knows nothing about output formatting) → `src/commands/` (format resolution; every `console.log`/`process.stdout` write lives here) → `src/index.ts` (wiring only).
 
-Reaching *upward* is the mistake to avoid — `lib/` must not import `api/`, `api/` must not import `db/`. Per-module responsibilities: `docs/ARCHITECTURE.md`, which is accurate on layering but stale elsewhere (see the citty note above).
+Reaching *upward* is the mistake to avoid — `lib/` must not import `api/`, `api/` must not import `db/`. Table formatters are the exception to the directory rule: they live at `src/format.ts` and `src/format-report.ts` (root level, importing `db` types), not under `commands/`.
+
+`docs/ARCHITECTURE.md` has per-module detail but is **stale**: its diagram shows `api` and `db` as peers that only import `lib`, it omits the format modules, and it describes a Commander `parseAsync().catch()` entrypoint that no longer exists. Trust the code.
 
 ### EVERY USER-FACING COMMAND NEEDS BOTH OUTPUT MODES
 
-JSON for agent and pipe contexts, table/text for a TTY — both are mandatory, not optional. Structured output is a published contract: the JSON Schemas under `docs/schemas/` and the `describe` manifest are consumed externally, so changing a shape means updating the schema in the same change.
+JSON for agent and pipe contexts, table/text for a TTY. This applies to **new user-facing data commands**; the existing exceptions are deliberate — `describe`, `manifest` and `healthcheck` are JSON-only, `login` is interactive text, and `createApiCommand` always emits JSON without calling `resolveFormat`. Don't "fix" those.
+
+Structured output is a published contract: the JSON Schemas under `docs/schemas/` and the `describe` manifest are consumed externally, so changing a shape means updating the schema in the same change.
 
 ### ERRORS THAT REACH THE CLI SURFACE ARE `CliError`
 
-Use `CliError` with a documented `ErrorCode` from `src/lib/errors.ts`. The boundary is `handleError()` in `src/commands/common.ts` — it calls `emitError(err, fmt)` then `process.exit(exitCodeFor(err))` — and each command wires it in its own `catch`. `src/index.ts` only calls `runMain` and catches nothing, so a command that forgets `handleError` loses both the exit-code mapping and the format-aware error output.
+Use `CliError` with a documented `ErrorCode` from `src/lib/errors.ts`; a new code also needs an arm in `exitCodeFor`. There is **no global handler** — `src/index.ts` calls `runMain` and catches nothing. The boundary is `handleError()` in `src/commands/common.ts` (`emitError(err, fmt)` then `process.exit(exitCodeFor(err))`), wired per command: the data-path commands (`api-command`, `db`, `sync`, `report`) call it, `healthcheck` deliberately swallows into `{ ok: false, error }` because it is a probe, and `login`/`describe`/`manifest` have no catch at all. A throwing command without `handleError` loses both the exit-code mapping and the format-aware output.
 
 ### KEEP `bun.lock` IN SYNC
 
@@ -52,15 +56,22 @@ bunx tsc --noEmit      # strict; `typescript` here is the TS 7 compiler
 bun run build          # emit dist/
 ```
 
-CI gates in order: type-check → tests → build → `npm audit` (high+). Run the first three locally before pushing.
+CI runs type-check → tests → build → `npm audit` (high+). Only the first three block: the audit step swallows failures into a `::warning::`. `release.yml` runs tests and build but **not** `tsc`, so type errors only surface in CI on a PR — run it locally before pushing.
 
 ## Conventions
 
 - **Tests are co-located**: `foo.test.ts` sits next to `foo.ts`. There is no `tests/` directory.
-- **Named exports only** — no default exports outside `src/index.ts`.
+- **Named exports only** — there are currently no default exports anywhere in `src/`.
 - **Local imports carry a `.js` suffix** (`./commands/login.js`) even though the files are `.ts`.
-- **New code placement**: a top-level command → `src/commands/` + registration in `src/index.ts`; a new Oura endpoint → row type in `src/api/types.ts`, optional cache table in `src/db/schema.ts`, command via the factory in `src/commands/api-command.ts`; a helper → `src/lib/`. Avoid bucket files.
+- **A new top-level command touches four files, not one**: `src/commands/` (the implementation), `src/index.ts` (registration), the `SUBCOMMANDS` set in `src/lib/argv-normalize.ts`, and the agent surface in `src/commands/describe.ts` (`buildManifest`) plus `src/commands/manifest.ts`. Miss `SUBCOMMANDS` and `oura-cli --format json <cmd>` silently ignores the flag — citty does not hoist root flags onto subcommands, and that normalizer is what moves them. A new *global* flag needs `GLOBAL_FLAGS_WITH_VALUE` / `GLOBAL_FLAGS_BOOLEAN` in the same file.
+- **A new Oura endpoint**: row type in `src/api/types.ts`, optional cache table in `src/db/schema.ts`, command via the factory in `src/commands/api-command.ts`. Treat every API field as nullable unless proven otherwise — #23 had to retype `day_summary`, `label` and `type` after the upstream spec drifted.
+- **Schema migrations are append-only.** `ensureSchema` applies only entries with `version > current`, so editing an already-shipped migration is a no-op on existing databases. Add a new version entry instead.
+- A helper → `src/lib/`. Avoid bucket files.
 - **One change per PR**, with a test for any behaviour change and a `CHANGELOG.md` bullet under `## [Unreleased]`.
+
+## Environment
+
+`OURA_TOKEN` (or `OURA_TOKEN_PATH`) authenticates; `OURA_DB_PATH` overrides the `~/.oura-cli/oura.db` cache; `OURA_TZ` sets the timezone used for day boundaries; `NO_COLOR` (or `--no-color`) disables ANSI, and is applied in `src/index.ts` before any chalk call.
 
 ## Repo Notes
 
