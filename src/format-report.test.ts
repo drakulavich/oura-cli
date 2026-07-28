@@ -59,3 +59,26 @@ describe('formatReport — daily table column alignment', () => {
     expect(firstSleepIdx).toBe(secondSleepIdx);
   });
 });
+
+describe('formatReport — first run', () => {
+  it('guides a user with no synced data to run the next required command', () => {
+    const emptyReport: ReportData = {
+      ...fixture,
+      days: fixture.days.map(day => ({
+        ...day,
+        sleep: null,
+        readiness: null,
+        activity: null,
+        steps: null,
+      })),
+      averages: [],
+      sleepDetails: null,
+    };
+
+    const out = stripAnsi(formatReport(emptyReport, 'table', 'week'));
+
+    expect(out).toContain('No Oura data is available for this report yet.');
+    expect(out).toContain('Run `oura-cli sync` to download your data, then run `oura-cli report` again.');
+    expect(out).not.toContain('Last 7 Days:');
+  });
+});
