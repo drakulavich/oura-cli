@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Fixed
+- Interactive `oura-cli login` now hides the Personal Access Token while it is
+  typed and explains how to use `--token` safely in non-interactive contexts.
+- `oura-cli report` now explains when no data is available and directs new
+  users to run `oura-cli sync`, instead of showing an all-empty report table.
+- Reports containing only sleep-detail data are no longer mistaken for empty
+  reports and continue to show the available sleep metrics.
 - `OuraStressDay.day_summary`, `OuraWorkout.label` and `OuraSleepModel.type` are
   now typed `?: string | null`, matching the Oura OpenAPI spec (checked against
   1.37), which marks all three nullable and omits them from `required`. The

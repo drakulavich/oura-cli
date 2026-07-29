@@ -10,3 +10,5 @@ dist
 .DS_Store
 test-results/
 flakiness-report/
+.cocoindex_code/
+.omc/

@@ -1,4 +1,9 @@
 import { describe, it, expect } from 'bun:test';
+import { readFileSync } from 'fs';
+
+const PACKAGE_VERSION = JSON.parse(
+  readFileSync(new URL('../package.json', import.meta.url), 'utf-8'),
+).version;
 
 describe('healthcheck and manifest commands', () => {
   describe('healthcheck', () => {
@@ -9,7 +14,7 @@ describe('healthcheck and manifest commands', () => {
 
       const parsed = JSON.parse(out);
       expect(parsed.ok).toBe(true);
-      expect(parsed.version).toBe('0.4.4');
+      expect(parsed.version).toBe(PACKAGE_VERSION);
       expect(typeof parsed.latencyMs).toBe('number');
     });
   });
@@ -22,7 +27,7 @@ describe('healthcheck and manifest commands', () => {
 
       const m = JSON.parse(out);
       expect(m.id).toBe('oura-cli');
-      expect(m.version).toBe('0.4.4');
+      expect(m.version).toBe(PACKAGE_VERSION);
       expect(m.runtime).toBe('bun');
       expect(m.bin).toBe('oura-cli');
       expect(Array.isArray(m.commands)).toBe(true);

@@ -29,7 +29,7 @@ jobs:
           bun test --reporter=junit --reporter-outfile=test-results/junit.xml
 
       - name: Convert JUnit to Flakiness Report
-        if: always()
+        if: ${{ always() && hashFiles('test-results/junit.xml') != '' }}
         run: bunx @flakiness/junit-xml test-results/junit.xml --category bun --flakiness-project Laputa/oura-cli
 
       - name: Build

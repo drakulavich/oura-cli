@@ -1,8 +1,9 @@
 import { describe, it, expect, afterEach } from 'bun:test';
+import { EventEmitter } from 'events';
 import { readFileSync, statSync, rmSync } from 'fs';
 import { resolve } from 'path';
 import { tmpdir } from 'os';
-import { writeToken } from './login.js';
+import { readHiddenToken, writeToken } from './login.js';
 
 const tmpPath = resolve(tmpdir(), `oura-token-test-${process.pid}-${Math.random().toString(36).slice(2)}`);
 
@@ -32,5 +33,30 @@ describe('writeToken', () => {
     it('throws an error explaining the token cannot be empty', () => {
       expect(() => writeToken(tmpPath, '   ')).toThrow(/empty/i);
     });
+  });
+});
+
+describe('readHiddenToken', () => {
+  it('collects a token without writing it to terminal output', async () => {
+    class FakeTerminalInput extends EventEmitter {
+      isTTY = true;
+      rawModes: boolean[] = [];
+      paused = false;
+
+      setRawMode(mode: boolean) { this.rawModes.push(mode); }
+      resume() {}
+      pause() { this.paused = true; }
+    }
+    const input = new FakeTerminalInput();
+    let terminalOutput = '';
+    const output = { write(text: string) { terminalOutput += text; return true; } };
+
+    const token = readHiddenToken(input, output);
+    input.emit('data', Buffer.from('sensitive-personal-access-token\n'));
+
+    expect(await token).toBe('sensitive-personal-access-token');
+    expect(terminalOutput).not.toContain('sensitive-personal-access-token');
+    expect(input.rawModes).toEqual([true, false]);
+    expect(input.paused).toBe(true);
   });
 });

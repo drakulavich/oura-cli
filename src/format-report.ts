@@ -85,6 +85,16 @@ export function formatReport(data: ReportData, format: OutputFormat, period: 'we
   lines.push(chalk.gray(`  ${data.weekStart} — ${data.weekEnd}`));
   lines.push('');
 
+  const hasReportData = data.days.some(day =>
+    day.sleep !== null || day.readiness !== null || day.activity !== null || day.steps !== null,
+  ) || data.averages.length > 0 || data.spo2 !== null || data.sleepDetails !== null;
+  if (!hasReportData) {
+    lines.push('  No Oura data is available for this report yet.');
+    lines.push('  Run `oura-cli sync` to download your data, then run `oura-cli report` again.');
+    lines.push('');
+    return lines.join('\n');
+  }
+
   if (period === 'week') {
     // Daily table — 7 rows
     lines.push(chalk.bold('  Last 7 Days:'));
@@ -164,4 +174,3 @@ export function formatReport(data: ReportData, format: OutputFormat, period: 'we
 
   return lines.join('\n');
 }
-
