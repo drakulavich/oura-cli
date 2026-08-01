@@ -9,13 +9,13 @@ never production code). Boy-scout principle: leave the codebase safer than found
 |------------|-------------------|-----------------------|-------|
 | 2026-07-11 | `src/format.ts`   | `src/format.test.ts`  | Characterization tests for the terminal formatters: `formatDaySummary`, `formatWeekTable`, `formatTrends`, `formatStats`. Covers score-colour thresholds, null/em-dash fallbacks, conditional rows (SpO2/Temp/Stress/sleep block), temp-deviation sign handling, JSON mode, and empty-input branches. |
 | 2026-07-25 | `src/db/report.ts` | `src/db/report.test.ts` | Characterization tests for `getReport` (report data assembly). Covers period classification (`week`/`month` at the `days <= 7` boundary); daily-row window shape (length, chronological order, `weekStart`/`weekEnd` bounds, `dayLabel` format, null-fill for missing days); averages (avg/min/max, `isSteps` flag, period-over-period `diff`/`prevAvg` incl. the empty-previous-window null branch, metric omission on empty data); SpO2 rounding + null branch; patterns (lowSleep/lowReadiness `< 70` ascending, highActivity `>= 90` descending with steps, threshold exclusions); sleepDetails (long_sleep-only averaging, null when only other sleep types); and recommendations (low/great thresholds + mid-range gaps). Seeds a fresh in-memory sqlite db per test with rows at day offsets relative to `now`. |
+| 2026-08-01 | `src/db/csv-import.ts` | `src/db/csv-import.test.ts` | Characterization tests for `importFromCSV` (local Oura App-Data CSV → sqlite). Points `process.env.HOME` at a temp sandbox before importing the module (the `CSV_DIR` const is captured once at load), seeds real semicolon-delimited CSV files, and drives them into a fresh in-memory db per test. Covers: missing-directory throw; empty/missing-files → all tables empty + `CSV import complete.`; header→column mapping; `num()` null-guard (empty & non-numeric cells → NULL, not 0/NaN); `str()` empty → NULL; header-only file → 0 rows; blank-line skipping; short rows → trailing NULLs (`vals[i] ?? ''`); `INSERT OR REPLACE` upsert on duplicate id (log still counts raw parsed rows); spo2 JSON `average` extraction + swallowed-parse NULL + missing-key NULL; heartrate `day` = `timestamp.slice(0,10)` and `INSERT OR IGNORE` dedup on `(timestamp, source)`. Two behaviours flagged as **Findings** below (not fixed — tests pin current behaviour). |
 
 ## Queue (candidate modules, roughly prioritised)
 
 Modules with real logic and no dedicated test file yet:
 
-- `src/db/csv-import.ts` — CSV parsing / row mapping into the db. Edge cases: malformed rows, empty files. **Next up.**
-- `src/commands/sync.ts` — sync orchestration (mock HTTP + db boundaries).
+- `src/commands/sync.ts` — sync orchestration (mock HTTP + db boundaries). **Next up.**
 - `src/commands/db.ts` — db subcommand handlers.
 - `src/commands/api-command.ts` — generic API command dispatch/mapping.
 - `src/commands/common.ts` — shared command helpers.
@@ -30,6 +30,29 @@ Skip (type-only / glue / generated):
   — already covered (dedicated tests or `healthcheck-manifest.test.ts`).
 
 ## Findings
+
+### 🟡 csv-import.ts characterization findings (2026-08-01 run — pinned, NOT fixed)
+
+Two behaviours in `src/db/csv-import.ts` are pinned as characterization tests
+against their **current** output (per loop rules, no production code touched):
+
+1. **CRLF line endings silently drop the last column.** `parseCSV` splits on
+   `'\n'` only, never stripping `'\r'`. With a CRLF file the last header becomes
+   `"timestamp\r"` and each last value carries a trailing `"\r"`. The insert code
+   reads `r.timestamp` (key `"timestamp"`, no `\r`), which misses, so the terminal
+   column is stored as `NULL`. A real Oura App-Data export saved with Windows line
+   endings would lose whatever column happens to be last per file (e.g. `timestamp`
+   on `dailysleep.csv`, `source` on `heartrate.csv`). Non-terminal columns are
+   unaffected. Low severity for the current mac/Linux export path, but a latent
+   data-loss trap. Suggested fix (separate PR): `text.split(/\r?\n/)` or trim `\r`
+   off each split cell.
+
+2. **Empty `workout.label` maps to `NULL` here, but to `''` in the API path.**
+   `csv-import.ts` runs the label through `str()` → `NULL` for an empty cell,
+   whereas `import.ts` (the API-sync path) coerces a null label to `''` (asserted in
+   `import.test.ts`). So the same logically-empty label lands in the `workouts`
+   table differently depending on which importer wrote it. Not obviously a bug —
+   just an inconsistency worth being aware of before any code dedups the two paths.
 
 ### 🔴 CI red on `main` — `bun.lock` drift (pre-existing, NOT from this run)
 
