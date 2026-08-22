@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach, setSystemTime } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -20,15 +20,21 @@ import { CliError } from '../lib/errors.js';
 const realFetch = globalThis.fetch;
 const realLog = console.log;
 
-// UTC "today", matching what todayDate('UTC') → todayLocal('UTC') resolves to
-// (formatLocalDate over nowUtc()). We drive runSync with tz='UTC' so the
-// summarized day is deterministic and equals this value.
-const TODAY = new Date().toISOString().slice(0, 10);
-const YESTERDAY = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+// The clock is frozen (via setSystemTime in beforeEach) at noon UTC on a fixed
+// date, so every `new Date()` inside runSync/importDaily and every helper
+// resolving "today" agrees on the same day. TODAY/YESTERDAY are therefore
+// constants, not values captured at module load — this removes the UTC-midnight
+// window where a load-time fixture date could diverge from a date computed
+// during test execution. We drive runSync with tz='UTC' so the summarized day
+// equals TODAY exactly.
+const FROZEN_NOW = '2026-06-15T12:00:00.000Z';
+const TODAY = '2026-06-15';
+const YESTERDAY = '2026-06-14';
 
 let TEST_DB: string;
 let logs: string[];
 let fetchCalls: string[];
+let dbCounter = 0;
 
 function removeDb(path: string): void {
   for (const suffix of ['', '-wal', '-shm']) {
@@ -75,7 +81,8 @@ function todayFixture(): Record<string, unknown[]> {
 }
 
 beforeEach(() => {
-  TEST_DB = join(tmpdir(), `oura-sync-test-${process.pid}-${Math.floor(performance.now() * 1000)}.db`);
+  setSystemTime(new Date(FROZEN_NOW));
+  TEST_DB = join(tmpdir(), `oura-sync-test-${process.pid}-${dbCounter++}.db`);
   logs = [];
   fetchCalls = [];
   console.log = (...args: unknown[]) => { logs.push(args.map(String).join(' ')); };
@@ -83,6 +90,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  setSystemTime();
   globalThis.fetch = realFetch;
   console.log = realLog;
   delete process.env.OURA_TOKEN;
