@@ -16,10 +16,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `oura-cli doctor` diagnoses token resolution (honoring `--token` like every
   other command), live token validity (skippable with `--offline`), local
   database health, and data freshness across sleep/readiness/activity in one
-  pass, and prints the single next command that has a fix — never claiming
-  "everything looks healthy" while a check failed. Both `table` and `json`
-  output are supported; the JSON shape is published as
-  `docs/schemas/doctor.json`.
+  pass. `ok` is true only when every check is clean — a warning is enough to
+  clear "everything looks healthy". `nextStep` is the first non-ok check's
+  fix, so it never recommends a command (like `sync`) that would just hit the
+  same root cause (like an unreachable API) a check upstream already found.
+  Both `table` and `json` output are supported; the JSON shape is published
+  as `docs/schemas/doctor.json`.
 
 ### Fixed
 - Interactive `oura-cli login` now hides the Personal Access Token while it is

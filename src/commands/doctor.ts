@@ -97,8 +97,13 @@ export async function runChecks(deps: DoctorDeps): Promise<DoctorResult> {
     checks.push({ id: 'data', status: 'fail', detail: 'Cannot check data — database unavailable.' });
   }
 
-  const ok = checks.every(c => c.status !== 'fail');
-  const nextStep = checks.find(c => c.status !== 'ok' && c.fix)?.fix ?? null;
+  // A later check's fix is only trustworthy if every earlier check passed —
+  // otherwise it may recommend a command blocked by the same root cause
+  // (e.g. suggesting `sync` when token-valid already found the API
+  // unreachable). So nextStep takes the first non-ok check's fix, not the
+  // first *fix* among non-ok checks.
+  const ok = checks.every(c => c.status === 'ok');
+  const nextStep = checks.find(c => c.status !== 'ok')?.fix ?? null;
   return { ok, checks, nextStep };
 }
 
@@ -117,8 +122,9 @@ export function exitCodeForChecks(checks: DoctorCheck[]): number {
   const fail = checks.find(c => c.status === 'fail');
   if (!fail) return 0;
   if (fail.id === 'token' || fail.id === 'token-valid') return exitCodeFor(new CliError('TOKEN_MISSING', fail.detail));
-  if (fail.id === 'database') return exitCodeFor(new CliError('DB_ERROR', fail.detail));
-  return 1;
+  // 'data' only ever fails when 'database' already failed (and sorts first
+  // in `checks`), so this line is reached only for id === 'database'.
+  return exitCodeFor(new CliError('DB_ERROR', fail.detail));
 }
 
 function statusSymbol(status: CheckStatus): string {

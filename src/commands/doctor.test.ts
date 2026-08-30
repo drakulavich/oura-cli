@@ -33,14 +33,16 @@ describe('doctor runChecks', () => {
     expect(result.nextStep).toBe('oura-cli login');
   });
 
-  it('warns when the database has no data yet and points at sync', async () => {
+  it('warns when the database has no data yet, points at sync, and does not report ok', async () => {
     const result = await runChecks(makeDeps());
 
     const dataCheck = result.checks.find(c => c.id === 'data')!;
     expect(dataCheck.status).toBe('warn');
     expect(dataCheck.fix).toBe('oura-cli sync');
     expect(result.nextStep).toBe('oura-cli sync');
-    expect(result.ok).toBe(true);
+    // A warning means something is genuinely worth the user's attention —
+    // `ok` must not claim a clean bill of health while one is present.
+    expect(result.ok).toBe(false);
   });
 
   it('warns when the most recent data is more than two days stale', async () => {
@@ -113,9 +115,12 @@ describe('doctor runChecks', () => {
     expect(JSON.stringify(result)).not.toContain(SECRET);
   });
 
-  it('skips a non-ok check with no fix and surfaces the next one that has a fix', async () => {
-    // token-valid warns with no fix (network unreachable); data warns with a fix.
-    // nextStep must be the data check's fix, not undefined/null from token-valid.
+  it('does not recommend sync as the next step when the reason there is no local data is the same unreachable API', async () => {
+    // token-valid warns with no fix (network unreachable). data also warns,
+    // with fix 'oura-cli sync' — but sync needs the same unreachable API, so
+    // recommending it here would send the user to a command guaranteed to
+    // fail for the same reason doctor just diagnosed. nextStep must stop at
+    // the first non-ok check (token-valid) rather than skip past it.
     const result = await runChecks(makeDeps({
       offline: false,
       createClient: () => ({ fetch: async () => { throw new Error('network unreachable'); } }),
@@ -124,7 +129,8 @@ describe('doctor runChecks', () => {
     const tokenValid = result.checks.find(c => c.id === 'token-valid')!;
     expect(tokenValid.status).toBe('warn');
     expect(tokenValid.fix).toBeUndefined();
-    expect(result.nextStep).toBe('oura-cli sync');
+    expect(result.nextStep).toBeNull();
+    expect(result.ok).toBe(false);
   });
 
   it('reports data freshness from daily_activity alone, not just daily_sleep', async () => {
@@ -133,6 +139,20 @@ describe('doctor runChecks', () => {
     db.query(
       'INSERT OR REPLACE INTO daily_activity VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
     ).run('a1', '2026-08-30', 77, 500, 11000, 8000, 600, 1200, 3600, 40000, 2500, 2400, '{}', '2026-08-30T00:00:00Z');
+
+    const result = await runChecks(makeDeps({ openDb: () => ({ db, path: ':memory:' }) }));
+
+    const dataCheck = result.checks.find(c => c.id === 'data')!;
+    expect(dataCheck.status).toBe('ok');
+    expect(dataCheck.detail).toContain('2026-08-30');
+  });
+
+  it('reports data freshness from daily_readiness alone, not just daily_sleep or daily_activity', async () => {
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    db.query(
+      'INSERT OR REPLACE INTO daily_readiness VALUES (?,?,?,?,?,?,?)',
+    ).run('r1', '2026-08-30', 74, '{}', 0.1, 0, '2026-08-30T00:00:00Z');
 
     const result = await runChecks(makeDeps({ openDb: () => ({ db, path: ':memory:' }) }));
 
