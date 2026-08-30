@@ -38,7 +38,7 @@ describe('buildManifest', () => {
   describe('commands list', () => {
     it('includes every supported subcommand', () => {
       const m = buildManifest('0.1.0');
-      const expected = ['login', 'describe', 'sleep', 'readiness', 'activity', 'hr', 'spo2', 'stress', 'workout', 'sync', 'db', 'report'].sort();
+      const expected = ['login', 'describe', 'doctor', 'sleep', 'readiness', 'activity', 'hr', 'spo2', 'stress', 'workout', 'sync', 'db', 'report'].sort();
 
       expect(m.commands.map(c => c.name).sort()).toEqual(expected);
     });

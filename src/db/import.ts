@@ -6,10 +6,13 @@ import type {
   OuraSleepModel,
 } from '../api/types.js';
 
+const BACKFILL_DAYS = 30;
+
 export interface ImportResult {
   startDate: string;
   endDate: string;
   counts: Record<string, number>;
+  isFirstSync: boolean;
 }
 
 export async function importDaily(db: Database, client: OuraClient, log?: (msg: string) => void): Promise<ImportResult> {
@@ -21,11 +24,14 @@ export async function importDaily(db: Database, client: OuraClient, log?: (msg: 
     const row = db.query(`SELECT MAX(day) as d FROM ${tbl}`).get() as { d: string | null };
     if (row?.d) lastDates.push(row.d);
   }
-  const startDate = lastDates.length > 0
-    ? lastDates.sort()[0]
-    : new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+  const isFirstSync = lastDates.length === 0;
+  const startDate = isFirstSync
+    ? new Date(Date.now() - BACKFILL_DAYS * 86400000).toISOString().slice(0, 10)
+    : lastDates.sort()[0];
 
-  _log(`Syncing from ${startDate} to ${today}`);
+  _log(isFirstSync
+    ? `First sync — backfilling the last ${BACKFILL_DAYS} days: ${startDate} → ${today}`
+    : `Syncing ${startDate} → ${today}`);
 
   const counts: Record<string, number> = {};
 
@@ -115,5 +121,5 @@ export async function importDaily(db: Database, client: OuraClient, log?: (msg: 
   counts.cardiovascular_age = cvData.length;
 
   _log('Import complete.');
-  return { startDate, endDate: today, counts };
+  return { startDate, endDate: today, counts, isFirstSync };
 }

@@ -6,6 +6,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- README "First five minutes" now leads with a concrete report sample,
+  documents `login` → `doctor` → `sync` → `report` as the onboarding path,
+  states plainly that `login` hides the token as you type, and adds a
+  symptom → command recovery table.
+
+### Added
+- `oura-cli doctor` diagnoses token resolution (honoring `--token` like every
+  other command), live token validity (skippable with `--offline`), local
+  database health, and data freshness across sleep/readiness/activity in one
+  pass. `ok` is true only when every check is clean — a warning is enough to
+  clear "everything looks healthy". `nextStep` is the first non-ok check's
+  fix, so it never recommends a command (like `sync`) that would just hit the
+  same root cause (like an unreachable API) a check upstream already found.
+  Both `table` and `json` output are supported; the JSON shape is published
+  as `docs/schemas/doctor.json`.
+
 ### Fixed
 - Interactive `oura-cli login` now hides the Personal Access Token while it is
   typed and explains how to use `--token` safely in non-interactive contexts.
@@ -13,6 +30,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   users to run `oura-cli sync`, instead of showing an all-empty report table.
 - Reports containing only sleep-detail data are no longer mistaken for empty
   reports and continue to show the available sleep metrics.
+- `oura-cli db today` and `oura-cli db week` now explain when the local cache
+  has no data for the requested range and point at `oura-cli sync`, instead of
+  showing an all-dash table. JSON output is unchanged.
+- `oura-cli sync` now says explicitly when it is a first sync backfilling the
+  default 30 days, names the resolved date range for both first and
+  incremental syncs, and prints a per-collection import count summary in
+  table mode. JSON output gains an additive `import.isFirstSync` boolean.
 - `OuraStressDay.day_summary`, `OuraWorkout.label` and `OuraSleepModel.type` are
   now typed `?: string | null`, matching the Oura OpenAPI spec (checked against
   1.37), which marks all three nullable and omits them from `required`. The

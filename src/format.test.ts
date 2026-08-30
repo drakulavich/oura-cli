@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'bun:test';
 import chalk from 'chalk';
-import { formatDaySummary, formatWeekTable, formatTrends, formatStats } from './format.js';
+import { formatDaySummary, formatWeekTable, formatTrends, formatStats, formatImportSummary } from './format.js';
 import type { DaySummary, TrendRow, DbStats } from './db/queries.js';
+import type { ImportResult } from './db/import.js';
 
 // Strip ANSI escape codes to assert on *visible* text, regardless of chalk level.
 const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, '');
@@ -139,6 +140,56 @@ describe('formatDaySummary', () => {
   });
 });
 
+function makeEmptyDay(day: string): DaySummary {
+  return {
+    day,
+    sleep_score: null,
+    readiness_score: null,
+    activity_score: null,
+    steps: null,
+    stress: null,
+    spo2: null,
+    temp_deviation: null,
+    sleep_hours: null,
+    deep_hours: null,
+    rem_hours: null,
+    avg_hrv: null,
+    lowest_hr: null,
+    efficiency: null,
+  };
+}
+
+describe('formatDaySummary empty state', () => {
+  it('shows the empty-state message and hint when every metric is null and a hint is given', () => {
+    const out = stripAnsi(formatDaySummary(makeEmptyDay('2026-08-30'), 'table', 'Run `oura-cli sync` to download your data.'));
+    expect(out).toContain('2026-08-30');
+    expect(out).toContain('No Oura data for 2026-08-30 yet.');
+    expect(out).toContain('Run `oura-cli sync` to download your data.');
+    expect(out).not.toContain('Sleep:');
+    expect(out).not.toContain('Steps:');
+  });
+
+  it('ignores the hint in json mode and stays byte-identical to plain JSON.stringify', () => {
+    const day = makeEmptyDay('2026-08-30');
+    const out = formatDaySummary(day, 'json', 'Run `oura-cli sync` to download your data.');
+    expect(out).toBe(JSON.stringify(day, null, 2));
+  });
+
+  it('renders the normal dash table for an empty day when no hint is passed', () => {
+    const out = stripAnsi(formatDaySummary(makeEmptyDay('2026-08-30'), 'table'));
+    expect(out).toContain('Sleep:');
+    expect(out).toContain('Steps:');
+    expect(out).not.toContain('No Oura data');
+  });
+
+  it('renders the normal table when the day has data, even with a hint passed', () => {
+    const out = stripAnsi(formatDaySummary(makeDay(), 'table', 'Run `oura-cli sync` to download your data.'));
+    expect(out).toContain('Sleep:');
+    expect(out).toContain('Steps:');
+    expect(out).not.toContain('No Oura data');
+  });
+});
+
 describe('formatWeekTable', () => {
   it('returns pretty-printed JSON when format is json', () => {
     const days = [makeDay()];
@@ -163,6 +214,59 @@ describe('formatWeekTable', () => {
     const out = stripAnsi(formatWeekTable([makeDay({ steps: null, stress: null })], 'table'));
     // both the steps and stress columns collapse to an em dash.
     expect(out).toContain('—');
+  });
+});
+
+describe('formatWeekTable empty state', () => {
+  it('shows the empty-state message and hint when every day is empty and a hint is given', () => {
+    const days = ['2026-08-24', '2026-08-25', '2026-08-26', '2026-08-27', '2026-08-28', '2026-08-29', '2026-08-30'].map(makeEmptyDay);
+    const out = stripAnsi(formatWeekTable(days, 'table', 'Run `oura-cli sync`, then `oura-cli db week` again.'));
+    expect(out).toContain('No Oura data for the last 7 days yet.');
+    expect(out).toContain('Run `oura-cli sync`, then `oura-cli db week` again.');
+    expect(out).not.toContain('Day');
+  });
+
+  it('renders the normal table when at least one day has data, even with a hint passed', () => {
+    const days = [makeEmptyDay('2026-08-29'), makeDay({ day: '2026-08-30' })];
+    const out = stripAnsi(formatWeekTable(days, 'table', 'Run `oura-cli sync`, then `oura-cli db week` again.'));
+    expect(out).toContain('Last 7 Days');
+    expect(out).not.toContain('No Oura data');
+  });
+
+  it('renders the normal dash table for all-empty days when no hint is passed', () => {
+    const days = ['2026-08-24', '2026-08-25', '2026-08-26', '2026-08-27', '2026-08-28', '2026-08-29', '2026-08-30'].map(makeEmptyDay);
+    const out = stripAnsi(formatWeekTable(days, 'table'));
+    expect(out).toContain('Last 7 Days');
+    expect(out).not.toContain('No Oura data');
+  });
+
+  it('renders the header-only table for an empty array, even when a hint is passed', () => {
+    const out = stripAnsi(formatWeekTable([], 'table', 'Run `oura-cli sync`, then `oura-cli db week` again.'));
+    expect(out).toContain('Last 7 Days');
+    expect(out).not.toContain('No Oura data');
+  });
+
+  it('ignores the hint in json mode and stays byte-identical to plain JSON.stringify', () => {
+    const days = ['2026-08-24', '2026-08-25'].map(makeEmptyDay);
+    const out = formatWeekTable(days, 'json', 'Run `oura-cli sync`, then `oura-cli db week` again.');
+    expect(out).toBe(JSON.stringify(days, null, 2));
+  });
+});
+
+describe('formatImportSummary', () => {
+  it('defaults a missing collection count to 0 rather than printing undefined', () => {
+    const result: ImportResult = {
+      startDate: '2026-05-16',
+      endDate: '2026-06-15',
+      isFirstSync: true,
+      counts: { daily_sleep: 5 },
+    };
+    const out = formatImportSummary(result);
+    expect(out).toContain('sleep 5');
+    expect(out).toContain('workouts 0');
+    expect(out).toContain('heart rate 0');
+    expect(out).toContain('cardiovascular age 0');
+    expect(out).not.toContain('undefined');
   });
 });
 

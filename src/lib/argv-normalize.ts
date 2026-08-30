@@ -1,7 +1,7 @@
 const GLOBAL_FLAGS_WITH_VALUE = new Set(['--format', '--token', '--db', '--tz']);
 const GLOBAL_FLAGS_BOOLEAN = new Set(['--no-color']);
 const SUBCOMMANDS = new Set([
-  'login', 'describe', 'healthcheck', 'manifest',
+  'login', 'describe', 'healthcheck', 'doctor', 'manifest',
   'sleep', 'readiness', 'activity', 'hr', 'spo2', 'stress', 'workout',
   'sync', 'db', 'report',
 ]);

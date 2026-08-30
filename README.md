@@ -26,17 +26,45 @@ curl -fsSL https://bun.sh/install | bash   # if you don't have Bun yet
 bun add -g @drakulavich/oura-cli
 ```
 
-You'll also need a [Personal Access Token from Oura](https://cloud.ouraring.com/personal-access-tokens). Paste it into `oura-cli login` once — it lands at `~/.oura-token` with `0600` perms.
+You'll also need a [Personal Access Token from Oura](https://cloud.ouraring.com/personal-access-tokens). Run `oura-cli login` once — it hides the token as you type (nothing is echoed to the terminal) and saves it to `~/.oura-token` with `0600` perms.
 
 ## First five minutes
 
-```bash
-oura-cli login          # paste your PAT, one time
-oura-cli sync           # backfill recent days into ~/.oura-cli/oura.db
-oura-cli report         # weekly digest in the terminal
+Five minutes from now you'll have your week of sleep, readiness and activity in a terminal digest like this:
+
+```
+  Oura Weekly Report
+  2026-08-24 — 2026-08-30
+
+  Last 7 Days:
+  ────────────────────────────────────────────────────
+  Day         Sleep  Ready  Active    Steps
+  ────────────────────────────────────────────────────
+  Mon 24/08      87     74      68    9,668
+  Tue 25/08      82     79      74   11,204
+  ...
 ```
 
-That's it. Subsequent `oura-cli sync` pulls only new days.
+Four commands get you there:
+
+```bash
+oura-cli login    # paste your PAT — input is hidden, nothing echoes to the terminal
+oura-cli doctor   # confirm the token works and the local database is ready
+oura-cli sync     # first sync backfills the last 30 days; later syncs are incremental
+oura-cli report   # weekly digest in the terminal
+```
+
+Subsequent `oura-cli sync` only pulls new days, and `oura-cli db today` / `oura-cli db week` read the local cache instantly, no API call.
+
+### If something looks wrong
+
+| What you see | What to run |
+|---|---|
+| `No Oura data is available for this report yet.` | `oura-cli sync` |
+| `No Oura access token at ~/.oura-token` | `oura-cli login` |
+| `Oura API 401` | `oura-cli login` with a fresh PAT |
+| `db today` empty right after a sync | Normal — Oura publishes a day's summary after that night's sleep syncs from the ring. |
+| Anything else | `oura-cli doctor` |
 
 ## Daily use
 

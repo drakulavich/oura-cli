@@ -36,7 +36,7 @@ export const dbCommand = defineCommand({
           const db = openDatabase({ dbPath: args.db });
           ensureSchema(db);
           const summary = getDaySummary(db, todayDate(args.tz));
-          console.log(formatDaySummary(summary, format));
+          console.log(formatDaySummary(summary, format, 'Run `oura-cli sync` to download your data. Oura publishes a day\'s summary after that night\'s sleep syncs from the ring.'));
           db.close();
         } catch (err) {
           handleError(err, args);
@@ -79,7 +79,7 @@ export const dbCommand = defineCommand({
             const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
             days.push(getDaySummary(db, d));
           }
-          console.log(formatWeekTable(days, format));
+          console.log(formatWeekTable(days, format, 'Run `oura-cli sync`, then `oura-cli db week` again.'));
           db.close();
         } catch (err) {
           handleError(err, args);

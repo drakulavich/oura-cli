@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/drakulavich/oura-cli/blob/main/docs/schemas/doctor.json",
+  "title": "oura-cli doctor output",
+  "type": "object",
+  "required": ["ok", "checks", "nextStep"],
+  "properties": {
+    "ok": { "type": "boolean" },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "status", "detail"],
+        "additionalProperties": false,
+        "properties": {
+          "id":     { "type": "string", "enum": ["token", "token-valid", "database", "data"] },
+          "status": { "type": "string", "enum": ["ok", "warn", "fail"] },
+          "detail": { "type": "string" },
+          "fix":    { "type": "string" }
+        }
+      }
+    },
+    "nextStep": { "type": ["string", "null"] }
+  }
+}
