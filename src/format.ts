@@ -16,8 +16,25 @@ function fmtHours(h: number | null): string {
   return `${h}h`;
 }
 
-export function formatDaySummary(summary: DaySummary, format: OutputFormat): string {
+function isEmptyDay(s: DaySummary): boolean {
+  return s.sleep_score === null && s.readiness_score === null && s.activity_score === null &&
+    s.steps === null && s.stress === null && s.spo2 === null && s.temp_deviation === null &&
+    s.sleep_hours === null && s.deep_hours === null && s.rem_hours === null &&
+    s.avg_hrv === null && s.lowest_hr === null && s.efficiency === null;
+}
+
+export function formatDaySummary(summary: DaySummary, format: OutputFormat, emptyHint?: string): string {
   if (format === 'json') return JSON.stringify(summary, null, 2);
+
+  if (emptyHint && isEmptyDay(summary)) {
+    return [
+      '',
+      chalk.bold(`  ${summary.day}`),
+      chalk.gray('─'.repeat(50)),
+      `  No Oura data for ${summary.day} yet.`,
+      `  ${emptyHint}`,
+    ].join('\n');
+  }
 
   const lines: string[] = [
     '',
@@ -43,8 +60,16 @@ export function formatDaySummary(summary: DaySummary, format: OutputFormat): str
   return lines.join('\n');
 }
 
-export function formatWeekTable(days: DaySummary[], format: OutputFormat): string {
+export function formatWeekTable(days: DaySummary[], format: OutputFormat, emptyHint?: string): string {
   if (format === 'json') return JSON.stringify(days, null, 2);
+
+  if (emptyHint && days.length > 0 && days.every(isEmptyDay)) {
+    return [
+      '',
+      '  No Oura data for the last 7 days yet.',
+      `  ${emptyHint}`,
+    ].join('\n');
+  }
 
   const header = `${'Day'.padEnd(12)} ${'Sleep'.padStart(6)} ${'Ready'.padStart(6)} ${'Activity'.padStart(9)} ${'Steps'.padStart(7)} ${'Stress'.padEnd(10)}`;
   const sep = chalk.gray('─'.repeat(56));

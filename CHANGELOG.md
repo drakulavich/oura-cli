@@ -13,6 +13,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   users to run `oura-cli sync`, instead of showing an all-empty report table.
 - Reports containing only sleep-detail data are no longer mistaken for empty
   reports and continue to show the available sleep metrics.
+- `oura-cli db today` and `oura-cli db week` now explain when the local cache
+  has no data for the requested range and point at `oura-cli sync`, instead of
+  showing an all-dash table. JSON output is unchanged.
 - `OuraStressDay.day_summary`, `OuraWorkout.label` and `OuraSleepModel.type` are
   now typed `?: string | null`, matching the Oura OpenAPI spec (checked against
   1.37), which marks all three nullable and omits them from `required`. The
