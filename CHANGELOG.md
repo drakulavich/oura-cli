@@ -6,6 +6,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- README "First five minutes" now leads with a concrete report sample,
+  documents `login` → `doctor` → `sync` → `report` as the onboarding path,
+  states plainly that `login` hides the token as you type, and adds a
+  symptom → command recovery table.
+
 ### Added
 - `oura-cli doctor` diagnoses token resolution, live token validity (skippable
   with `--offline`), local database health, and data freshness in one pass,
