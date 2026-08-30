@@ -13,10 +13,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   symptom → command recovery table.
 
 ### Added
-- `oura-cli doctor` diagnoses token resolution, live token validity (skippable
-  with `--offline`), local database health, and data freshness in one pass,
-  and prints the single next command to run. Both `table` and `json` output
-  are supported; the JSON shape is published as `docs/schemas/doctor.json`.
+- `oura-cli doctor` diagnoses token resolution (honoring `--token` like every
+  other command), live token validity (skippable with `--offline`), local
+  database health, and data freshness across sleep/readiness/activity in one
+  pass, and prints the single next command that has a fix — never claiming
+  "everything looks healthy" while a check failed. Both `table` and `json`
+  output are supported; the JSON shape is published as
+  `docs/schemas/doctor.json`.
 
 ### Fixed
 - Interactive `oura-cli login` now hides the Personal Access Token while it is

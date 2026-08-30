@@ -40,8 +40,8 @@ Five minutes from now you'll have your week of sleep, readiness and activity in 
   ────────────────────────────────────────────────────
   Day         Sleep  Ready  Active    Steps
   ────────────────────────────────────────────────────
-  Mon 08-24      87     74      68     9,668
-  Tue 08-25      82     79      74    11,204
+  Mon 24/08      87     74      68    9,668
+  Tue 25/08      82     79      74   11,204
   ...
 ```
 

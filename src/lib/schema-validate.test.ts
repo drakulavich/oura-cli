@@ -28,6 +28,17 @@ describe('JSON schemas in docs/schemas/', () => {
     });
   }
 
+  it('every command outputSchema reference in the manifest points at a file that exists in docs/schemas/', async () => {
+    const { buildManifest } = await import('../commands/describe.js');
+    const manifest = buildManifest('0.3.0');
+    for (const cmd of manifest.commands) {
+      if (cmd.outputSchema) {
+        const filename = cmd.outputSchema.split('/').pop()!;
+        expect(files).toContain(filename);
+      }
+    }
+  });
+
   it('describe.json validates the output of buildManifest', async () => {
     const { buildManifest } = await import('../commands/describe.js');
     const manifest = buildManifest('0.3.0');

@@ -2,7 +2,10 @@ import { describe, it, expect } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import { ensureSchema } from '../db/database.js';
 import { CliError } from '../lib/errors.js';
-import { runChecks, type DoctorDeps } from './doctor.js';
+import {
+  runChecks, exitCodeForChecks, formatDoctorTable, resolveTokenLikeClient,
+  type DoctorDeps, type DoctorCheck,
+} from './doctor.js';
 
 function makeDeps(overrides: Partial<DoctorDeps> = {}): DoctorDeps {
   const db = new Database(':memory:');
@@ -108,5 +111,104 @@ describe('doctor runChecks', () => {
     }));
 
     expect(JSON.stringify(result)).not.toContain(SECRET);
+  });
+
+  it('skips a non-ok check with no fix and surfaces the next one that has a fix', async () => {
+    // token-valid warns with no fix (network unreachable); data warns with a fix.
+    // nextStep must be the data check's fix, not undefined/null from token-valid.
+    const result = await runChecks(makeDeps({
+      offline: false,
+      createClient: () => ({ fetch: async () => { throw new Error('network unreachable'); } }),
+    }));
+
+    const tokenValid = result.checks.find(c => c.id === 'token-valid')!;
+    expect(tokenValid.status).toBe('warn');
+    expect(tokenValid.fix).toBeUndefined();
+    expect(result.nextStep).toBe('oura-cli sync');
+  });
+
+  it('reports data freshness from daily_activity alone, not just daily_sleep', async () => {
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    db.query(
+      'INSERT OR REPLACE INTO daily_activity VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+    ).run('a1', '2026-08-30', 77, 500, 11000, 8000, 600, 1200, 3600, 40000, 2500, 2400, '{}', '2026-08-30T00:00:00Z');
+
+    const result = await runChecks(makeDeps({ openDb: () => ({ db, path: ':memory:' }) }));
+
+    const dataCheck = result.checks.find(c => c.id === 'data')!;
+    expect(dataCheck.status).toBe('ok');
+    expect(dataCheck.detail).toContain('2026-08-30');
+  });
+});
+
+describe('exitCodeForChecks', () => {
+  function checks(overrides: Partial<Record<DoctorCheck['id'], DoctorCheck['status']>>): DoctorCheck[] {
+    const base: DoctorCheck[] = [
+      { id: 'token', status: 'ok', detail: '' },
+      { id: 'token-valid', status: 'ok', detail: '' },
+      { id: 'database', status: 'ok', detail: '' },
+      { id: 'data', status: 'ok', detail: '' },
+    ];
+    return base.map(c => (overrides[c.id] ? { ...c, status: overrides[c.id]! } : c));
+  }
+
+  it('exits 0 when nothing fails, even with warnings', () => {
+    expect(exitCodeForChecks(checks({ data: 'warn' }))).toBe(0);
+  });
+
+  it('exits 2 when the token check fails', () => {
+    expect(exitCodeForChecks(checks({ token: 'fail' }))).toBe(2);
+  });
+
+  it('exits 2 when the token-valid check fails', () => {
+    expect(exitCodeForChecks(checks({ 'token-valid': 'fail' }))).toBe(2);
+  });
+
+  it('exits 4 when the database check fails', () => {
+    expect(exitCodeForChecks(checks({ database: 'fail' }))).toBe(4);
+  });
+});
+
+describe('formatDoctorTable', () => {
+  it('does not claim everything is healthy when checks failed and no fix is available', () => {
+    const result = {
+      ok: false,
+      checks: [
+        { id: 'token' as const, status: 'ok' as const, detail: 'Token found via OURA_TOKEN.' },
+        { id: 'token-valid' as const, status: 'ok' as const, detail: 'Skipped (--offline).' },
+        { id: 'database' as const, status: 'fail' as const, detail: 'EROFS: read-only file system' },
+        { id: 'data' as const, status: 'fail' as const, detail: 'Cannot check data — database unavailable.' },
+      ],
+      nextStep: null,
+    };
+
+    const out = formatDoctorTable(result);
+    expect(out).not.toContain('everything looks healthy');
+    expect(out).toContain('Next: see the failing checks above.');
+  });
+
+  it('still prints "everything looks healthy" when ok and nextStep is null', () => {
+    const result = {
+      ok: true,
+      checks: [{ id: 'token' as const, status: 'ok' as const, detail: 'Token found via OURA_TOKEN.' }],
+      nextStep: null,
+    };
+
+    expect(formatDoctorTable(result)).toContain('everything looks healthy');
+  });
+});
+
+describe('resolveTokenLikeClient', () => {
+  it('prefers an explicit token over OURA_TOKEN and the token file', () => {
+    const prevToken = process.env.OURA_TOKEN;
+    process.env.OURA_TOKEN = 'env-token-should-be-ignored';
+    try {
+      const result = resolveTokenLikeClient('explicit-token-abc');
+      expect(result.token).toBe('explicit-token-abc');
+      expect(result.source).toBe('--token');
+    } finally {
+      if (prevToken === undefined) delete process.env.OURA_TOKEN; else process.env.OURA_TOKEN = prevToken;
+    }
   });
 });

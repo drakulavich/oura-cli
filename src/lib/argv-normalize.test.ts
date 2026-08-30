@@ -32,6 +32,11 @@ describe('normalizeArgv', () => {
     expect(normalizeArgv(argv)).toEqual(['bun', '/path/index.ts', 'report', '--period', 'week', '--format', 'json', '--no-color']);
   });
 
+  it('moves --format placed before the doctor subcommand to after it', () => {
+    const argv = ['bun', '/path/index.ts', '--format', 'table', 'doctor', '--offline'];
+    expect(normalizeArgv(argv)).toEqual(['bun', '/path/index.ts', 'doctor', '--offline', '--format', 'table']);
+  });
+
   it('does not hoist non-global flags placed before the subcommand', () => {
     // Unknown --weird flag should stay where it is (let citty reject it normally).
     const argv = ['bun', '/path/index.ts', '--weird', 'something', 'sleep', 'today'];

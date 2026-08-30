@@ -5,7 +5,6 @@ import { readFileSync } from 'fs';
 import chalk from 'chalk';
 import type { Database } from '../lib/db.js';
 import { openDatabase, ensureSchema, getDbPath } from '../db/database.js';
-import { getStats } from '../db/queries.js';
 import { OuraClient } from '../api/client.js';
 import { CliError, exitCodeFor } from '../lib/errors.js';
 import { todayDate } from './helpers.js';
@@ -81,8 +80,8 @@ export async function runChecks(deps: DoctorDeps): Promise<DoctorResult> {
   }
 
   if (db) {
-    const { first, last } = getStats(db).dateRange;
-    if (!first || !last) {
+    const last = latestDataDay(db);
+    if (!last) {
       checks.push({ id: 'data', status: 'warn', detail: 'No data in the local cache yet.', fix: 'oura-cli sync' });
     } else {
       const ageDays = Math.round(
@@ -99,11 +98,22 @@ export async function runChecks(deps: DoctorDeps): Promise<DoctorResult> {
   }
 
   const ok = checks.every(c => c.status !== 'fail');
-  const nextStep = checks.find(c => c.status !== 'ok')?.fix ?? null;
+  const nextStep = checks.find(c => c.status !== 'ok' && c.fix)?.fix ?? null;
   return { ok, checks, nextStep };
 }
 
-function exitCodeForChecks(checks: DoctorCheck[]): number {
+const DATA_TABLES = ['daily_sleep', 'daily_readiness', 'daily_activity'] as const;
+
+function latestDataDay(db: Database): string | null {
+  let latest: string | null = null;
+  for (const tbl of DATA_TABLES) {
+    const row = db.query(`SELECT MAX(day) as d FROM ${tbl}`).get() as { d: string | null } | undefined;
+    if (row?.d && (!latest || row.d > latest)) latest = row.d;
+  }
+  return latest;
+}
+
+export function exitCodeForChecks(checks: DoctorCheck[]): number {
   const fail = checks.find(c => c.status === 'fail');
   if (!fail) return 0;
   if (fail.id === 'token' || fail.id === 'token-valid') return exitCodeFor(new CliError('TOKEN_MISSING', fail.detail));
@@ -117,17 +127,19 @@ function statusSymbol(status: CheckStatus): string {
   return chalk.red('✗');
 }
 
-function formatDoctorTable(result: DoctorResult): string {
+export function formatDoctorTable(result: DoctorResult): string {
   const lines = ['', chalk.bold('  Doctor'), chalk.gray('─'.repeat(50))];
   for (const c of result.checks) {
     lines.push(`  ${statusSymbol(c.status)} ${c.id.padEnd(12)} ${c.detail}`);
   }
   lines.push('');
-  lines.push(`  Next: ${result.nextStep ?? 'nothing — everything looks healthy.'}`);
+  const next = result.nextStep ?? (result.ok ? 'nothing — everything looks healthy.' : 'see the failing checks above.');
+  lines.push(`  Next: ${next}`);
   return lines.join('\n');
 }
 
-function resolveTokenLikeClient(): TokenResolution {
+export function resolveTokenLikeClient(explicitToken?: string): TokenResolution {
+  if (explicitToken) return { token: explicitToken.trim(), source: '--token' };
   if (process.env.OURA_TOKEN) return { token: process.env.OURA_TOKEN.trim(), source: 'OURA_TOKEN' };
   const tokenPath = process.env.OURA_TOKEN_PATH ?? resolve(homedir(), '.oura-token');
   try {
@@ -148,7 +160,7 @@ export const doctorCommand = defineCommand({
     try {
       const format = resolveFormat({ explicit: args.format, isTty: process.stdout.isTTY === true });
       const deps: DoctorDeps = {
-        resolveToken: resolveTokenLikeClient,
+        resolveToken: () => resolveTokenLikeClient(args.token as string | undefined),
         openDb: () => {
           const db = openDatabase({ dbPath: args.db });
           ensureSchema(db);
