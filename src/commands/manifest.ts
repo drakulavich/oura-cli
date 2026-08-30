@@ -25,6 +25,7 @@ export function manifestCommand(version: string) {
           { name: 'db',          description: 'Query the local SQLite cache.',                 examples: ['oura-cli db today'] },
           { name: 'report',      description: 'Render a weekly or monthly summary report.',    examples: ['oura-cli report --period week'] },
           { name: 'healthcheck', description: 'Quick local DB health probe.',                  examples: ['oura-cli healthcheck'] },
+          { name: 'doctor',      description: 'Diagnose token, database, and sync health.',    examples: ['oura-cli doctor'] },
           { name: 'manifest',    description: 'Print openclaw-tool-registry-compatible manifest as JSON.', examples: ['oura-cli manifest'] },
         ],
         envVars: ['OURA_TOKEN', 'OURA_TOKEN_PATH', 'OURA_DB_PATH', 'OURA_TZ'],

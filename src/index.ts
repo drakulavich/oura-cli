@@ -6,6 +6,7 @@ import { syncCommand } from './commands/sync.js';
 import { dbCommand } from './commands/db.js';
 import { reportCommand } from './commands/report.js';
 import { healthcheckCommand } from './commands/healthcheck.js';
+import { doctorCommand } from './commands/doctor.js';
 import { manifestCommand } from './commands/manifest.js';
 import { createApiCommand } from './commands/api-command.js';
 import { commonArgs } from './commands/common.js';
@@ -29,6 +30,7 @@ const main = defineCommand({
     login:       loginCommand,
     describe:    describeCommand(VERSION),
     healthcheck: healthcheckCommand(VERSION),
+    doctor:      doctorCommand,
     manifest:    manifestCommand(VERSION),
     sleep:       createApiCommand('sleep',     'Fetch daily sleep scores from Oura API.',      'daily_sleep'),
     readiness:   createApiCommand('readiness', 'Fetch daily readiness scores from Oura API.',  'daily_readiness'),

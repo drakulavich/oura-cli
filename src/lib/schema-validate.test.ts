@@ -14,7 +14,7 @@ describe('JSON schemas in docs/schemas/', () => {
 
   it('contains the expected set of schema files', () => {
     expect(files.sort()).toEqual([
-      'activity.json', 'describe.json', 'hr.json', 'readiness.json',
+      'activity.json', 'describe.json', 'doctor.json', 'hr.json', 'readiness.json',
       'sleep.json', 'spo2.json', 'stress.json', 'workout.json',
     ].sort());
   });

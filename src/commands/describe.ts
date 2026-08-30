@@ -69,6 +69,14 @@ export function buildManifest(version: string): Manifest {
       ]},
       { name: 'describe', description: 'Emit a machine-readable manifest of commands, args, and outputs.', args: [] },
       {
+        name: 'doctor',
+        description: 'Diagnose token, database, and sync health, and suggest the next command to run.',
+        args: [
+          { name: '--offline', type: 'boolean', required: false, description: 'Skip the live Oura API token-validation call' },
+        ],
+        outputSchema: 'docs/schemas/doctor.json',
+      },
+      {
         name: 'sleep',
         description: 'Fetch daily sleep scores from Oura API. Pick a subcommand: today | date <day> | week.',
         args: [],

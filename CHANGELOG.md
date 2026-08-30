@@ -6,6 +6,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- `oura-cli doctor` diagnoses token resolution, live token validity (skippable
+  with `--offline`), local database health, and data freshness in one pass,
+  and prints the single next command to run. Both `table` and `json` output
+  are supported; the JSON shape is published as `docs/schemas/doctor.json`.
+
 ### Fixed
 - Interactive `oura-cli login` now hides the Personal Access Token while it is
   typed and explains how to use `--token` safely in non-interactive contexts.
