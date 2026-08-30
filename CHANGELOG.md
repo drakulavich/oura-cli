@@ -16,6 +16,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `oura-cli db today` and `oura-cli db week` now explain when the local cache
   has no data for the requested range and point at `oura-cli sync`, instead of
   showing an all-dash table. JSON output is unchanged.
+- `oura-cli sync` now says explicitly when it is a first sync backfilling the
+  default 30 days, names the resolved date range for both first and
+  incremental syncs, and prints a per-collection import count summary in
+  table mode. JSON output gains an additive `import.isFirstSync` boolean.
 - `OuraStressDay.day_summary`, `OuraWorkout.label` and `OuraSleepModel.type` are
   now typed `?: string | null`, matching the Oura OpenAPI spec (checked against
   1.37), which marks all three nullable and omits them from `required`. The

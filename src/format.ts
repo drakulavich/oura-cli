@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import type { DaySummary, TrendRow, DbStats } from './db/queries.js';
+import type { ImportResult } from './db/import.js';
 import type { OutputFormat } from './lib/format-resolve.js';
 
 export type { OutputFormat } from './lib/format-resolve.js';
@@ -58,6 +59,15 @@ export function formatDaySummary(summary: DaySummary, format: OutputFormat, empt
   }
 
   return lines.join('\n');
+}
+
+export function formatImportSummary(result: ImportResult): string {
+  const c = result.counts;
+  return [
+    `  Imported ${result.startDate} → ${result.endDate}:`,
+    `    sleep ${c.daily_sleep ?? 0}   readiness ${c.daily_readiness ?? 0}   activity ${c.daily_activity ?? 0}   sleep periods ${c.sleep_model ?? 0}`,
+    `    spo2 ${c.daily_spo2 ?? 0}    stress ${c.daily_stress ?? 0}      workouts ${c.workouts ?? 0}   heart rate ${c.heartrate ?? 0}   cardiovascular age ${c.cardiovascular_age ?? 0}`,
+  ].join('\n');
 }
 
 export function formatWeekTable(days: DaySummary[], format: OutputFormat, emptyHint?: string): string {

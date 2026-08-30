@@ -156,6 +156,28 @@ describe('runSync', () => {
       expect(result.counts.cardiovascular_age).toBe(0);
     });
 
+    it('flags a sync against an empty db as isFirstSync with a 30-day backfill start date', async () => {
+      installFetch({});
+      await runSync({ format: 'json', db: TEST_DB, tz: 'UTC' });
+
+      const { import: result } = JSON.parse(logs[0]!);
+      expect(result.isFirstSync).toBe(true);
+      // FROZEN_NOW is 2026-06-15T12:00:00Z; 30 days back is 2026-05-16.
+      expect(result.startDate).toBe('2026-05-16');
+    });
+
+    it('flags a sync against a db with existing rows as an incremental sync', async () => {
+      installFetch(todayFixture());
+      await runSync({ format: 'json', db: TEST_DB, tz: 'UTC' });
+
+      installFetch({});
+      await runSync({ format: 'json', db: TEST_DB, tz: 'UTC' });
+
+      const { import: result } = JSON.parse(logs[logs.length - 1]!);
+      expect(result.isFirstSync).toBe(false);
+      expect(result.startDate).toBe(TODAY);
+    });
+
     it('reads back the freshly-imported rows for today into the today summary', async () => {
       installFetch(todayFixture());
       await runSync({ format: 'json', db: TEST_DB, tz: 'UTC' });
@@ -224,8 +246,40 @@ describe('runSync', () => {
       await runSync({ format: 'table', db: TEST_DB, tz: 'UTC' });
 
       const joined = logs.join('\n');
-      expect(joined).toMatch(/Syncing from .* to /);
       expect(joined).toMatch(/Import complete\./);
+    });
+
+    it('labels a first sync as a 30-day backfill, naming the resolved date range', async () => {
+      installFetch(todayFixture());
+      await runSync({ format: 'table', db: TEST_DB, tz: 'UTC' });
+
+      const joined = logs.join('\n');
+      expect(joined).toContain('First sync — backfilling the last 30 days: 2026-05-16 → 2026-06-15');
+    });
+
+    it('labels an incremental sync with just the resolved date range, no "First sync"', async () => {
+      installFetch(todayFixture());
+      await runSync({ format: 'table', db: TEST_DB, tz: 'UTC' });
+      logs = [];
+
+      installFetch({});
+      await runSync({ format: 'table', db: TEST_DB, tz: 'UTC' });
+
+      const joined = logs.join('\n');
+      expect(joined).toContain(`Syncing ${TODAY} → ${TODAY}`);
+      expect(joined).not.toContain('First sync');
+    });
+
+    it('prints a per-collection count summary, including zero counts for empty collections', async () => {
+      installFetch(todayFixture());
+      await runSync({ format: 'table', db: TEST_DB, tz: 'UTC' });
+
+      const joined = logs.join('\n');
+      expect(joined).toContain('Imported 2026-05-16 → 2026-06-15:');
+      expect(joined).toMatch(/sleep 1/);
+      // workouts and heartrate have no fixture rows and must still show as 0.
+      expect(joined).toMatch(/workouts 0/);
+      expect(joined).toMatch(/heart rate 0/);
     });
 
     it('prints exactly formatDaySummary(today, "table") as its final line', async () => {
