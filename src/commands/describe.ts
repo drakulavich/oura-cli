@@ -164,8 +164,6 @@ export function buildManifest(version: string): Manifest {
           { name: 'week',   description: 'Last 7 days from local DB.',                            args: [] },
           { name: 'trends', description: 'Score and metric trends over N days (default 30).',     args: [{ name: '[days]', type: 'number', required: false, description: 'Window size in days.' }] },
           { name: 'stats',  description: 'Row counts, date range, record highs.',                 args: [] },
-          { name: 'import', description: 'Sync new data from Oura API into the local DB.',        args: [] },
-          { name: 'reset',  description: 'Destroy and rebuild the database from exported CSVs.',  args: [] },
         ],
       },
       {

@@ -14,6 +14,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Text formatters moved from the repo root into `src/render/` (internal).
 - Every data command runs through one runner that resolves the output format, opens and always closes the database, creates the API client and maps errors to exit codes. `sync` progress lines are printed together with the summary instead of streaming. `--no-color` now takes effect before any output (internal).
 - Token resolution lives in `src/api/token.ts` and is shared by the API client and `doctor`; the two SQLite wrappers merged into `src/db/open.ts` (internal). A whitespace-only token is now rejected as missing instead of being sent as an empty bearer token.
+- Every Oura collection is described once in `src/collections/`; table DDL, inserts and the sync loop derive from it. A test proves the derived DDL matches the shipped migrations (internal).
+
+### Removed
+- `db reset` and the CSV importer it relied on (it read a hard-coded personal directory), and the `db import` alias of `sync`.
+- `vo2max` no longer appears in `db stats`; the table was never populated.
 
 ### Added
 - `oura-cli doctor` diagnoses token resolution (honoring `--token` like every

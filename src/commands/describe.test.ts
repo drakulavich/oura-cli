@@ -66,12 +66,13 @@ describe('buildManifest', () => {
       expect(dateSub.args[0].name).toBe('<day>');
     });
 
-    it('includes today, stats, trends, and reset as db subcommands', () => {
+    it('includes today, stats, and trends as db subcommands', () => {
       const m = buildManifest('0.1.2');
       const db = m.commands.find(c => c.name === 'db')!;
       const names = db.subcommands!.map(s => s.name);
 
-      expect(names).toEqual(expect.arrayContaining(['today', 'stats', 'trends', 'reset']));
+      expect(names).toEqual(expect.arrayContaining(['today', 'stats', 'trends']));
+      expect(names).not.toEqual(expect.arrayContaining(['import', 'reset']));
     });
 
     it('report command has a --period flag accepting week and month, with no nested subcommands', () => {

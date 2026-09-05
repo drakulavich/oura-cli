@@ -1,28 +1,14 @@
 import { defineCommand } from 'citty';
-import { mkdirSync, unlinkSync } from 'fs';
-import { dirname } from 'path';
-import { openDatabase, ensureSchema, getDbPath } from '../db/open.js';
-import { importFromCSV } from '../db/csv-import.js';
 import { getDaySummary, getTrends, getStats } from '../db/queries.js';
 import { formatDaySummary, formatWeekTable, formatTrends, formatStats } from '../render/format.js';
 import { daysBack } from '../lib/time.js';
-import { resolveFormat } from '../lib/format-resolve.js';
-import { emitError, exitCodeFor } from '../lib/errors.js';
-import { commonArgs } from './common.js';
 import { dataCommand } from './run-command.js';
-import { runSync } from './sync.js';
 
 const SYNC_HINT = 'Run `oura-cli sync` to download your data. Oura publishes a day\'s summary after that night\'s sleep syncs from the ring.';
 
 export const dbCommand = defineCommand({
   meta: { name: 'db', description: 'Query and manage the local SQLite database' },
   subCommands: {
-    import: dataCommand({
-      meta: { name: 'import', description: 'Sync new data from Oura API into local database (alias of sync)' },
-      needs: { db: true, client: true },
-      run: runSync,
-    }),
-
     today: dataCommand({
       meta: { name: 'today', description: "Today's summary from local database" },
       needs: { db: true },
@@ -68,34 +54,6 @@ export const dbCommand = defineCommand({
       run(ctx) {
         const stats = getStats(ctx.db!, ctx.today);
         return { json: stats, text: () => formatStats(stats, 'table') };
-      },
-    }),
-
-    // Deleted in PR 4; kept on the old style until then so this PR stays mechanical.
-    reset: defineCommand({
-      meta: { name: 'reset', description: 'Destroy and rebuild database from exported CSV files' },
-      args: { ...commonArgs, force: { type: 'boolean', default: false, description: 'Confirm destructive reset' } },
-      run({ args }) {
-        const format = resolveFormat({ explicit: args.format, isTty: process.stdout.isTTY === true });
-        try {
-          if (!args.force) {
-            console.log(JSON.stringify({ error: 'Use --force to confirm destructive reset.' }));
-            process.exit(1);
-          }
-          const dbPath = getDbPath(args.db);
-          for (const suffix of ['', '-wal', '-shm']) { try { unlinkSync(dbPath + suffix); } catch { /* absent */ } }
-          const log = format === 'table' ? console.log : () => {};
-          log('Database deleted.');
-          mkdirSync(dirname(dbPath), { recursive: true });
-          const db = openDatabase(args.db);
-          ensureSchema(db);
-          importFromCSV(db, log);
-          if (format === 'json') console.log(JSON.stringify({ status: 'reset complete' }));
-          db.close();
-        } catch (err) {
-          emitError(err, format);
-          process.exit(exitCodeFor(err));
-        }
       },
     }),
   },

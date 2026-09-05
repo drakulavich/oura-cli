@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import type { DaySummary, TrendRow, DbStats } from '../db/queries.js';
-import type { ImportResult } from '../db/import.js';
+import type { ImportResult } from '../db/sync.js';
 import type { OutputFormat } from '../lib/format-resolve.js';
 
 export type { OutputFormat } from '../lib/format-resolve.js';
