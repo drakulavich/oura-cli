@@ -39,8 +39,7 @@ export async function importDaily(
 
   const counts: Record<string, number> = {};
   for (const c of COLLECTIONS) {
-    const start = c.syncWindow === 'today-only' ? today : startDate;
-    const rows = await client.fetch<unknown>(c.endpoint, rangeQuery(c, start, today, tz));
+    const rows = await client.fetch<unknown>(c.endpoint, rangeQuery(c, startDate, today, tz));
     const stmt = db.query(insertSql(c));
     db.transaction((rs: unknown[]) => { for (const r of rs) stmt.run(...rowValues(c, r)); })(rows);
     counts[c.table] = rows.length;

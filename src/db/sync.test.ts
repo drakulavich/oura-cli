@@ -126,7 +126,7 @@ describe('Import', () => {
   });
 
   describe('request parameters', () => {
-    it('sends dates to daily endpoints and UTC datetimes covering the local day to heartrate', async () => {
+    it('sends the same window to every endpoint: dates to daily ones, UTC datetimes covering the local days to heartrate', async () => {
       const db = new Database(':memory:');
       ensureSchema(db);
       const calls: Array<[OuraEndpoint, Record<string, string>]> = [];
@@ -139,7 +139,7 @@ describe('Import', () => {
 
       const byEndpoint = Object.fromEntries(calls);
       expect(byEndpoint['daily_sleep']).toEqual({ start_date: '2026-05-16', end_date: '2026-06-15' });
-      expect(byEndpoint['heartrate']).toEqual({ start_datetime: '2026-06-14T22:00:00Z', end_datetime: '2026-06-15T22:00:00Z' });
+      expect(byEndpoint['heartrate']).toEqual({ start_datetime: '2026-05-15T22:00:00Z', end_datetime: '2026-06-15T22:00:00Z' });
       expect(Object.values(byEndpoint).some(q => 'start_date' in q && 'start_datetime' in q)).toBe(false);
     });
   });

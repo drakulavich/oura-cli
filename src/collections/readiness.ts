@@ -4,7 +4,7 @@ import type { OuraReadinessDay } from '../api/types.js';
 export const readiness = defineCollection<OuraReadinessDay>({
   name: 'readiness', endpoint: 'daily_readiness', table: 'daily_readiness',
   description: 'Daily readiness score, contributors and temperature deviation',
-  conflict: 'replace', syncWindow: 'range', rangeParams: 'date',
+  conflict: 'replace', rangeParams: 'date',
   identity: [
     { field: 'id', description: 'Oura record id' },
     { field: 'day', format: 'date', description: 'Date the record applies to (YYYY-MM-DD)' },

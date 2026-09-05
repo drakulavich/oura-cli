@@ -7,7 +7,7 @@ export const sleep = defineCollection<OuraSleepDay>({
   table: 'daily_sleep',
   description: 'Daily sleep score and contributors',
   conflict: 'replace',
-  syncWindow: 'range', rangeParams: 'date',
+  rangeParams: 'date',
   identity: [
     { field: 'id', description: 'Oura record id' },
     { field: 'day', format: 'date', description: 'Date the record applies to (YYYY-MM-DD)' },

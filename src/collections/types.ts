@@ -33,8 +33,6 @@ export interface Collection<Row> {
   columns: readonly Column<Row>[];
   indexes?: readonly IndexDef[];
   conflict: 'replace' | 'ignore';
-  /** heartrate is fetched for today only during sync */
-  syncWindow: 'range' | 'today-only';
   /**
    * Query parameters the endpoint takes for a day range: `start_date`/`end_date` (YYYY-MM-DD),
    * or `start_datetime`/`end_datetime` (ISO 8601) — the heartrate timeseries uses the latter.
