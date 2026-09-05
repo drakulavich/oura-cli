@@ -39,6 +39,7 @@
           "description":  { "type": "string" },
           "args":         { "type": "array", "items": { "$ref": "#/$defs/arg" } },
           "outputSchema": { "type": "string" },
+          "outputSchemas": { "type": "object", "additionalProperties": { "type": "string" } },
           "subcommands":  { "type": "array", "items": { "$ref": "#/$defs/subcommand" } }
         }
       }

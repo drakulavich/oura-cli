@@ -114,7 +114,10 @@ describe('healthcheck and manifest commands', () => {
       expect(m.runtime).toBe('bun');
       expect(m.bin).toBe('oura-cli');
       expect(Array.isArray(m.commands)).toBe(true);
-      expect(m.commands.length).toBeGreaterThanOrEqual(13);
+      // Task 5.1 replaced 7 per-collection commands with one `fetch <collection>`
+      // command, so the generated manifest now lists fewer top-level commands:
+      // login, describe, healthcheck, doctor, manifest, fetch, sync, db, report.
+      expect(m.commands.length).toBeGreaterThanOrEqual(9);
       expect(m.envVars).toContain('OURA_TOKEN');
     });
   });

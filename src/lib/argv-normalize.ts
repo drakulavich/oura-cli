@@ -2,8 +2,7 @@ const GLOBAL_FLAGS_WITH_VALUE = new Set(['--format', '--token', '--db', '--tz'])
 const GLOBAL_FLAGS_BOOLEAN = new Set(['--no-color']);
 const SUBCOMMANDS = new Set([
   'login', 'describe', 'healthcheck', 'doctor', 'manifest',
-  'sleep', 'readiness', 'activity', 'hr', 'spo2', 'stress', 'workout',
-  'sync', 'db', 'report',
+  'fetch', 'sync', 'db', 'report',
 ]);
 
 /**
@@ -11,8 +10,8 @@ const SUBCOMMANDS = new Set([
  * This normaliser moves any global flag appearing BEFORE the subcommand name
  * to AFTER it, so citty receives them in the subcommand context.
  *
- * Example: ['bun', 'script', '--format', 'json', 'sleep', 'today']
- *       → ['bun', 'script', 'sleep', 'today', '--format', 'json']
+ * Example: ['bun', 'script', '--format', 'json', 'fetch', 'sleep']
+ *       → ['bun', 'script', 'fetch', 'sleep', '--format', 'json']
  */
 export function normalizeArgv(argv: string[]): string[] {
   const [bun, script, ...rest] = argv;

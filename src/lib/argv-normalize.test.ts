@@ -8,13 +8,13 @@ describe('normalizeArgv', () => {
   });
 
   it('moves --format placed before subcommand to after it', () => {
-    const argv = ['bun', '/path/index.ts', '--format', 'json', 'sleep', 'today'];
-    expect(normalizeArgv(argv)).toEqual(['bun', '/path/index.ts', 'sleep', 'today', '--format', 'json']);
+    const argv = ['bun', '/path/index.ts', '--format', 'json', 'fetch', 'sleep'];
+    expect(normalizeArgv(argv)).toEqual(['bun', '/path/index.ts', 'fetch', 'sleep', '--format', 'json']);
   });
 
   it('moves --format=value form too', () => {
-    const argv = ['bun', '/path/index.ts', '--format=json', 'sleep', 'today'];
-    expect(normalizeArgv(argv)).toEqual(['bun', '/path/index.ts', 'sleep', 'today', '--format=json']);
+    const argv = ['bun', '/path/index.ts', '--format=json', 'fetch', 'sleep'];
+    expect(normalizeArgv(argv)).toEqual(['bun', '/path/index.ts', 'fetch', 'sleep', '--format=json']);
   });
 
   it('handles boolean flag --no-color before subcommand', () => {
@@ -23,7 +23,7 @@ describe('normalizeArgv', () => {
   });
 
   it('leaves flags that are already after the subcommand alone', () => {
-    const argv = ['bun', '/path/index.ts', 'sleep', 'today', '--format', 'json'];
+    const argv = ['bun', '/path/index.ts', 'fetch', 'sleep', '--format', 'json'];
     expect(normalizeArgv(argv)).toEqual(argv);
   });
 
@@ -39,7 +39,7 @@ describe('normalizeArgv', () => {
 
   it('does not hoist non-global flags placed before the subcommand', () => {
     // Unknown --weird flag should stay where it is (let citty reject it normally).
-    const argv = ['bun', '/path/index.ts', '--weird', 'something', 'sleep', 'today'];
+    const argv = ['bun', '/path/index.ts', '--weird', 'something', 'fetch', 'sleep'];
     expect(normalizeArgv(argv)).toEqual(argv);
   });
 });

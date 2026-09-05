@@ -44,3 +44,22 @@ export function insertSql(c: AnyCollection): string {
 export function rowValues<Row>(c: Collection<Row>, row: Row): SqlValue[] {
   return c.columns.map(col => col.pick(row));
 }
+
+export function jsonSchema(c: AnyCollection): Record<string, unknown> {
+  return {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    $id: `https://github.com/drakulavich/oura-cli/blob/main/docs/schemas/${c.name}.json`,
+    title: `oura-cli fetch ${c.name} output`,
+    description: c.description,
+    type: 'array',
+    items: {
+      type: 'object',
+      additionalProperties: true,
+      required: c.identity.map(i => i.field),
+      properties: Object.fromEntries(c.identity.map(i => [
+        i.field,
+        { type: 'string', ...(i.format ? { format: i.format } : {}), description: i.description },
+      ])),
+    },
+  };
+}
