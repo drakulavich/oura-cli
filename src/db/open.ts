@@ -2,7 +2,15 @@ import { Database } from 'bun:sqlite';
 import { resolve, dirname } from 'path';
 import { homedir } from 'os';
 import { mkdirSync } from 'fs';
+import { CliError } from '../lib/errors.js';
 import { MIGRATIONS } from './migrations.js';
+
+export const DB_HINT = 'Check the path in --db / OURA_DB_PATH and that the file is a SQLite database oura-cli created.';
+
+function dbError(what: string, err: unknown): CliError {
+  const detail = err instanceof Error ? err.message : String(err);
+  return new CliError('DB_ERROR', `${what}: ${detail}`, DB_HINT);
+}
 
 export type { Database };
 
@@ -19,11 +27,15 @@ export function getDbPath(explicit?: string): string {
 
 export function openDatabase(explicit?: string): Database {
   const dbPath = getDbPath(explicit);
-  if (dbPath !== ':memory:') mkdirSync(dirname(dbPath), { recursive: true });
-  const db = new Database(dbPath);
-  db.exec('PRAGMA journal_mode = WAL');
-  db.exec('PRAGMA foreign_keys = ON');
-  return db;
+  try {
+    if (dbPath !== ':memory:') mkdirSync(dirname(dbPath), { recursive: true });
+    const db = new Database(dbPath);
+    db.exec('PRAGMA journal_mode = WAL');
+    db.exec('PRAGMA foreign_keys = ON');
+    return db;
+  } catch (err) {
+    throw dbError(`Cannot open database ${dbPath}`, err);
+  }
 }
 
 function schemaVersion(db: Database): number {
@@ -33,11 +45,15 @@ function schemaVersion(db: Database): number {
 }
 
 export function ensureSchema(db: Database, migrations: Migration[] = MIGRATIONS): void {
-  const current = schemaVersion(db);
-  for (const m of migrations) {
-    if (m.version > current) {
-      db.exec(m.sql);
-      db.query('INSERT INTO _schema_version (version) VALUES (?)').run(m.version);
+  try {
+    const current = schemaVersion(db);
+    for (const m of migrations) {
+      if (m.version > current) {
+        db.exec(m.sql);
+        db.query('INSERT INTO _schema_version (version) VALUES (?)').run(m.version);
+      }
     }
+  } catch (err) {
+    throw dbError('Schema migration failed', err);
   }
 }

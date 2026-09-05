@@ -131,6 +131,29 @@ describe('execute', () => {
     expect(exits).toEqual([2]);
   });
 
+  it('maps a SQLite error thrown inside run to DB_ERROR / exit 4', async () => {
+    const def: DataCommandDef<{}> = {
+      meta: { name: 'x' }, needs: { db: true },
+      run: ctx => ({ json: ctx.db!.query('SELECT * FROM no_such_table').all(), text: () => '' }),
+    };
+    const { io, err, exits } = fakeIo(false);
+    await execute(def, baseArgs, io);
+    const env = JSON.parse(err[0]).error;
+    expect(env.code).toBe('DB_ERROR');
+    expect(env.message).toContain('no_such_table');
+    expect(exits).toEqual([4]);
+  });
+
+  it('reports a corrupt database file as DB_ERROR / exit 4', async () => {
+    const path = `/tmp/oura-runner-corrupt-${process.pid}.db`;
+    await Bun.write(path, 'junk');
+    const def: DataCommandDef<{}> = { meta: { name: 'x' }, needs: { db: true }, run: () => ({ json: 1, text: () => '1' }) };
+    const { io, err, exits } = fakeIo(false);
+    await execute(def, { ...baseArgs, db: path }, io);
+    expect(JSON.parse(err[0]).error.code).toBe('DB_ERROR');
+    expect(exits).toEqual([4]);
+  });
+
   it('rejects an unknown --tz with BAD_ARGS before running the command', async () => {
     let ran = false;
     const def: DataCommandDef<{}> = { meta: { name: 'x' }, run: () => { ran = true; return { json: 1, text: () => '1' }; } };

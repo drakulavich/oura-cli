@@ -1,8 +1,10 @@
 import chalk from 'chalk';
 import { defineCommand } from 'citty';
 import type { ArgsDef, CommandDef, CommandMeta, ParsedArgs } from 'citty';
-import { openDatabase, ensureSchema } from '../db/open.js';
+import { SQLiteError } from 'bun:sqlite';
+import { openDatabase, ensureSchema, DB_HINT } from '../db/open.js';
 import type { Database } from '../db/open.js';
+import { CliError } from '../lib/errors.js';
 import { OuraClient } from '../api/client.js';
 import { formatError, exitCodeFor } from '../lib/errors.js';
 import { resolveFormat, type OutputFormat } from '../lib/format-resolve.js';
@@ -78,7 +80,9 @@ export async function execute<A extends ArgsDef>(
     const out = await def.run(ctx, args);
     io.stdout(outputFormat === 'json' ? JSON.stringify(out.json, null, 2) : out.text());
     exitCode = out.exitCode ?? 0;
-  } catch (err) {
+  } catch (raw) {
+    // A query failing inside run() (corrupt file, missing table) is a DB_ERROR, not UNKNOWN.
+    const err = raw instanceof SQLiteError ? new CliError('DB_ERROR', raw.message, DB_HINT) : raw;
     io.stderr(formatError(err, format).text);
     exitCode = exitCodeFor(err);
   } finally {
