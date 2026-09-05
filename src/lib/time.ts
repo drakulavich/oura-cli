@@ -53,3 +53,21 @@ export function resolveDefaultTimezone(): string {
     return 'UTC';
   }
 }
+
+/** YYYY-MM-DD for "now" in `timezone` (default: OURA_TZ or the system zone). */
+export function today(timezone?: string): string {
+  return todayLocal(timezone ?? resolveDefaultTimezone());
+}
+
+/** Shift a YYYY-MM-DD date by `delta` whole days. */
+export function shiftDay(day: string, delta: number): string {
+  const ms = new Date(`${day}T00:00:00Z`).getTime() + delta * 86_400_000;
+  return new Date(ms).toISOString().slice(0, 10);
+}
+
+/** The `n` calendar dates ending at and including `endDay`, ascending. */
+export function daysBack(endDay: string, n: number): string[] {
+  const out: string[] = [];
+  for (let i = n - 1; i >= 0; i--) out.push(shiftDay(endDay, -i));
+  return out;
+}
