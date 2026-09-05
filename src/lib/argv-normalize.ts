@@ -1,6 +1,6 @@
 const GLOBAL_FLAGS_WITH_VALUE = new Set(['--format', '--token', '--db', '--tz']);
 const GLOBAL_FLAGS_BOOLEAN = new Set(['--no-color']);
-const SUBCOMMANDS = new Set([
+export const SUBCOMMANDS = new Set([
   'login', 'describe', 'healthcheck', 'doctor', 'manifest',
   'fetch', 'sync', 'db', 'report',
 ]);

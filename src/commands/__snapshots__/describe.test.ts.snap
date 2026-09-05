@@ -145,7 +145,20 @@ exports[`buildManifest matches the snapshot (any diff here is a contract change)
       "outputSchema": "docs/schemas/doctor.json",
     },
     {
-      "args": [],
+      "args": [
+        {
+          "description": "Pass token",
+          "name": "--token",
+          "required": false,
+          "type": "string",
+        },
+        {
+          "description": "Where to save the token",
+          "name": "--path",
+          "required": false,
+          "type": "string",
+        },
+      ],
       "description": "Save a token.",
       "name": "login",
     },

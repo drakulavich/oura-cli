@@ -7,9 +7,19 @@ import { fetchCommand } from './fetch.js';
 import { dbCommand } from './db.js';
 import { reportCommand } from './report.js';
 import { doctorCommand } from './doctor.js';
+import { commonArgs } from './common.js';
 
+// `login` mirrors the real command: it declares its own `token`/`path` args
+// (not `commonArgs`, since login's --token means something different from
+// the global --token) but reuses the shared `no-color` definition by
+// reference so describe's identity-based skip hides it like every other
+// command's global flags.
 const commands = { fetch: fetchCommand, db: dbCommand, report: reportCommand, doctor: doctorCommand,
-  login: defineCommand({ meta: { name: 'login', description: 'Save a token.' }, args: { token: { type: 'string', description: 'Pass token' } } }) };
+  login: defineCommand({ meta: { name: 'login', description: 'Save a token.' }, args: {
+    token: { type: 'string', description: 'Pass token' },
+    path: { type: 'string', description: 'Where to save the token' },
+    'no-color': commonArgs['no-color'],
+  } }) };
 
 describe('buildManifest', () => {
   const m = buildManifest('9.9.9', commands);
@@ -27,6 +37,11 @@ describe('buildManifest', () => {
   it('does not list global flags as per-command args', () => {
     const report = m.commands.find(c => c.name === 'report')!;
     expect(report.args.map(a => a.name)).toEqual(['--period']);
+  });
+
+  it('lists login\'s own --token and --path but hides the shared --no-color global flag', () => {
+    const login = m.commands.find(c => c.name === 'login')!;
+    expect(login.args.map(a => a.name)).toEqual(['--token', '--path']);
   });
 
   it('describes db subcommands with their positionals', () => {

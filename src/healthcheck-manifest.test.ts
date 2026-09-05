@@ -3,6 +3,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import Ajv from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
+import { SUBCOMMANDS } from './lib/argv-normalize.js';
 
 const PACKAGE_VERSION = JSON.parse(
   readFileSync(new URL('../package.json', import.meta.url), 'utf-8'),
@@ -125,9 +126,26 @@ describe('healthcheck and manifest commands', () => {
       expect(Array.isArray(m.commands)).toBe(true);
       // Task 5.1 replaced 7 per-collection commands with one `fetch <collection>`
       // command, so the generated manifest now lists fewer top-level commands:
-      // login, describe, healthcheck, doctor, manifest, fetch, sync, db, report.
-      expect(m.commands.length).toBeGreaterThanOrEqual(9);
+      // login, describe, healthcheck, doctor, manifest, fetch, sync, db, report
+      // — exactly nine.
+      expect(m.commands.length).toBe(9);
       expect(m.envVars).toContain('OURA_TOKEN');
+    });
+  });
+
+  describe('describe vs SUBCOMMANDS', () => {
+    it('lists exactly the commands argv-normalize hoists global flags for', async () => {
+      const proc = Bun.spawn(['bun', 'run', 'src/index.ts', 'describe'], { stdout: 'pipe' });
+      const out = await new Response(proc.stdout).text();
+      await proc.exited;
+
+      const parsed = JSON.parse(out);
+      const commandNames = new Set(parsed.commands.map((c: { name: string }) => c.name));
+      // If a command is registered but missing from SUBCOMMANDS (or vice
+      // versa), `oura-cli --format json <cmd>` silently drops the flag for
+      // that command — citty doesn't hoist root flags onto subcommands, and
+      // this is the set that drives the hoist.
+      expect(commandNames).toEqual(SUBCOMMANDS);
     });
   });
 });
