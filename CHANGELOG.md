@@ -6,6 +6,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-05
+
+### Breaking
+- Per-collection API commands replaced by `fetch <collection>`; `db reset` and `db import` removed. See "Changed" and "Removed" below.
+
 ### Changed
 - README "First five minutes" now leads with a concrete report sample,
   documents `login` → `doctor` → `sync` → `report` as the onboarding path,
