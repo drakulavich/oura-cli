@@ -49,11 +49,14 @@ const main = defineCommand({
 });
 
 const rawArgs = normalizeArgv(process.argv).slice(2);
-const wantsUsage = rawArgs.some(a => a === '--help' || a === '-h' || a === '--version' || a === '-v')
+const wantsHelp = rawArgs.some(a => a === '--help' || a === '-h')
   || (rawArgs.length === 0 && process.stdout.isTTY === true);
 
-if (wantsUsage) {
-  // citty renders usage and the version itself.
+if (rawArgs.includes('--version') || rawArgs.includes('-v')) {
+  // citty only answers --version when it is the sole argument; `oura-cli --db x --version` should work too.
+  console.log(VERSION);
+} else if (wantsHelp) {
+  // citty renders usage itself.
   runMain(main, { rawArgs });
 } else {
   // Everything else: errors citty raises before a command runs (unknown command, missing

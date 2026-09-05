@@ -57,6 +57,7 @@ describe('errors raised before a command runs', () => {
     const help = await run('--help');
     expect(help.code).toBe(0);
     expect(help.stdout).toContain('fetch');
+    // run() prepends --db, so this also proves --version works next to other flags.
     const version = await run('--version');
     expect(version.code).toBe(0);
     expect(version.stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
