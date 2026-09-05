@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import { Database } from 'bun:sqlite';
-import { COLLECTIONS, ddl, insertSql, rowValues, names, byName, rangeQuery } from './index.js';
+import { COLLECTIONS, ddl, insertSql, rowValues, names, byName, rangeQueries } from './index.js';
 
 describe('collection registry', () => {
   it('has unique names, endpoints and tables', () => {
@@ -42,16 +42,32 @@ describe('collection registry', () => {
   });
 });
 
-describe('rangeQuery', () => {
-  it('uses start_date/end_date for daily collections', () => {
-    expect(rangeQuery(byName('sleep')!, '2026-06-01', '2026-06-07', 'Europe/Berlin'))
-      .toEqual({ start_date: '2026-06-01', end_date: '2026-06-07' });
+describe('rangeQueries', () => {
+  it('uses one start_date/end_date query for daily collections, however long the range', () => {
+    expect(rangeQueries(byName('sleep')!, '2025-01-01', '2026-09-05', 'Europe/Berlin'))
+      .toEqual([{ start_date: '2025-01-01', end_date: '2026-09-05' }]);
   });
 
   it('uses UTC start_datetime/end_datetime covering the local days for heartrate', () => {
     // Berlin is UTC+2 in June: local midnight is 22:00Z the previous evening.
-    expect(rangeQuery(byName('hr')!, '2026-06-01', '2026-06-01', 'Europe/Berlin'))
-      .toEqual({ start_datetime: '2026-05-31T22:00:00Z', end_datetime: '2026-06-01T22:00:00Z' });
+    expect(rangeQueries(byName('hr')!, '2026-06-01', '2026-06-01', 'Europe/Berlin'))
+      .toEqual([{ start_datetime: '2026-05-31T22:00:00Z', end_datetime: '2026-06-01T22:00:00Z' }]);
+  });
+
+  it('keeps a heartrate range of exactly 30 days in one query', () => {
+    expect(rangeQueries(byName('hr')!, '2026-08-06', '2026-09-04', 'UTC'))
+      .toEqual([{ start_datetime: '2026-08-06T00:00:00Z', end_datetime: '2026-09-05T00:00:00Z' }]);
+  });
+
+  it('splits a heartrate range longer than 30 days into consecutive pieces of at most 30 days', () => {
+    // 31 days: the API answers 400 above 30 days per request.
+    expect(rangeQueries(byName('hr')!, '2026-08-06', '2026-09-05', 'UTC')).toEqual([
+      { start_datetime: '2026-08-06T00:00:00Z', end_datetime: '2026-09-05T00:00:00Z' },
+      { start_datetime: '2026-09-05T00:00:00Z', end_datetime: '2026-09-06T00:00:00Z' },
+    ]);
+    expect(rangeQueries(byName('hr')!, '2026-01-01', '2026-03-15', 'UTC').map(q => q.start_datetime)).toEqual([
+      '2026-01-01T00:00:00Z', '2026-01-31T00:00:00Z', '2026-03-02T00:00:00Z',
+    ]);
   });
 
   it('every registered collection declares which range parameters its endpoint takes', () => {

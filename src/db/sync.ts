@@ -1,6 +1,6 @@
 import type { Database } from './open.js';
 import type { OuraClient } from '../api/client.js';
-import { COLLECTIONS, insertSql, rangeQuery, rowValues } from '../collections/index.js';
+import { COLLECTIONS, insertSql, rangeQueries, rowValues } from '../collections/index.js';
 import { shiftDay } from '../lib/time.js';
 
 const BACKFILL_DAYS = 30;
@@ -39,7 +39,8 @@ export async function importDaily(
 
   const counts: Record<string, number> = {};
   for (const c of COLLECTIONS) {
-    const rows = await client.fetch<unknown>(c.endpoint, rangeQuery(c, startDate, today, tz));
+    const rows: unknown[] = [];
+    for (const query of rangeQueries(c, startDate, today, tz)) rows.push(...await client.fetch<unknown>(c.endpoint, query));
     const stmt = db.query(insertSql(c));
     db.transaction((rs: unknown[]) => { for (const r of rs) stmt.run(...rowValues(c, r)); })(rows);
     counts[c.table] = rows.length;

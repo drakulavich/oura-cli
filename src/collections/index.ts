@@ -1,5 +1,5 @@
 import type { AnyCollection, Collection, SqlValue } from './types.js';
-import { localDateToUtcRange } from '../lib/time.js';
+import { localDateToUtcRange, shiftDay } from '../lib/time.js';
 import { sleep } from './sleep.js';
 import { readiness } from './readiness.js';
 import { activity } from './activity.js';
@@ -46,13 +46,26 @@ export function rowValues<Row>(c: Collection<Row>, row: Row): SqlValue[] {
   return c.columns.map(col => col.pick(row));
 }
 
+/** Split the inclusive day range [start, end] into consecutive pieces of at most `maxDays` days. */
+function chunkDays(start: string, end: string, maxDays: number): Array<[string, string]> {
+  const out: Array<[string, string]> = [];
+  for (let s = start; s <= end; s = shiftDay(s, maxDays)) {
+    const e = shiftDay(s, maxDays - 1);
+    out.push([s, e < end ? e : end]);
+  }
+  return out;
+}
+
 /**
- * Query parameters for the inclusive local-day range [start, end] in `tz`, shaped the way
- * the collection's endpoint expects: plain dates, or UTC instants covering those days.
+ * One query per request needed to cover the inclusive local-day range [start, end] in `tz`,
+ * shaped the way the collection's endpoint expects: plain dates, or UTC instants covering
+ * those days. A single query unless the endpoint caps the range (`maxRangeDays`).
  */
-export function rangeQuery(c: AnyCollection, start: string, end: string, tz: string): Record<string, string> {
-  if (c.rangeParams === 'date') return { start_date: start, end_date: end };
-  return { start_datetime: localDateToUtcRange(start, tz)[0], end_datetime: localDateToUtcRange(end, tz)[1] };
+export function rangeQueries(c: AnyCollection, start: string, end: string, tz: string): Array<Record<string, string>> {
+  const pieces = c.maxRangeDays ? chunkDays(start, end, c.maxRangeDays) : [[start, end] as [string, string]];
+  return pieces.map(([s, e]): Record<string, string> => c.rangeParams === 'date'
+    ? { start_date: s, end_date: e }
+    : { start_datetime: localDateToUtcRange(s, tz)[0], end_datetime: localDateToUtcRange(e, tz)[1] });
 }
 
 export function jsonSchema(c: AnyCollection): Record<string, unknown> {

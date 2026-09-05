@@ -1,5 +1,5 @@
 import { OuraClient } from '../api/client.js';
-import { byName, names, rangeQuery } from '../collections/index.js';
+import { byName, names, rangeQueries } from '../collections/index.js';
 import { CliError } from '../lib/errors.js';
 import { shiftDay } from '../lib/time.js';
 import { assertCalendarDate, assertPositiveInt } from '../lib/validate.js';
@@ -45,7 +45,8 @@ export const fetchCommand = dataCommand({
       to: args.to as string | undefined, days: args.days as string | undefined, today: ctx.today,
     });
     const client = new OuraClient(args.token ? { token: args.token as string } : {});
-    const data = await client.fetch(c.endpoint, rangeQuery(c, start, end, ctx.tz));
+    const data: unknown[] = [];
+    for (const query of rangeQueries(c, start, end, ctx.tz)) data.push(...await client.fetch(c.endpoint, query));
     return { json: data, text: () => JSON.stringify(data, null, 2) };
   },
 });

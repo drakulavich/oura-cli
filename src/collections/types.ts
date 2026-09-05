@@ -38,6 +38,8 @@ export interface Collection<Row> {
    * or `start_datetime`/`end_datetime` (ISO 8601) — the heartrate timeseries uses the latter.
    */
   rangeParams: 'date' | 'datetime';
+  /** Longest range (in days) the endpoint accepts per request; longer ranges are split. heartrate: 30. */
+  maxRangeDays?: number;
   identity: readonly IdentityField[];
 }
 
