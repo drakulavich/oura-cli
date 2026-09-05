@@ -2,7 +2,7 @@ import { Database } from 'bun:sqlite';
 import { resolve, dirname } from 'path';
 import { homedir } from 'os';
 import { mkdirSync } from 'fs';
-import { MIGRATIONS } from './schema.js';
+import { MIGRATIONS } from './migrations.js';
 
 export type { Database };
 

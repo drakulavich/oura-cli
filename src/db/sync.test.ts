@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import { ensureSchema } from './open.js';
-import { importDaily } from './import.js';
+import { importDaily } from './sync.js';
 import type { OuraClient } from '../api/client.js';
 import type { OuraEndpoint } from '../api/types.js';
 import { tmpdir } from 'os';
@@ -103,6 +103,25 @@ describe('Import', () => {
       expect(sleep.type).toBeNull();
 
       db.close();
+    });
+  });
+
+  describe('registry-driven sync', () => {
+    it('inserts every registry collection and counts rows by table name', async () => {
+      const db = new Database(':memory:');
+      ensureSchema(db);
+      const rows: Record<string, unknown[]> = {
+        daily_sleep: [{ id: 's1', day: '2026-06-15', score: 80, contributors: {}, timestamp: 't' }],
+        heartrate: [{ bpm: 60, source: 'awake', timestamp: '2026-06-15T10:00:00+00:00' }],
+        daily_cardiovascular_age: [{ id: 'c1', day: '2026-06-15', vascular_age: 30 }],
+      };
+      const client = { fetch: async (endpoint: OuraEndpoint) => rows[endpoint] ?? [] } as unknown as OuraClient;
+      const result = await importDaily(db, client, '2026-06-15');
+      expect(result.counts).toEqual({
+        daily_sleep: 1, daily_readiness: 0, daily_activity: 0, heartrate: 1, daily_spo2: 0,
+        daily_stress: 0, workouts: 0, sleep_model: 0, cardiovascular_age: 1,
+      });
+      expect(db.query('SELECT day FROM heartrate').get()).toEqual({ day: '2026-06-15' });
     });
   });
 });

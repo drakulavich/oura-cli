@@ -1,5 +1,6 @@
 import type { Database } from './open.js';
 import { shiftDay } from '../lib/time.js';
+import { COLLECTIONS } from '../collections/index.js';
 
 export interface DaySummary {
   day: string;
@@ -99,13 +100,9 @@ export interface DbStats {
 }
 
 export function getStats(db: Database, today: string): DbStats {
-  const tableNames = [
-    'daily_sleep', 'daily_readiness', 'daily_activity', 'daily_spo2',
-    'daily_stress', 'heartrate', 'vo2max', 'cardiovascular_age', 'workouts', 'sleep_model',
-  ];
-  const tables = tableNames.map(table => {
-    const row = db.query(`SELECT COUNT(*) as cnt FROM ${table}`).get() as { cnt: number };
-    return { table, rows: row.cnt };
+  const tables = COLLECTIONS.map(c => {
+    const row = db.query(`SELECT COUNT(*) as cnt FROM ${c.table}`).get() as { cnt: number };
+    return { table: c.table, rows: row.cnt };
   });
 
   const range = db.query('SELECT MIN(day) as first, MAX(day) as last FROM daily_sleep').get() as { first: string | null; last: string | null };

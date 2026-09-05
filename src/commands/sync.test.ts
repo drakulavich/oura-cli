@@ -9,7 +9,7 @@ import { getDaySummary } from '../db/queries.js';
 import { formatDaySummary } from '../render/format.js';
 import { OuraClient } from '../api/client.js';
 import type { Ctx, Output } from './run-command.js';
-import type { ImportResult } from '../db/import.js';
+import type { ImportResult } from '../db/sync.js';
 import type { DaySummary } from '../db/queries.js';
 
 // Characterization tests for `runSync` (src/commands/sync.ts) — the thin
