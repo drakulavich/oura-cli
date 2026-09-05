@@ -1,8 +1,8 @@
 import { describe, it, expect, afterEach, afterAll } from 'bun:test';
 import { CliError } from '../lib/errors.js';
-import { mkdtempSync, writeFileSync, rmSync } from 'fs';
+import { mkdtempSync, writeFileSync, rmSync, statSync } from 'fs';
 import { Database } from 'bun:sqlite';
-import { openDatabase, ensureSchema, type Migration } from './open.js';
+import { openDatabase, ensureSchema, asDbError, type Migration } from './open.js';
 import { unlinkSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -120,5 +120,53 @@ describe('openDatabase errors', () => {
     try { openDatabase(join(file, 'x.db')); } catch (e) { err = e; }
     expect(err).toBeInstanceOf(CliError);
     expect((err as CliError).code).toBe('DB_ERROR');
+  });
+});
+
+describe('openDatabase concurrency and permissions', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'oura-open2-'));
+  afterAll(() => { rmSync(dir, { recursive: true, force: true }); });
+
+  it('creates the directory 0700 and the file 0600', () => {
+    const path = join(dir, 'private', 'oura.db');
+    const db = openDatabase(path);
+    db.close();
+    expect(statSync(join(dir, 'private')).mode & 0o777).toBe(0o700);
+    expect(statSync(path).mode & 0o777).toBe(0o600);
+  });
+
+  it('opens while another connection holds a write transaction and reads through it', () => {
+    const path = join(dir, 'shared.db');
+    const writer = openDatabase(path);
+    ensureSchema(writer);
+    writer.exec('BEGIN IMMEDIATE');
+    writer.exec("INSERT INTO daily_sleep (id, day) VALUES ('x', '2026-01-01')");
+    try {
+      const reader = openDatabase(path); // used to fail: PRAGMA journal_mode = WAL needs an exclusive lock
+      const row = reader.query('SELECT COUNT(*) AS n FROM daily_sleep').get() as { n: number };
+      expect(row.n).toBe(0); // WAL: readers see the last committed state
+      reader.close();
+    } finally {
+      writer.exec('ROLLBACK');
+      writer.close();
+    }
+  });
+
+  it('names lock contention in the hint instead of blaming the path', () => {
+    const path = join(dir, 'locked.db');
+    const a = openDatabase(path);
+    ensureSchema(a);
+    const b = openDatabase(path);
+    b.exec('PRAGMA busy_timeout = 50'); // keep the test fast
+    a.exec('BEGIN IMMEDIATE');
+    try {
+      let err: unknown;
+      try { b.exec("INSERT INTO daily_sleep (id, day) VALUES ('y', '2026-01-02')"); } catch (e) { err = asDbError(e); }
+      expect(err).toBeInstanceOf(CliError);
+      expect((err as CliError).code).toBe('DB_ERROR');
+      expect((err as CliError).hint).toContain('Another oura-cli process');
+    } finally {
+      a.exec('ROLLBACK'); a.close(); b.close();
+    }
   });
 });
