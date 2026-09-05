@@ -62,7 +62,7 @@ describe('Import', () => {
       const db = new Database(TEST_DB);
       ensureSchema(db);
 
-      await importDaily(db, client, TODAY);
+      await importDaily(db, client, { today: TODAY, tz: 'UTC' });
 
       const stress = db.query('SELECT day_summary FROM daily_stress WHERE id = ?').get('s1') as { day_summary: string | null };
       expect(stress.day_summary).toBeNull();
@@ -94,7 +94,7 @@ describe('Import', () => {
 
       await importDaily(db, {
         fetch: async <T,>(endpoint: OuraEndpoint) => (omitted[endpoint] ?? []) as T[],
-      } as unknown as OuraClient, TODAY);
+      } as unknown as OuraClient, { today: TODAY, tz: 'UTC' });
 
       const stress = db.query('SELECT day_summary FROM daily_stress WHERE id = ?').get('s2') as { day_summary: string | null };
       expect(stress.day_summary).toBeNull();
@@ -116,12 +116,31 @@ describe('Import', () => {
         daily_cardiovascular_age: [{ id: 'c1', day: '2026-06-15', vascular_age: 30 }],
       };
       const client = { fetch: async (endpoint: OuraEndpoint) => rows[endpoint] ?? [] } as unknown as OuraClient;
-      const result = await importDaily(db, client, '2026-06-15');
+      const result = await importDaily(db, client, { today: '2026-06-15', tz: 'UTC' });
       expect(result.counts).toEqual({
         daily_sleep: 1, daily_readiness: 0, daily_activity: 0, heartrate: 1, daily_spo2: 0,
         daily_stress: 0, workouts: 0, sleep_model: 0, cardiovascular_age: 1,
       });
       expect(db.query('SELECT day FROM heartrate').get()).toEqual({ day: '2026-06-15' });
+    });
+  });
+
+  describe('request parameters', () => {
+    it('sends dates to daily endpoints and UTC datetimes covering the local day to heartrate', async () => {
+      const db = new Database(':memory:');
+      ensureSchema(db);
+      const calls: Array<[OuraEndpoint, Record<string, string>]> = [];
+      const client = {
+        fetch: async (endpoint: OuraEndpoint, query: Record<string, string>) => { calls.push([endpoint, query]); return []; },
+      } as unknown as OuraClient;
+
+      await importDaily(db, client, { today: '2026-06-15', tz: 'Europe/Berlin' });
+      db.close();
+
+      const byEndpoint = Object.fromEntries(calls);
+      expect(byEndpoint['daily_sleep']).toEqual({ start_date: '2026-05-16', end_date: '2026-06-15' });
+      expect(byEndpoint['heartrate']).toEqual({ start_datetime: '2026-06-14T22:00:00Z', end_datetime: '2026-06-15T22:00:00Z' });
+      expect(Object.values(byEndpoint).some(q => 'start_date' in q && 'start_datetime' in q)).toBe(false);
     });
   });
 });

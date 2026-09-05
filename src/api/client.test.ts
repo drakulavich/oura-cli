@@ -24,7 +24,7 @@ describe('OuraClient', () => {
       it('uses the token verbatim when fetching', async () => {
         const headerPromise = captureRequestHeaders();
         const client = new OuraClient({ token: 'inline-pat-abc' });
-        await client.fetch('daily_sleep', '2026-05-10');
+        await client.fetch('daily_sleep', { start_date: '2026-05-10' });
         const headers = await headerPromise;
         expect(headers.get('Authorization')).toBe('Bearer inline-pat-abc');
       });
@@ -32,7 +32,7 @@ describe('OuraClient', () => {
       it('trims surrounding whitespace from the inline value', async () => {
         const headerPromise = captureRequestHeaders();
         const client = new OuraClient({ token: '  padded-token  ' });
-        await client.fetch('daily_sleep', '2026-05-10');
+        await client.fetch('daily_sleep', { start_date: '2026-05-10' });
         const headers = await headerPromise;
         expect(headers.get('Authorization')).toBe('Bearer padded-token');
       });
@@ -45,7 +45,7 @@ describe('OuraClient', () => {
       it('reads the token from the environment and sends it in the Authorization header', async () => {
         const headerPromise = captureRequestHeaders();
         const client = new OuraClient();
-        await client.fetch('daily_sleep', '2026-05-10');
+        await client.fetch('daily_sleep', { start_date: '2026-05-10' });
         const headers = await headerPromise;
         expect(headers.get('Authorization')).toBe('Bearer env-token-xyz');
       });
@@ -62,7 +62,7 @@ describe('OuraClient', () => {
 
         const headerPromise = captureRequestHeaders();
         const client = new OuraClient({ tokenPath: path });
-        await client.fetch('daily_sleep', '2026-05-10');
+        await client.fetch('daily_sleep', { start_date: '2026-05-10' });
         const headers = await headerPromise;
         expect(headers.get('Authorization')).toBe('Bearer file-token-abc');
       });
@@ -103,7 +103,7 @@ describe('OuraClient', () => {
       it('classifies the response as TOKEN_INVALID so the user knows to re-authenticate', async () => {
         mockFetch({ status: 401, body: '{"detail":"Invalid token"}' });
         const client = new OuraClient();
-        const err = await client.fetch('daily_sleep', '2026-05-10').catch(e => e);
+        const err = await client.fetch('daily_sleep', { start_date: '2026-05-10' }).catch(e => e);
         expect(err).toBeInstanceOf(CliError);
         expect((err as CliError).code).toBe('TOKEN_INVALID');
       });
@@ -113,7 +113,7 @@ describe('OuraClient', () => {
       it('classifies the response as TOKEN_INVALID so the user knows their token lacks permissions', async () => {
         mockFetch({ status: 403, body: 'forbidden' });
         const client = new OuraClient();
-        const err = await client.fetch('daily_sleep', '2026-05-10').catch(e => e);
+        const err = await client.fetch('daily_sleep', { start_date: '2026-05-10' }).catch(e => e);
         expect(err).toBeInstanceOf(CliError);
         expect((err as CliError).code).toBe('TOKEN_INVALID');
       });
@@ -123,7 +123,7 @@ describe('OuraClient', () => {
       it('throws API_ERROR so the caller can surface a retry message', async () => {
         mockFetch({ status: 429, body: 'rate limited' });
         const client = new OuraClient();
-        const err = await client.fetch('daily_sleep', '2026-05-10').catch(e => e);
+        const err = await client.fetch('daily_sleep', { start_date: '2026-05-10' }).catch(e => e);
         expect(err).toBeInstanceOf(CliError);
         expect((err as CliError).code).toBe('API_ERROR');
       });
@@ -133,7 +133,7 @@ describe('OuraClient', () => {
       it('throws API_ERROR so the caller knows the fault is upstream', async () => {
         mockFetch({ status: 500, body: 'oops' });
         const client = new OuraClient();
-        const err = await client.fetch('daily_sleep', '2026-05-10').catch(e => e);
+        const err = await client.fetch('daily_sleep', { start_date: '2026-05-10' }).catch(e => e);
         expect(err).toBeInstanceOf(CliError);
         expect((err as CliError).code).toBe('API_ERROR');
       });
@@ -143,7 +143,7 @@ describe('OuraClient', () => {
       it('throws API_ERROR with a clear message when the API returns an empty body on a 200 response', async () => {
         mockFetch({ status: 200, body: '' });
         const client = new OuraClient();
-        const err = await client.fetch('daily_sleep', '2026-05-10').catch(e => e);
+        const err = await client.fetch('daily_sleep', { start_date: '2026-05-10' }).catch(e => e);
         expect(err).toBeInstanceOf(CliError);
         expect((err as CliError).code).toBe('API_ERROR');
         expect((err as CliError).message).toContain('Empty response body');
@@ -154,7 +154,7 @@ describe('OuraClient', () => {
       it('removes Bearer tokens from error messages so secrets do not leak to logs', async () => {
         mockFetch({ status: 500, body: 'leaked Bearer abc123def456ghi789' });
         const client = new OuraClient();
-        const err = await client.fetch('daily_sleep', '2026-05-10').catch(e => e);
+        const err = await client.fetch('daily_sleep', { start_date: '2026-05-10' }).catch(e => e);
         expect(err).toBeInstanceOf(CliError);
         expect((err as CliError).message).not.toContain('abc123def456ghi789');
         expect((err as CliError).message).toContain('[REDACTED]');
@@ -163,11 +163,64 @@ describe('OuraClient', () => {
       it('truncates very long error bodies so terminal output stays readable', async () => {
         mockFetch({ status: 500, body: 'x'.repeat(500) });
         const client = new OuraClient();
-        const err = await client.fetch('daily_sleep', '2026-05-10').catch(e => e);
+        const err = await client.fetch('daily_sleep', { start_date: '2026-05-10' }).catch(e => e);
         expect(err).toBeInstanceOf(CliError);
         expect((err as CliError).message).toContain('truncated');
         expect((err as CliError).message.length).toBeLessThan(300);
       });
+    });
+  });
+
+  describe('pagination', () => {
+    beforeEach(() => { process.env.OURA_TOKEN = 'test-token'; });
+    afterEach(() => {
+      globalThis.fetch = realFetch;
+      delete process.env.OURA_TOKEN;
+    });
+
+    function mockPages(pages: Array<{ data: unknown[]; next_token: string | null }>): string[] {
+      const urls: string[] = [];
+      globalThis.fetch = (async (url: unknown) => {
+        urls.push(String(url));
+        const page = pages[urls.length - 1] ?? { data: [], next_token: null };
+        return new Response(JSON.stringify(page), { status: 200 });
+      }) as unknown as typeof globalThis.fetch;
+      return urls;
+    }
+
+    it('sends the query verbatim and returns the single page when next_token is null', async () => {
+      const urls = mockPages([{ data: [{ id: 'a' }], next_token: null }]);
+      const rows = await new OuraClient().fetch('heartrate', { start_datetime: '2026-05-10T00:00:00Z', end_datetime: '2026-05-11T00:00:00Z' });
+      expect(rows).toEqual([{ id: 'a' }]);
+      expect(urls).toHaveLength(1);
+      const q = new URL(urls[0]!).searchParams;
+      expect(q.get('start_datetime')).toBe('2026-05-10T00:00:00Z');
+      expect(q.get('end_datetime')).toBe('2026-05-11T00:00:00Z');
+      expect(q.has('start_date')).toBe(false);
+      expect(q.has('next_token')).toBe(false);
+    });
+
+    it('follows next_token until it is null and concatenates every page in order', async () => {
+      const urls = mockPages([
+        { data: [1, 2], next_token: 'p2' },
+        { data: [3], next_token: 'p3' },
+        { data: [4], next_token: null },
+      ]);
+      const rows = await new OuraClient().fetch('daily_sleep', { start_date: '2026-05-01', end_date: '2026-05-31' });
+      expect(rows).toEqual([1, 2, 3, 4]);
+      expect(urls.map(u => new URL(u).searchParams.get('next_token'))).toEqual([null, 'p2', 'p3']);
+      // the original range travels with every page
+      expect(urls.every(u => new URL(u).searchParams.get('start_date') === '2026-05-01')).toBe(true);
+    });
+
+    it('stops with API_ERROR when the API hands back a token it already served', async () => {
+      mockPages([
+        { data: [1], next_token: 'loop' },
+        { data: [2], next_token: 'loop' },
+      ]);
+      const err = await new OuraClient().fetch('daily_sleep', { start_date: '2026-05-01' }).catch(e => e);
+      expect(err).toBeInstanceOf(CliError);
+      expect((err as CliError).code).toBe('API_ERROR');
     });
   });
 });

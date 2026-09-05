@@ -27,7 +27,7 @@ src/lib/          errors, time, argv-normalize, format-resolve — no domain kno
 ## Adding a collection
 
 1. Add the row type to `src/api/types.ts` and the endpoint to `OuraEndpoint`.
-2. Create `src/collections/<name>.ts` with `defineCollection<Row>({ … })` and add it to `COLLECTIONS`.
+2. Create `src/collections/<name>.ts` with `defineCollection<Row>({ … })` and add it to `COLLECTIONS`. Set `rangeParams` to `'date'` unless the endpoint is a timeseries taking `start_datetime`/`end_datetime` (check the OpenAPI spec at `https://cloud.ouraring.com/v2/static/json/openapi-1.37.json`).
 3. Append a migration to `src/db/migrations.ts` creating the table (never edit an existing entry).
 4. Run `bun run schemas` and commit the new `docs/schemas/<name>.json`.
 5. `bun test` — the equivalence, registry and schema-drift tests must pass. `fetch <name>`, `sync`, `describe` and `manifest` pick it up automatically.

@@ -4,7 +4,7 @@ import type { OuraStressDay } from '../api/types.js';
 export const stress = defineCollection<OuraStressDay>({
   name: 'stress', endpoint: 'daily_stress', table: 'daily_stress',
   description: 'Daily stress summary with high-stress and high-recovery seconds',
-  conflict: 'replace', syncWindow: 'range',
+  conflict: 'replace', syncWindow: 'range', rangeParams: 'date',
   identity: [
     { field: 'id', description: 'Oura record id' },
     { field: 'day', format: 'date', description: 'Date the record applies to (YYYY-MM-DD)' },

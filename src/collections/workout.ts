@@ -4,7 +4,7 @@ import type { OuraWorkout } from '../api/types.js';
 export const workout = defineCollection<OuraWorkout>({
   name: 'workout', endpoint: 'workout', table: 'workouts',
   description: 'Workout sessions with activity, calories, distance and intensity',
-  conflict: 'replace', syncWindow: 'range',
+  conflict: 'replace', syncWindow: 'range', rangeParams: 'date',
   identity: [
     { field: 'id', description: 'Oura record id' },
     { field: 'day', format: 'date', description: 'Date the record applies to (YYYY-MM-DD)' },

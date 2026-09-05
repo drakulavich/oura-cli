@@ -50,7 +50,7 @@ export interface OuraHeartRate {
 export interface OuraSpO2Day {
   id: string;
   day: string;
-  spo2_percentage: { average: number | null };
+  spo2_percentage: { average: number | null } | null;
   breathing_disturbance_index: number | null;
 }
 

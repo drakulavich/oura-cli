@@ -4,7 +4,7 @@ import type { OuraSpO2Day } from '../api/types.js';
 export const spo2 = defineCollection<OuraSpO2Day>({
   name: 'spo2', endpoint: 'daily_spo2', table: 'daily_spo2',
   description: 'Daily blood-oxygen average and breathing disturbance index',
-  conflict: 'replace', syncWindow: 'range',
+  conflict: 'replace', syncWindow: 'range', rangeParams: 'date',
   identity: [
     { field: 'id', description: 'Oura record id' },
     { field: 'day', format: 'date', description: 'Date the record applies to (YYYY-MM-DD)' },
