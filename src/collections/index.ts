@@ -1,9 +1,20 @@
 import type { AnyCollection, Collection, SqlValue } from './types.js';
 import { sleep } from './sleep.js';
+import { readiness } from './readiness.js';
+import { activity } from './activity.js';
+import { hr } from './hr.js';
+import { spo2 } from './spo2.js';
+import { stress } from './stress.js';
+import { workout } from './workout.js';
+import { sleepPeriods } from './sleep-periods.js';
+import { cvAge } from './cv-age.js';
 
 export type { AnyCollection, Collection, Column, SqlValue } from './types.js';
 
-export const COLLECTIONS: readonly AnyCollection[] = [sleep];
+/** Order is the sync order and the order tables appear in `db stats`. */
+export const COLLECTIONS: readonly AnyCollection[] = [
+  sleep, readiness, activity, hr, spo2, stress, workout, sleepPeriods, cvAge,
+];
 
 export function names(): string[] {
   return COLLECTIONS.map(c => c.name);
