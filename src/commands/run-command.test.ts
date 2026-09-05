@@ -154,6 +154,44 @@ describe('execute', () => {
     expect(exits).toEqual([4]);
   });
 
+  describe('undeclared arguments', () => {
+    const def: DataCommandDef<{ day: { type: 'string' }; name: { type: 'positional'; required: false } }> = {
+      meta: { name: 'x' },
+      args: { day: { type: 'string' }, name: { type: 'positional', required: false } },
+      run: () => ({ json: 'ran', text: () => 'ran' }),
+    };
+
+    it('rejects an unknown flag with BAD_ARGS instead of silently using defaults', async () => {
+      const { io, out, err, exits } = fakeIo(false);
+      await execute(def, { ...baseArgs, dayz: '7' } as any, io);
+      expect(out).toEqual([]);
+      const e = JSON.parse(err[0]).error;
+      expect(e.code).toBe('BAD_ARGS');
+      expect(e.message).toContain('--dayz');
+      expect(exits).toEqual([1]);
+    });
+
+    it('spells a single-character key the way it was typed (-5)', async () => {
+      const { io, err } = fakeIo(false);
+      await execute(def, { ...baseArgs, '5': true } as any, io);
+      expect(JSON.parse(err[0]).error.message).toContain('-5');
+    });
+
+    it('rejects positionals beyond the declared ones', async () => {
+      const { io, err, exits } = fakeIo(false);
+      await execute(def, { ...baseArgs, _: ['a', 'b'], name: 'a' } as any, io);
+      expect(JSON.parse(err[0]).error.message).toContain('Unexpected argument: b');
+      expect(exits).toEqual([1]);
+    });
+
+    it('accepts declared flags, their camelCase twins, the no- negation and the declared positional', async () => {
+      const { io, out, exits } = fakeIo(false);
+      await execute(def, { ...baseArgs, day: '2026-01-01', _: ['a'], name: 'a', noColor: true, color: false } as any, io);
+      expect(JSON.parse(out[0])).toBe('ran');
+      expect(exits).toEqual([]);
+    });
+  });
+
   it('rejects an unknown --tz with BAD_ARGS before running the command', async () => {
     let ran = false;
     const def: DataCommandDef<{}> = { meta: { name: 'x' }, run: () => { ran = true; return { json: 1, text: () => '1' }; } };

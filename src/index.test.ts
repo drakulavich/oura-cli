@@ -63,6 +63,28 @@ describe('errors raised before a command runs', () => {
   });
 });
 
+describe('undeclared arguments end to end', () => {
+  it('fetch sleep --dayz 7 → BAD_ARGS instead of today\'s data', async () => {
+    const { stdout, stderr, code } = await run('fetch', 'sleep', '--dayz', '7');
+    expect(stdout).toBe('');
+    expect(envelope(stderr).message).toContain('--dayz');
+    expect(code).toBe(1);
+  });
+
+  it('db trends -5 → BAD_ARGS instead of the 30-day default', async () => {
+    const { stdout, stderr, code } = await run('db', 'trends', '-5');
+    expect(stdout).toBe('');
+    expect(envelope(stderr).message).toContain('-5');
+    expect(code).toBe(1);
+  });
+
+  it('a global flag after the subcommand is still accepted', async () => {
+    const { stdout, code } = await run('db', 'today', '--format', 'json', '--no-color');
+    expect(code).toBe(0);
+    expect(JSON.parse(stdout).day).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
 describe('formatFromArgv', () => {
   it('honours a valid explicit --format in either spelling', () => {
     expect(formatFromArgv(['db', '--format', 'json'], true)).toBe('json');

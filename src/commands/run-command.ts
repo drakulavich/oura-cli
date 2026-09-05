@@ -53,6 +53,34 @@ export const processIo: RunnerIo = {
   isTty: process.stdout.isTTY === true,
 };
 
+const camel = (s: string) => s.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
+
+/**
+ * citty ignores flags that are not declared, so `fetch sleep --dayz 7` used to return
+ * today's data with exit 0. Reject anything the command did not declare, and any
+ * positional beyond the declared ones.
+ */
+export function assertKnownArgs(declared: ArgsDef, args: Record<string, unknown>): void {
+  const known = new Set<string>(['_']);
+  let positionals = 0;
+  for (const [name, def] of Object.entries(declared)) {
+    known.add(name);
+    known.add(camel(name));
+    if (name.startsWith('no-')) known.add(name.slice(3)); // citty parses --no-color as { color: false }
+    for (const alias of [(def as { alias?: string | string[] }).alias ?? []].flat()) known.add(alias);
+    if (def.type === 'positional') positionals++;
+  }
+  const unknown = Object.keys(args).filter(k => !known.has(k));
+  if (unknown.length > 0) {
+    const flags = unknown.map(f => (f.length === 1 ? `-${f}` : `--${f}`)).join(', ');
+    throw new CliError('BAD_ARGS', `Unknown flag${unknown.length > 1 ? 's' : ''}: ${flags}.`, 'Run the command with --help to see its flags.');
+  }
+  const extra = ((args._ as string[] | undefined) ?? []).slice(positionals);
+  if (extra.length > 0) {
+    throw new CliError('BAD_ARGS', `Unexpected argument${extra.length > 1 ? 's' : ''}: ${extra.join(' ')}.`, 'Run the command with --help to see its arguments.');
+  }
+}
+
 export async function execute<A extends ArgsDef>(
   def: DataCommandDef<A>,
   args: ParsedArgs<A & CommonArgsDef>,
@@ -66,6 +94,7 @@ export async function execute<A extends ArgsDef>(
     // Resolve --format for every command so an unknown value is always rejected, and so
     // errors from jsonOnly commands are still rendered for the terminal the user is on.
     format = resolveFormat({ explicit: args.format as string | undefined, isTty: io.isTty });
+    assertKnownArgs({ ...commonArgs, ...(def.args ?? {}) } as ArgsDef, args as Record<string, unknown>);
     const outputFormat: OutputFormat = def.jsonOnly ? 'json' : format;
     const tz = assertTimezone((args.tz as string | undefined) ?? resolveDefaultTimezone());
     const ctx: Ctx = { format: outputFormat, tz, today: today(tz) };
