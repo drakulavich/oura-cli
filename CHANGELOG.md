@@ -12,7 +12,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Per-collection API commands replaced by `fetch <collection>`; `db reset` and `db import` removed. See "Changed" and "Removed" below.
 
 ### Changed
-- `sync` fetches heartrate over the same window as every other collection (from the last synced day, or 30 days back on first sync) instead of today only, in pieces of at most 30 days because the heartrate endpoint rejects longer ranges. Days the ring synced while `oura-cli sync` did not run are no longer skipped; the unique `(timestamp, source)` index keeps re-fetched samples from duplicating.
+- `sync` fetches heartrate over the same window as every other collection (from the last synced day, or 30 days back on first sync) instead of today only, in pieces of at most 30 × 24 hours because the heartrate endpoint rejects longer ranges; consecutive pieces do not share a boundary instant, so no sample is fetched twice. Days the ring synced while `oura-cli sync` did not run are no longer skipped; the unique `(timestamp, source)` index keeps re-fetched samples from duplicating.
 - README "First five minutes" now leads with a concrete report sample,
   documents `login` → `doctor` → `sync` → `report` as the onboarding path,
   states plainly that `login` hides the token as you type, and adds a

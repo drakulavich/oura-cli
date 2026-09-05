@@ -119,7 +119,7 @@ describe('Import', () => {
       const client = {
         fetch: async (endpoint: OuraEndpoint, query: Record<string, string>) => (rows[endpoint] ?? []).filter(r => {
           const ts = (r as { timestamp?: string }).timestamp?.replace('+00:00', 'Z');
-          return !query.start_datetime || !ts || (query.start_datetime <= ts && ts < query.end_datetime!);
+          return !query.start_datetime || !ts || (query.start_datetime <= ts && ts <= query.end_datetime!);
         }),
       } as unknown as OuraClient;
       const result = await importDaily(db, client, { today: '2026-06-15', tz: 'UTC' });
@@ -147,8 +147,8 @@ describe('Import', () => {
       const queriesFor = (e: OuraEndpoint) => calls.filter(([ep]) => ep === e).map(([, q]) => q);
       expect(queriesFor('daily_sleep')).toEqual([{ start_date: '2026-05-16', end_date: '2026-06-15' }]);
       expect(queriesFor('heartrate')).toEqual([
-        { start_datetime: '2026-05-15T22:00:00Z', end_datetime: '2026-06-14T22:00:00Z' },
-        { start_datetime: '2026-06-14T22:00:00Z', end_datetime: '2026-06-15T22:00:00Z' },
+        { start_datetime: '2026-05-15T22:00:00.000Z', end_datetime: '2026-06-14T21:59:59.999Z' },
+        { start_datetime: '2026-06-14T22:00:00.000Z', end_datetime: '2026-06-15T21:59:59.999Z' },
       ]);
       expect(calls.some(([, q]) => 'start_date' in q && 'start_datetime' in q)).toBe(false);
     });
