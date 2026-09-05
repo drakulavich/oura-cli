@@ -2,7 +2,8 @@ import type { Database } from '../db/open.js';
 import type { TokenResolution } from '../api/token.js';
 
 export type CheckId = 'token' | 'token-valid' | 'database' | 'data';
-export type CheckStatus = 'ok' | 'warn' | 'fail';
+/** `skip`: the check was not performed (e.g. --offline); it neither passes nor fails. */
+export type CheckStatus = 'ok' | 'warn' | 'fail' | 'skip';
 
 export interface DoctorCheck {
   id: CheckId;
