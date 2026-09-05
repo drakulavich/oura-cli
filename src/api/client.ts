@@ -19,6 +19,10 @@ export class OuraClient {
     if (!token) {
       throw new CliError('TOKEN_MISSING', `No Oura access token at ${source}.`, 'Run `oura-cli login` or set OURA_TOKEN.');
     }
+    if (/\s/.test(token)) {
+      // A multi-line token file would otherwise reach fetch() and come back as a header error quoting the token.
+      throw new CliError('TOKEN_INVALID', `The token from ${source} contains whitespace or a line break; a token is a single line.`, 'Fix the file or variable, or run `oura-cli login` again.');
+    }
     this.token = token;
   }
 

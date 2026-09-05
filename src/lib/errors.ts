@@ -40,8 +40,9 @@ export function redactSecrets(s: string): string {
 
 export function formatError(err: unknown, format: 'json' | 'table'): ErrorEnvelope {
   const code = err instanceof CliError ? err.code : 'UNKNOWN';
-  const message = err instanceof Error ? err.message : String(err);
-  const hint = err instanceof CliError ? err.hint : undefined;
+  // Redact here as well as at the API boundary: an unexpected error (e.g. from fetch) may quote a header.
+  const message = redactSecrets(err instanceof Error ? err.message : String(err));
+  const hint = err instanceof CliError && err.hint ? redactSecrets(err.hint) : undefined;
 
   if (format === 'json') {
     return {
