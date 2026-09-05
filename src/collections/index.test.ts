@@ -85,6 +85,18 @@ describe('rangeQueries', () => {
     expect(pieces.at(-1)!.end_datetime).toBe('2026-11-05T22:59:59.999Z'); // CET by then: next midnight is 23:00Z
   });
 
+  it('shifts the bounds for endpoints with exclusive bounds so a single day is one day', () => {
+    // sleep: start exclusive, end inclusive → ask from the day before.
+    expect(rangeQueries(byName('sleep-periods')!, '2026-09-02', '2026-09-02', 'UTC'))
+      .toEqual([{ start_date: '2026-09-01', end_date: '2026-09-02' }]);
+    // workout: start inclusive, end exclusive → ask until the day after.
+    expect(rangeQueries(byName('workout')!, '2026-08-20', '2026-08-20', 'UTC'))
+      .toEqual([{ start_date: '2026-08-20', end_date: '2026-08-21' }]);
+    // daily endpoints are inclusive on both sides and get no shift.
+    expect(rangeQueries(byName('sleep')!, '2026-09-02', '2026-09-02', 'UTC'))
+      .toEqual([{ start_date: '2026-09-02', end_date: '2026-09-02' }]);
+  });
+
   it('returns no queries for an inverted range, for both parameter styles', () => {
     expect(rangeQueries(hr, '2026-06-02', '2026-06-01', 'UTC')).toEqual([]);
     expect(rangeQueries(byName('sleep')!, '2026-06-02', '2026-06-01', 'UTC')).toEqual([]);
@@ -94,6 +106,7 @@ describe('rangeQueries', () => {
     for (const c of COLLECTIONS) {
       expect(c.rangeParams).toBe(c.endpoint === 'heartrate' ? 'datetime' : 'date');
       if (c.maxRangeDays !== undefined) expect(Number.isInteger(c.maxRangeDays) && c.maxRangeDays > 0).toBe(true);
+      if (c.dayRangeOffset) expect(c.dayRangeOffset.every(o => Number.isInteger(o) && Math.abs(o) <= 1)).toBe(true);
     }
   });
 });

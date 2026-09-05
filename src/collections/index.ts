@@ -49,13 +49,18 @@ export function rowValues<Row>(c: Collection<Row>, row: Row): SqlValue[] {
 
 const MS_PER_DAY = 86_400_000;
 
-/** Split the inclusive day range [start, end] into consecutive pieces of at most `maxDays` days. */
-function dateQueries(start: string, end: string, maxDays: number | undefined): Array<Record<string, string>> {
-  if (!maxDays) return [{ start_date: start, end_date: end }];
+/**
+ * Split the inclusive day range [start, end] into consecutive pieces of at most `maxDays` days,
+ * then shift each piece's bounds by `offset` so endpoints with exclusive bounds still return
+ * exactly the days asked for (see `Collection.dayRangeOffset`).
+ */
+function dateQueries(start: string, end: string, maxDays: number | undefined, offset: readonly [number, number]): Array<Record<string, string>> {
+  const query = (s: string, e: string) => ({ start_date: shiftDay(s, offset[0]), end_date: shiftDay(e, offset[1]) });
+  if (!maxDays) return [query(start, end)];
   const out: Array<Record<string, string>> = [];
   for (let s = start; s <= end; s = shiftDay(s, maxDays)) {
     const e = shiftDay(s, maxDays - 1);
-    out.push({ start_date: s, end_date: e < end ? e : end });
+    out.push(query(s, e < end ? e : end));
   }
   return out;
 }
@@ -85,7 +90,7 @@ function datetimeQueries(start: string, end: string, tz: string, maxDays: number
 export function rangeQueries(c: AnyCollection, start: string, end: string, tz: string): Array<Record<string, string>> {
   if (start > end) return [];
   return c.rangeParams === 'date'
-    ? dateQueries(start, end, c.maxRangeDays)
+    ? dateQueries(start, end, c.maxRangeDays, c.dayRangeOffset ?? [0, 0])
     : datetimeQueries(start, end, tz, c.maxRangeDays);
 }
 
