@@ -43,6 +43,12 @@ describe('CliError', () => {
   });
 
   describe('formatError', () => {
+    it('redacts a bearer token quoted by an unexpected non-CliError', () => {
+      const env = formatError(new TypeError("Header 'Authorization' has invalid value: 'Bearer FAKETOKEN123456789\nnote'"), 'json');
+      expect(env.text).not.toContain('FAKETOKEN123456789');
+      expect(JSON.parse(env.text).error.message).toContain('[REDACTED]');
+    });
+
     describe('in json mode', () => {
       it('emits a single-line envelope with code, message, and optional hint', () => {
         const env: ErrorEnvelope = formatError(new CliError('API_ERROR', 'boom', 'try again'), 'json');

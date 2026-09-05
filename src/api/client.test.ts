@@ -92,6 +92,26 @@ describe('OuraClient', () => {
     });
   });
 
+  describe('token hygiene', () => {
+    afterEach(() => { delete process.env.OURA_TOKEN; });
+
+    it('rejects a token file with a second line as TOKEN_INVALID without quoting the token', async () => {
+      const path = `/tmp/oura-token-multiline-${process.pid}`;
+      await Bun.write(path, 'FAKETOKEN123456789\nnote to self\n');
+      delete process.env.OURA_TOKEN;
+      let err: unknown;
+      try { new OuraClient({ tokenPath: path }); } catch (e) { err = e; }
+      expect(err).toBeInstanceOf(CliError);
+      expect((err as CliError).code).toBe('TOKEN_INVALID');
+      expect((err as CliError).message).not.toContain('FAKETOKEN123456789');
+      expect((err as CliError).message).toContain(path);
+    });
+
+    it('rejects an inline token containing a space', () => {
+      expect(() => new OuraClient({ token: 'abc def' })).toThrow(/single line/);
+    });
+  });
+
   describe('error handling on API responses', () => {
     beforeEach(() => { process.env.OURA_TOKEN = 'test-token'; });
     afterEach(() => {
