@@ -48,7 +48,7 @@ describe('getDaySummary', () => {
 
 describe('getStats', () => {
   it('reports the row count for each table so users can verify their local cache', () => {
-    const stats = getStats(db);
+    const stats = getStats(db, '2026-03-02');
     const sleepTable = stats.tables.find(t => t.table === 'daily_sleep');
 
     expect(sleepTable?.rows).toBe(2);

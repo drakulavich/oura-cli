@@ -4,7 +4,7 @@ import { dirname } from 'path';
 import { openDatabase, ensureSchema, getDbPath } from '../db/database.js';
 import { importDaily } from '../db/import.js';
 import { getDaySummary } from '../db/queries.js';
-import { formatDaySummary, formatImportSummary } from '../format.js';
+import { formatDaySummary, formatImportSummary } from '../render/format.js';
 import { getClient, todayDate } from './helpers.js';
 import { resolveFormat } from '../lib/format-resolve.js';
 import { commonArgs, handleError, applyNoColor } from './common.js';
@@ -17,8 +17,9 @@ export async function runSync(opts: { format?: string; db?: string; token?: stri
   ensureSchema(db);
   const client = getClient(opts);
   const log = format === 'table' ? console.log : undefined;
-  const importResult = await importDaily(db, client, log);
-  const today = getDaySummary(db, todayDate(opts.tz));
+  const day = todayDate(opts.tz);
+  const importResult = await importDaily(db, client, day, log);
+  const today = getDaySummary(db, day);
   db.close();
 
   if (format === 'json') {

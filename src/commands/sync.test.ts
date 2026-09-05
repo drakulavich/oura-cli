@@ -6,7 +6,7 @@ import { unlinkSync } from 'fs';
 import { runSync } from './sync.js';
 import { ensureSchema } from '../db/database.js';
 import { getDaySummary } from '../db/queries.js';
-import { formatDaySummary } from '../format.js';
+import { formatDaySummary } from '../render/format.js';
 import { CliError } from '../lib/errors.js';
 
 // Characterization tests for `runSync` (src/commands/sync.ts) — the thin

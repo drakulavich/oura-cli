@@ -1,10 +1,11 @@
 import { defineCommand } from 'citty';
 import { openDatabase, ensureSchema } from '../db/database.js';
 import { getReport } from '../db/report.js';
-import { formatReport } from '../format-report.js';
+import { formatReport } from '../render/format-report.js';
 import { resolveFormat } from '../lib/format-resolve.js';
 import { CliError } from '../lib/errors.js';
 import { commonArgs, handleError, applyNoColor } from './common.js';
+import { todayDate } from './helpers.js';
 
 export const reportCommand = defineCommand({
   meta: { name: 'report', description: 'Generate a narrative health report from local data.' },
@@ -23,7 +24,7 @@ export const reportCommand = defineCommand({
       const db = openDatabase({ dbPath: args.db });
       ensureSchema(db);
       const days = period === 'week' ? 7 : 30;
-      const data = getReport(db, days);
+      const data = getReport(db, days, todayDate(args.tz));
       console.log(formatReport(data, format, period));
       db.close();
     } catch (err) {

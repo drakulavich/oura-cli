@@ -2,22 +2,24 @@ import { describe, it, expect, beforeEach } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import { ensureSchema } from './database.js';
 import { getReport } from './report.js';
+import { shiftDay } from '../lib/time.js';
 
 // Characterization tests for src/db/report.ts (getReport).
 //
-// getReport computes its window relative to `new Date()` at call time, so the
-// tests seed rows at day offsets measured from "now" and assert against the
-// window getReport derives internally. `day(n)` returns the ISO date n days
-// before today — day(0) is today (== weekEnd), day(6) is the start of a 7-day
-// window (== weekStart). Each test gets a fresh in-memory db so windows and
-// aggregates are fully deterministic and isolated.
+// getReport computes its window relative to the `today` argument it is given,
+// so the tests seed rows at day offsets measured from a fixed anchor date and
+// assert against the window getReport derives internally. `day(n)` returns
+// the ISO date n days before TODAY — day(0) is TODAY (== weekEnd), day(6) is
+// the start of a 7-day window (== weekStart). Each test gets a fresh
+// in-memory db so windows and aggregates are fully deterministic and isolated.
+
+const TODAY = '2026-06-15';
 
 let db: Database;
 let idSeq = 0;
 const nextId = () => `r${idSeq++}`;
 
-const day = (n: number): string =>
-  new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+const day = (n: number): string => shiftDay(TODAY, -n);
 
 function insertSleep(dayStr: string, score: number | null): void {
   db.query('INSERT INTO daily_sleep (id, day, score) VALUES (?,?,?)').run(nextId(), dayStr, score);
@@ -58,17 +60,29 @@ beforeEach(() => {
   ensureSchema(db);
 });
 
+describe('getReport today anchoring', () => {
+  it('anchors the window on the today it is given, not on the UTC clock', () => {
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    db.query('INSERT INTO daily_sleep VALUES (?,?,?,?,?)').run('a', '2026-06-15', 80, '{}', 't');
+    const r = getReport(db, 7, '2026-06-15');
+    expect(r.weekEnd).toBe('2026-06-15');
+    expect(r.weekStart).toBe('2026-06-09');
+    expect(r.days.at(-1)?.sleep).toBe(80);
+  });
+});
+
 describe('getReport period classification', () => {
   it('labels a window of 7 days or fewer as "week" and a longer window as "month"', () => {
     // The boundary sits at `days <= 7`: 7 is still a week, 8 tips over to month.
-    expect(getReport(db, 7).period).toBe('week');
-    expect(getReport(db, 8).period).toBe('month');
+    expect(getReport(db, 7, TODAY).period).toBe('week');
+    expect(getReport(db, 8, TODAY).period).toBe('month');
   });
 });
 
 describe('getReport daily rows', () => {
   it('returns one row per requested day, oldest first, spanning weekStart..weekEnd', () => {
-    const report = getReport(db, 7);
+    const report = getReport(db, 7, TODAY);
 
     expect(report.days).toHaveLength(7);
     expect(report.days[0]!.day).toBe(day(6));
@@ -84,7 +98,7 @@ describe('getReport daily rows', () => {
     insertActivity(day(1), 90, 8000);
     // day(2) intentionally has no rows.
 
-    const report = getReport(db, 7);
+    const report = getReport(db, 7, TODAY);
     const withData = report.days.find(d => d.day === day(1))!;
     const withoutData = report.days.find(d => d.day === day(2))!;
 
@@ -104,7 +118,7 @@ describe('getReport averages', () => {
     insertSleep(day(2), 90);
     insertActivity(day(1), 88, 9000);
 
-    const averages = getReport(db, 7).averages;
+    const averages = getReport(db, 7, TODAY).averages;
     const sleep = averages.find(a => a.label === 'Sleep')!;
     const steps = averages.find(a => a.label === 'Steps')!;
 
@@ -121,7 +135,7 @@ describe('getReport averages', () => {
     insertSleep(day(1), 80); // current
     insertSleep(day(8), 70); // previous window
 
-    const sleep = getReport(db, 7).averages.find(a => a.label === 'Sleep')!;
+    const sleep = getReport(db, 7, TODAY).averages.find(a => a.label === 'Sleep')!;
 
     expect(sleep.avg).toBe(80);
     expect(sleep.prevAvg).toBe(70);
@@ -131,14 +145,14 @@ describe('getReport averages', () => {
   it('leaves prevAvg and diff null when the previous window has no data', () => {
     insertSleep(day(1), 80); // current only
 
-    const sleep = getReport(db, 7).averages.find(a => a.label === 'Sleep')!;
+    const sleep = getReport(db, 7, TODAY).averages.find(a => a.label === 'Sleep')!;
 
     expect(sleep.prevAvg).toBeNull();
     expect(sleep.diff).toBeNull();
   });
 
   it('omits metrics entirely when the current window has no rows for them', () => {
-    expect(getReport(db, 7).averages).toEqual([]);
+    expect(getReport(db, 7, TODAY).averages).toEqual([]);
   });
 });
 
@@ -147,7 +161,7 @@ describe('getReport spo2', () => {
     insertSpo2(day(1), 95.44);
     insertSpo2(day(2), 96.86);
 
-    const spo2 = getReport(db, 7).spo2!;
+    const spo2 = getReport(db, 7, TODAY).spo2!;
 
     expect(spo2.avg).toBe(96.2); // (95.44 + 96.86) / 2 = 96.15 -> toFixed(1) = 96.2
     expect(spo2.min).toBe(95.4);
@@ -155,7 +169,7 @@ describe('getReport spo2', () => {
   });
 
   it('returns null when no spo2 rows fall in the window', () => {
-    expect(getReport(db, 7).spo2).toBeNull();
+    expect(getReport(db, 7, TODAY).spo2).toBeNull();
   });
 });
 
@@ -173,7 +187,7 @@ describe('getReport patterns', () => {
     insertActivity(day(2), 90, 9000);
     insertActivity(day(3), 85, 4000); // excluded (< 90)
 
-    const { lowSleep, lowReadiness, highActivity } = getReport(db, 7).patterns;
+    const { lowSleep, lowReadiness, highActivity } = getReport(db, 7, TODAY).patterns;
 
     expect(lowSleep.map(r => r.score)).toEqual([50, 65]);
     expect(lowReadiness.map(r => r.score)).toEqual([55, 68]);
@@ -187,7 +201,7 @@ describe('getReport patterns', () => {
     insertReadiness(day(1), 90);
     insertActivity(day(1), 50, 3000);
 
-    const { lowSleep, lowReadiness, highActivity } = getReport(db, 7).patterns;
+    const { lowSleep, lowReadiness, highActivity } = getReport(db, 7, TODAY).patterns;
 
     expect(lowSleep).toEqual([]);
     expect(lowReadiness).toEqual([]);
@@ -204,7 +218,7 @@ describe('getReport sleep details', () => {
       total: 25200, deep: 5000, rem: 4600, light: 15600, efficiency: 88, hrv: 44, lowestHr: 52,
     });
 
-    const sd = getReport(db, 7).sleepDetails!;
+    const sd = getReport(db, 7, TODAY).sleepDetails!;
 
     expect(sd.totalSleep).toBe(27000); // (28800 + 25200) / 2
     expect(sd.efficiency).toBe(89);
@@ -215,7 +229,7 @@ describe('getReport sleep details', () => {
   it('returns null when the window has no long_sleep rows (other sleep types are ignored)', () => {
     insertSleepModel(day(1), 'late_nap', { total: 3600, deep: 600, rem: 500 });
 
-    expect(getReport(db, 7).sleepDetails).toBeNull();
+    expect(getReport(db, 7, TODAY).sleepDetails).toBeNull();
   });
 });
 
@@ -225,7 +239,7 @@ describe('getReport recommendations', () => {
     insertReadiness(day(1), 65);  // < 70
     insertActivity(day(1), 80, 5000); // steps < 8000
 
-    expect(getReport(db, 7).recommendations).toEqual(
+    expect(getReport(db, 7, TODAY).recommendations).toEqual(
       expect.arrayContaining(['sleep_low', 'readiness_low', 'steps_low'])
     );
   });
@@ -235,7 +249,7 @@ describe('getReport recommendations', () => {
     insertReadiness(day(1), 85);   // >= 80
     insertActivity(day(1), 95, 12000); // steps >= 10000
 
-    expect(getReport(db, 7).recommendations).toEqual(
+    expect(getReport(db, 7, TODAY).recommendations).toEqual(
       expect.arrayContaining(['sleep_great', 'readiness_great', 'steps_great'])
     );
   });
@@ -245,6 +259,6 @@ describe('getReport recommendations', () => {
     insertReadiness(day(1), 75);   // not < 70, not >= 80
     insertActivity(day(1), 80, 9000); // not < 8000, not >= 10000
 
-    expect(getReport(db, 7).recommendations).toEqual([]);
+    expect(getReport(db, 7, TODAY).recommendations).toEqual([]);
   });
 });

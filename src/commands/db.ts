@@ -4,8 +4,9 @@ import { dirname } from 'path';
 import { openDatabase, ensureSchema, getDbPath } from '../db/database.js';
 import { importFromCSV } from '../db/csv-import.js';
 import { getDaySummary, getTrends, getStats } from '../db/queries.js';
-import { formatDaySummary, formatWeekTable, formatTrends, formatStats } from '../format.js';
+import { formatDaySummary, formatWeekTable, formatTrends, formatStats } from '../render/format.js';
 import { todayDate } from './helpers.js';
+import { daysBack } from '../lib/time.js';
 import { resolveFormat } from '../lib/format-resolve.js';
 import { commonArgs, handleError, applyNoColor } from './common.js';
 import { runSync } from './sync.js';
@@ -74,11 +75,7 @@ export const dbCommand = defineCommand({
           const format = resolveFormat({ explicit: args.format, isTty: process.stdout.isTTY === true });
           const db = openDatabase({ dbPath: args.db });
           ensureSchema(db);
-          const days: ReturnType<typeof getDaySummary>[] = [];
-          for (let i = 6; i >= 0; i--) {
-            const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
-            days.push(getDaySummary(db, d));
-          }
+          const days = daysBack(todayDate(args.tz), 7).map(d => getDaySummary(db, d));
           console.log(formatWeekTable(days, format, 'Run `oura-cli sync`, then `oura-cli db week` again.'));
           db.close();
         } catch (err) {
@@ -100,7 +97,7 @@ export const dbCommand = defineCommand({
           const n = args.days ? parseInt(args.days as string, 10) : 30;
           const db = openDatabase({ dbPath: args.db });
           ensureSchema(db);
-          const trends = getTrends(db, n);
+          const trends = getTrends(db, n, todayDate(args.tz));
           console.log(formatTrends(trends, n, format));
           db.close();
         } catch (err) {
@@ -118,7 +115,7 @@ export const dbCommand = defineCommand({
           const format = resolveFormat({ explicit: args.format, isTty: process.stdout.isTTY === true });
           const db = openDatabase({ dbPath: args.db });
           ensureSchema(db);
-          const stats = getStats(db);
+          const stats = getStats(db, todayDate(args.tz));
           console.log(formatStats(stats, format));
           db.close();
         } catch (err) {

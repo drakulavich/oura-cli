@@ -1,4 +1,5 @@
 import type { Database } from '../lib/db.js';
+import { shiftDay } from '../lib/time.js';
 
 export interface DaySummary {
   day: string;
@@ -54,9 +55,8 @@ export interface TrendRow {
   count: number;
 }
 
-export function getTrends(db: Database, days: number): TrendRow[] {
-  const today = new Date().toISOString().slice(0, 10);
-  const start = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+export function getTrends(db: Database, days: number, today: string): TrendRow[] {
+  const start = shiftDay(today, -days);
   const results: TrendRow[] = [];
 
   const metrics: [string, string, string][] = [
@@ -98,7 +98,7 @@ export interface DbStats {
   records: { mostSteps: { day: string; steps: number } | null; bestSleep: { day: string; score: number } | null };
 }
 
-export function getStats(db: Database): DbStats {
+export function getStats(db: Database, today: string): DbStats {
   const tableNames = [
     'daily_sleep', 'daily_readiness', 'daily_activity', 'daily_spo2',
     'daily_stress', 'heartrate', 'vo2max', 'cardiovascular_age', 'workouts', 'sleep_model',
@@ -109,7 +109,7 @@ export function getStats(db: Database): DbStats {
   });
 
   const range = db.query('SELECT MIN(day) as first, MAX(day) as last FROM daily_sleep').get() as { first: string | null; last: string | null };
-  const trends = getTrends(db, 99999);
+  const trends = getTrends(db, 99999, today);
 
   const mostSteps = db.query('SELECT day, steps FROM daily_activity WHERE steps IS NOT NULL ORDER BY steps DESC LIMIT 1').get() as { day: string; steps: number } | undefined;
   const bestSleep = db.query('SELECT day, score FROM daily_sleep WHERE score IS NOT NULL ORDER BY score DESC LIMIT 1').get() as { day: string; score: number } | undefined;

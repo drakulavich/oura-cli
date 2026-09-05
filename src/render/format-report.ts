@@ -1,6 +1,6 @@
 import chalk from 'chalk';
-import type { ReportData } from './db/report.js';
-import type { OutputFormat } from './lib/format-resolve.js';
+import type { ReportData } from '../db/report.js';
+import type { OutputFormat } from '../lib/format-resolve.js';
 
 function colorizeScore(n: number): (s: string) => string {
   if (n >= 85) return chalk.green;

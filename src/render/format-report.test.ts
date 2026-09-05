@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import { formatReport } from './format-report.js';
-import type { ReportData } from './db/report.js';
+import type { ReportData } from '../db/report.js';
 
 // Strip ANSI escape codes to count *visible* column widths.
 const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, '');

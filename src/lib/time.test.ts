@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'bun:test';
+import { describe, it, expect, setSystemTime } from 'bun:test';
 import {
   nowUtc,
   formatLocal,
@@ -7,6 +7,9 @@ import {
   todayLocal,
   localDateToUtcRange,
   resolveDefaultTimezone,
+  shiftDay,
+  daysBack,
+  today,
 } from './time.js';
 
 describe('nowUtc', () => {
@@ -54,5 +57,35 @@ describe('localDateToUtcRange', () => {
 describe('resolveDefaultTimezone', () => {
   it('returns a non-empty IANA timezone identifier', () => {
     expect(resolveDefaultTimezone()).toMatch(/^[A-Z][A-Za-z_+\-0-9/]+$/);
+  });
+});
+
+describe('shiftDay', () => {
+  it('moves a YYYY-MM-DD date by whole days across a month boundary', () => {
+    expect(shiftDay('2026-03-01', -1)).toBe('2026-02-28');
+    expect(shiftDay('2026-02-28', 2)).toBe('2026-03-02');
+  });
+});
+
+describe('daysBack', () => {
+  it('returns n ascending dates ending at and including endDay', () => {
+    expect(daysBack('2026-06-15', 3)).toEqual(['2026-06-13', '2026-06-14', '2026-06-15']);
+  });
+  it('returns an empty list for n = 0', () => {
+    expect(daysBack('2026-06-15', 0)).toEqual([]);
+  });
+});
+
+describe('today', () => {
+  it('uses OURA_TZ when no timezone is passed', () => {
+    const prev = process.env.OURA_TZ;
+    process.env.OURA_TZ = 'Pacific/Kiritimati'; // UTC+14: at 20:00Z it is already tomorrow there
+    setSystemTime(new Date('2026-06-15T20:00:00Z'));
+    try {
+      expect(today()).toBe('2026-06-16');
+    } finally {
+      setSystemTime();
+      if (prev === undefined) delete process.env.OURA_TZ; else process.env.OURA_TZ = prev;
+    }
   });
 });

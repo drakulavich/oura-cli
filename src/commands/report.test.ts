@@ -9,7 +9,7 @@ describe('getReport', () => {
       const db = new Database(':memory:');
       ensureSchema(db);
 
-      const r = getReport(db, 7);
+      const r = getReport(db, 7, '2026-06-15');
 
       expect(r.days).toBeDefined();
       expect(r.days.length).toBeLessThanOrEqual(7);
@@ -21,7 +21,7 @@ describe('getReport', () => {
       const db = new Database(':memory:');
       ensureSchema(db);
 
-      const r = getReport(db, 30);
+      const r = getReport(db, 30, '2026-06-15');
 
       expect(r.days).toBeDefined();
       expect(r.days.length).toBeLessThanOrEqual(30);

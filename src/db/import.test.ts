@@ -9,6 +9,7 @@ import { join } from 'path';
 import { unlinkSync } from 'fs';
 
 const TEST_DB = join(tmpdir(), `oura-import-test-${Date.now()}.db`);
+const TODAY = '2026-03-05';
 
 afterEach(() => {
   try { unlinkSync(TEST_DB); } catch {}
@@ -61,7 +62,7 @@ describe('Import', () => {
       const db = new Database(TEST_DB);
       ensureSchema(db);
 
-      await importDaily(db, client);
+      await importDaily(db, client, TODAY);
 
       const stress = db.query('SELECT day_summary FROM daily_stress WHERE id = ?').get('s1') as { day_summary: string | null };
       expect(stress.day_summary).toBeNull();
@@ -93,7 +94,7 @@ describe('Import', () => {
 
       await importDaily(db, {
         fetch: async <T,>(endpoint: OuraEndpoint) => (omitted[endpoint] ?? []) as T[],
-      } as unknown as OuraClient);
+      } as unknown as OuraClient, TODAY);
 
       const stress = db.query('SELECT day_summary FROM daily_stress WHERE id = ?').get('s2') as { day_summary: string | null };
       expect(stress.day_summary).toBeNull();
