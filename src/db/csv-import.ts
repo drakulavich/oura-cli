@@ -1,6 +1,6 @@
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
-import type { Database } from '../lib/db.js';
+import type { Database } from './open.js';
 
 const CSV_DIR = join(process.env.HOME ?? '', 'Documents/OpenClaw/projects/oura-ring/data/App Data');
 

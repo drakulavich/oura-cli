@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
 import { Database } from 'bun:sqlite';
-import { ensureSchema } from './database.js';
+import { ensureSchema } from './open.js';
 import { getDaySummary, getStats } from './queries.js';
 import { tmpdir } from 'os';
 import { join } from 'path';

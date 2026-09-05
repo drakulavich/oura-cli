@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { Database } from 'bun:sqlite';
-import { ensureSchema } from './database.js';
+import { ensureSchema } from './open.js';
 import { getReport } from './report.js';
 import { shiftDay } from '../lib/time.js';
 

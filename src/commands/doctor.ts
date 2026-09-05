@@ -1,5 +1,5 @@
-import type { Database } from '../lib/db.js';
-import { openDatabase, ensureSchema, getDbPath } from '../db/database.js';
+import { openDatabase, ensureSchema, getDbPath } from '../db/open.js';
+import type { Database } from '../db/open.js';
 import { OuraClient } from '../api/client.js';
 import { resolveToken } from '../api/token.js';
 import { CliError, exitCodeFor } from '../lib/errors.js';
@@ -103,9 +103,9 @@ export const doctorCommand = dataCommand({
     const deps: DoctorDeps = {
       resolveToken: () => resolveToken(args.token as string | undefined),
       openDb: () => {
-        const db = openDatabase({ dbPath: args.db as string | undefined });
+        const db = openDatabase(args.db as string | undefined);
         ensureSchema(db);
-        return { db, path: getDbPath({ dbPath: args.db as string | undefined }) };
+        return { db, path: getDbPath(args.db as string | undefined) };
       },
       createClient: (token: string) => new OuraClient({ token }),
       offline: args.offline === true,

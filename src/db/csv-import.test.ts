@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterAll } from 'bun:test';
 import { Database } from 'bun:sqlite';
-import { ensureSchema } from './database.js';
+import { ensureSchema } from './open.js';
 import { mkdirSync, writeFileSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';

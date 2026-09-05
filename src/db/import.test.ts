@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 import { Database } from 'bun:sqlite';
-import { ensureSchema } from './database.js';
+import { ensureSchema } from './open.js';
 import { importDaily } from './import.js';
 import type { OuraClient } from '../api/client.js';
 import type { OuraEndpoint } from '../api/types.js';

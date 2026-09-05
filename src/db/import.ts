@@ -1,4 +1,4 @@
-import type { Database } from '../lib/db.js';
+import type { Database } from './open.js';
 import { OuraClient } from '../api/client.js';
 import { shiftDay } from '../lib/time.js';
 import type {

@@ -1,7 +1,7 @@
 import { defineCommand } from 'citty';
 import { mkdirSync, unlinkSync } from 'fs';
 import { dirname } from 'path';
-import { openDatabase, ensureSchema, getDbPath } from '../db/database.js';
+import { openDatabase, ensureSchema, getDbPath } from '../db/open.js';
 import { importFromCSV } from '../db/csv-import.js';
 import { getDaySummary, getTrends, getStats } from '../db/queries.js';
 import { formatDaySummary, formatWeekTable, formatTrends, formatStats } from '../render/format.js';
@@ -82,12 +82,12 @@ export const dbCommand = defineCommand({
             console.log(JSON.stringify({ error: 'Use --force to confirm destructive reset.' }));
             process.exit(1);
           }
-          const dbPath = getDbPath({ dbPath: args.db });
+          const dbPath = getDbPath(args.db);
           for (const suffix of ['', '-wal', '-shm']) { try { unlinkSync(dbPath + suffix); } catch { /* absent */ } }
           const log = format === 'table' ? console.log : () => {};
           log('Database deleted.');
           mkdirSync(dirname(dbPath), { recursive: true });
-          const db = openDatabase({ dbPath: args.db });
+          const db = openDatabase(args.db);
           ensureSchema(db);
           importFromCSV(db, log);
           if (format === 'json') console.log(JSON.stringify({ status: 'reset complete' }));

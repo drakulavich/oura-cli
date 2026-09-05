@@ -1,4 +1,4 @@
-import type { Migration } from '../lib/db.js';
+import type { Migration } from './open.js';
 
 export const MIGRATIONS: Migration[] = [
   {

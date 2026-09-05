@@ -1,4 +1,4 @@
-import type { Database } from '../lib/db.js';
+import type { Database } from '../db/open.js';
 import type { TokenResolution } from '../api/token.js';
 
 export type CheckId = 'token' | 'token-valid' | 'database' | 'data';
