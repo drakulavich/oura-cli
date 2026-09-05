@@ -9,6 +9,15 @@ const PACKAGE_VERSION = JSON.parse(
 ).version;
 
 describe('healthcheck and manifest commands', () => {
+  describe('--version', () => {
+    it('--version prints the package.json version', async () => {
+      const proc = Bun.spawn(['bun', 'run', 'src/index.ts', '--version'], { stdout: 'pipe' });
+      const out = (await new Response(proc.stdout).text()).trim();
+      await proc.exited;
+      expect(out).toBe(PACKAGE_VERSION);
+    });
+  });
+
   describe('healthcheck', () => {
     it('emits ok=true with a version and latency when the DB initialises successfully', async () => {
       const proc = Bun.spawn(['bun', 'run', 'src/index.ts', '--db', ':memory:', 'healthcheck'], { stdout: 'pipe' });
