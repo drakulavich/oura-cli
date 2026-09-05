@@ -1,58 +1,31 @@
 import { defineCommand } from 'citty';
-import { getClient, todayDate, dateRange } from './helpers.js';
-import { commonArgs, handleError, applyNoColor } from './common.js';
+import { shiftDay } from '../lib/time.js';
 import type { OuraEndpoint } from '../api/types.js';
+import { dataCommand, type Ctx } from './run-command.js';
+
+function fetchRange(ctx: Ctx, endpoint: OuraEndpoint, start: string, end: string) {
+  return ctx.client!.fetch(endpoint, start, end).then(data => ({ json: data, text: () => JSON.stringify(data, null, 2) }));
+}
 
 export function createApiCommand(name: string, description: string, endpoint: OuraEndpoint) {
   return defineCommand({
     meta: { name, description },
     subCommands: {
-      today: defineCommand({
+      today: dataCommand({
         meta: { name: 'today', description: `Today's ${name} data` },
-        args: { ...commonArgs },
-        async run({ args }) {
-          applyNoColor(args);
-          try {
-            const client = getClient({ token: args.token });
-            const day = todayDate(args.tz);
-            const data = await client.fetch(endpoint, day, day);
-            console.log(JSON.stringify(data, null, 2));
-          } catch (err) {
-            handleError(err, args);
-          }
-        },
+        needs: { client: true }, jsonOnly: true,
+        run: ctx => fetchRange(ctx, endpoint, ctx.today, ctx.today),
       }),
-      date: defineCommand({
+      date: dataCommand({
         meta: { name: 'date', description: `${name} data for a specific date (YYYY-MM-DD)` },
-        args: {
-          ...commonArgs,
-          day: { type: 'positional', required: true, description: 'Target date (YYYY-MM-DD)' },
-        },
-        async run({ args }) {
-          applyNoColor(args);
-          try {
-            const client = getClient({ token: args.token });
-            const data = await client.fetch(endpoint, args.day, args.day);
-            console.log(JSON.stringify(data, null, 2));
-          } catch (err) {
-            handleError(err, args);
-          }
-        },
+        args: { day: { type: 'positional', required: true, description: 'Target date (YYYY-MM-DD)' } },
+        needs: { client: true }, jsonOnly: true,
+        run: (ctx, args) => fetchRange(ctx, endpoint, args.day, args.day),
       }),
-      week: defineCommand({
+      week: dataCommand({
         meta: { name: 'week', description: `Last 7 days of ${name} data` },
-        args: { ...commonArgs },
-        async run({ args }) {
-          applyNoColor(args);
-          try {
-            const client = getClient({ token: args.token });
-            const { start, end } = dateRange(7, args.tz);
-            const data = await client.fetch(endpoint, start, end);
-            console.log(JSON.stringify(data, null, 2));
-          } catch (err) {
-            handleError(err, args);
-          }
-        },
+        needs: { client: true }, jsonOnly: true,
+        run: ctx => fetchRange(ctx, endpoint, shiftDay(ctx.today, -6), ctx.today),
       }),
     },
   });

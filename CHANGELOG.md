@@ -12,6 +12,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   states plainly that `login` hides the token as you type, and adds a
   symptom → command recovery table.
 - Text formatters moved from the repo root into `src/render/` (internal).
+- Every data command runs through one runner that resolves the output format, opens and always closes the database, creates the API client and maps errors to exit codes. `sync` progress lines are printed together with the summary instead of streaming. `--no-color` now takes effect before any output (internal).
 
 ### Added
 - `oura-cli doctor` diagnoses token resolution (honoring `--token` like every
