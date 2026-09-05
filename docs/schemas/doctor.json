@@ -14,7 +14,7 @@
         "additionalProperties": false,
         "properties": {
           "id":     { "type": "string", "enum": ["token", "token-valid", "database", "data"] },
-          "status": { "type": "string", "enum": ["ok", "warn", "fail"] },
+          "status": { "type": "string", "enum": ["ok", "warn", "fail", "skip"] },
           "detail": { "type": "string" },
           "fix":    { "type": "string" }
         }

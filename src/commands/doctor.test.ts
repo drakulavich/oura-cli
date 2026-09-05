@@ -67,7 +67,9 @@ describe('doctor runChecks', () => {
 
     const result = await runChecks(makeDeps({ openDb: () => ({ db, path: ':memory:' }) }));
 
-    expect(result.checks.every(c => c.status === 'ok')).toBe(true);
+    // makeDeps defaults to offline, so the token check is skipped, not passed.
+    expect(result.checks.every(c => c.status === 'ok' || c.status === 'skip')).toBe(true);
+    expect(result.checks.find(c => c.id === 'token-valid')!.status).toBe('skip');
     expect(result.ok).toBe(true);
     expect(result.nextStep).toBeNull();
   });
@@ -104,7 +106,9 @@ describe('doctor runChecks', () => {
     }));
 
     expect(called).toBe(false);
-    expect(result.checks.find(c => c.id === 'token-valid')!.status).toBe('ok');
+    // Not performed is reported as such, never as a pass.
+    expect(result.checks.find(c => c.id === 'token-valid')!.status).toBe('skip');
+    expect(result.checks.find(c => c.id === 'token-valid')!.detail).toContain('offline');
   });
 
   it('never includes the resolved token value in any check field', async () => {

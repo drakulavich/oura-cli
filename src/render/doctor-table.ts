@@ -4,6 +4,7 @@ import type { CheckStatus, DoctorResult } from './doctor-types.js';
 function statusSymbol(status: CheckStatus): string {
   if (status === 'ok') return chalk.green('✓');
   if (status === 'warn') return chalk.yellow('!');
+  if (status === 'skip') return chalk.gray('–');
   return chalk.red('✗');
 }
 

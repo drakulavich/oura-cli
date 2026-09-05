@@ -22,7 +22,7 @@ export async function runChecks(deps: DoctorDeps): Promise<DoctorResult> {
   if (!token) {
     checks.push({ id: 'token-valid', status: 'fail', detail: 'No token to validate.', fix: 'oura-cli login' });
   } else if (deps.offline) {
-    checks.push({ id: 'token-valid', status: 'ok', detail: 'Skipped (--offline).' });
+    checks.push({ id: 'token-valid', status: 'skip', detail: 'Not checked (--offline).' });
   } else {
     try {
       const client = deps.createClient(token);
@@ -73,8 +73,9 @@ export async function runChecks(deps: DoctorDeps): Promise<DoctorResult> {
   // (e.g. suggesting `sync` when token-valid already found the API
   // unreachable). So nextStep takes the first non-ok check's fix, not the
   // first *fix* among non-ok checks.
-  const ok = checks.every(c => c.status === 'ok');
-  const nextStep = checks.find(c => c.status !== 'ok')?.fix ?? null;
+  const settled = (s: string) => s === 'ok' || s === 'skip';
+  const ok = checks.every(c => settled(c.status));
+  const nextStep = checks.find(c => !settled(c.status))?.fix ?? null;
   return { ok, checks, nextStep };
 }
 
