@@ -7,18 +7,22 @@ import { runSync } from './sync.js';
 import { ensureSchema } from '../db/database.js';
 import { getDaySummary } from '../db/queries.js';
 import { formatDaySummary } from '../render/format.js';
-import { CliError } from '../lib/errors.js';
+import { OuraClient } from '../api/client.js';
+import type { Ctx, Output } from './run-command.js';
+import type { ImportResult } from '../db/import.js';
+import type { DaySummary } from '../db/queries.js';
 
 // Characterization tests for `runSync` (src/commands/sync.ts) — the thin
-// orchestration layer that resolves output format, opens/migrates the local
-// sqlite cache, runs an API import, then reads back "today"'s summary and
-// prints it. Boundaries are mocked exactly where the code touches the outside
-// world: HTTP via a `globalThis.fetch` stub, sqlite via a temp db file. The
-// module's own collaborators (importDaily, getDaySummary, formatDaySummary,
-// resolveFormat) are exercised for real.
+// orchestration layer that runs an API import against an already-open db and
+// client, then reads back "today"'s summary. Format resolution, db opening
+// and client construction are now the runner's job (src/commands/run-command.ts,
+// covered by run-command.test.ts) and OuraClient's own construction concerns
+// (e.g. TOKEN_MISSING) are covered by src/api/client.test.ts — so this file
+// only drives `runSync` directly against a `Ctx` value, as production code
+// does. Boundaries are mocked exactly where the code touches the outside
+// world: HTTP via a `globalThis.fetch` stub, sqlite via a temp db file.
 
 const realFetch = globalThis.fetch;
-const realLog = console.log;
 
 // The clock is frozen (via setSystemTime in beforeEach) at noon UTC on a fixed
 // date, so every `new Date()` inside runSync/importDaily and every helper
@@ -32,8 +36,6 @@ const TODAY = '2026-06-15';
 const YESTERDAY = '2026-06-14';
 
 let TEST_DB: string;
-let logs: string[];
-let fetchCalls: string[];
 let dbCounter = 0;
 
 function removeDb(path: string): void {
@@ -44,11 +46,10 @@ function removeDb(path: string): void {
 
 // Install a fetch stub that returns `{ data: rows }` keyed by the Oura
 // endpoint (the last path segment of the request URL). Unlisted endpoints
-// return an empty data array. Records every requested endpoint in fetchCalls.
+// return an empty data array.
 function installFetch(dataByEndpoint: Record<string, unknown[]>): void {
   globalThis.fetch = (async (url: unknown) => {
     const endpoint = new URL(String(url)).pathname.split('/').pop() ?? '';
-    fetchCalls.push(endpoint);
     const rows = dataByEndpoint[endpoint] ?? [];
     return new Response(JSON.stringify({ data: rows }), { status: 200 });
   }) as unknown as typeof globalThis.fetch;
@@ -80,67 +81,46 @@ function todayFixture(): Record<string, unknown[]> {
   };
 }
 
+// Opens a fresh, schema-ready sqlite db and drives `runSync` against it with
+// a `Ctx` shaped exactly as the runner (`execute` in run-command.ts) would
+// build one. Returns the `Output` plus the open `Database` handle so tests
+// can inspect persisted rows before closing it themselves.
+async function runSyncFor(format: 'json' | 'table', dbPath = TEST_DB): Promise<{ out: Output; db: Database }> {
+  const db = new Database(dbPath);
+  db.exec('PRAGMA journal_mode = WAL');
+  ensureSchema(db);
+  const ctx: Ctx = { format, tz: 'UTC', today: TODAY, db, client: new OuraClient({ token: 'test-token' }) };
+  const out = await runSync(ctx);
+  return { out, db };
+}
+
 beforeEach(() => {
   setSystemTime(new Date(FROZEN_NOW));
   TEST_DB = join(tmpdir(), `oura-sync-test-${process.pid}-${dbCounter++}.db`);
-  logs = [];
-  fetchCalls = [];
-  console.log = (...args: unknown[]) => { logs.push(args.map(String).join(' ')); };
-  process.env.OURA_TOKEN = 'test-token';
 });
 
 afterEach(() => {
   setSystemTime();
   globalThis.fetch = realFetch;
-  console.log = realLog;
-  delete process.env.OURA_TOKEN;
   removeDb(TEST_DB);
 });
 
 describe('runSync', () => {
-  describe('format resolution', () => {
-    it('defaults to JSON when no --format is given and stdout is not a TTY', async () => {
-      // In the test runner process.stdout.isTTY is undefined, so the default
-      // branch of resolveFormat picks JSON.
-      installFetch({});
-      await runSync({ db: TEST_DB, tz: 'UTC' });
-
-      expect(logs).toHaveLength(1);
-      const parsed = JSON.parse(logs[0]!);
-      expect(parsed).toHaveProperty('import');
-      expect(parsed).toHaveProperty('today');
-    });
-
-    it('throws a BAD_ARGS CliError for an unknown --format before any fetch or db work', async () => {
-      installFetch(todayFixture());
-      let caught: unknown;
-      try {
-        await runSync({ format: 'xml', db: TEST_DB, tz: 'UTC' });
-      } catch (e) {
-        caught = e;
-      }
-      expect(caught).toBeInstanceOf(CliError);
-      expect((caught as CliError).code).toBe('BAD_ARGS');
-      // resolveFormat runs first, so no HTTP request is ever issued.
-      expect(fetchCalls).toHaveLength(0);
-    });
-  });
-
   describe('JSON output', () => {
-    it('prints a single { import, today } object', async () => {
+    it('returns a single { import, today } object', async () => {
       installFetch(todayFixture());
-      await runSync({ format: 'json', db: TEST_DB, tz: 'UTC' });
+      const { out, db } = await runSyncFor('json');
+      db.close();
 
-      expect(logs).toHaveLength(1);
-      const parsed = JSON.parse(logs[0]!);
-      expect(Object.keys(parsed).sort()).toEqual(['import', 'today']);
+      expect(Object.keys(out.json as object).sort()).toEqual(['import', 'today']);
     });
 
     it('reports the import window and per-endpoint counts in the import payload', async () => {
       installFetch(todayFixture());
-      await runSync({ format: 'json', db: TEST_DB, tz: 'UTC' });
+      const { out, db } = await runSyncFor('json');
+      db.close();
 
-      const { import: result } = JSON.parse(logs[0]!);
+      const { import: result } = out.json as { import: ImportResult; today: DaySummary };
       expect(result.endDate).toBe(TODAY);
       expect(typeof result.startDate).toBe('string');
       // One row was returned for each of these endpoints in the fixture.
@@ -158,9 +138,10 @@ describe('runSync', () => {
 
     it('flags a sync against an empty db as isFirstSync with a 30-day backfill start date', async () => {
       installFetch({});
-      await runSync({ format: 'json', db: TEST_DB, tz: 'UTC' });
+      const { out, db } = await runSyncFor('json');
+      db.close();
 
-      const { import: result } = JSON.parse(logs[0]!);
+      const { import: result } = out.json as { import: ImportResult; today: DaySummary };
       expect(result.isFirstSync).toBe(true);
       // FROZEN_NOW is 2026-06-15T12:00:00Z; 30 days back is 2026-05-16.
       expect(result.startDate).toBe('2026-05-16');
@@ -168,21 +149,24 @@ describe('runSync', () => {
 
     it('flags a sync against a db with existing rows as an incremental sync', async () => {
       installFetch(todayFixture());
-      await runSync({ format: 'json', db: TEST_DB, tz: 'UTC' });
+      const first = await runSyncFor('json');
+      first.db.close();
 
       installFetch({});
-      await runSync({ format: 'json', db: TEST_DB, tz: 'UTC' });
+      const { out, db } = await runSyncFor('json');
+      db.close();
 
-      const { import: result } = JSON.parse(logs[logs.length - 1]!);
+      const { import: result } = out.json as { import: ImportResult; today: DaySummary };
       expect(result.isFirstSync).toBe(false);
       expect(result.startDate).toBe(TODAY);
     });
 
     it('reads back the freshly-imported rows for today into the today summary', async () => {
       installFetch(todayFixture());
-      await runSync({ format: 'json', db: TEST_DB, tz: 'UTC' });
+      const { out, db } = await runSyncFor('json');
+      db.close();
 
-      const { today } = JSON.parse(logs[0]!);
+      const { today } = out.json as { import: ImportResult; today: DaySummary };
       expect(today.day).toBe(TODAY);
       expect(today.sleep_score).toBe(88);
       expect(today.readiness_score).toBe(77);
@@ -197,15 +181,16 @@ describe('runSync', () => {
       expect(today.rem_hours).toBe(1.5);
     });
 
-    it('does not forward a logger to the importer, so no progress lines leak into JSON mode', async () => {
+    it('does not forward a logger to the importer, so no progress lines leak into text() in json mode', async () => {
       installFetch(todayFixture());
-      await runSync({ format: 'json', db: TEST_DB, tz: 'UTC' });
+      const { out, db } = await runSyncFor('json');
+      db.close();
 
-      // The importer's `_log` is undefined in JSON mode; the only console.log
-      // call is the final JSON blob.
-      expect(logs).toHaveLength(1);
-      expect(logs[0]).not.toMatch(/Syncing from/);
-      expect(logs[0]).not.toMatch(/Import complete\./);
+      // The importer's `_log` is undefined in JSON mode, so the buffered
+      // progress lines stay empty and text() falls back to just the summary.
+      const text = out.text();
+      expect(text).not.toMatch(/Syncing from/);
+      expect(text).not.toMatch(/Import complete\./);
     });
 
     it('summarizes only today, leaving fields null when the imported row is dated a different day', async () => {
@@ -217,9 +202,10 @@ describe('runSync', () => {
         temperature_deviation: -0.3, temperature_trend_deviation: 0, timestamp: `${YESTERDAY}T00:00:00Z`,
       }];
       installFetch(data);
-      await runSync({ format: 'json', db: TEST_DB, tz: 'UTC' });
+      const { out, db } = await runSyncFor('json');
+      db.close();
 
-      const { today } = JSON.parse(logs[0]!);
+      const { today } = out.json as { import: ImportResult; today: DaySummary };
       expect(today.readiness_score).toBeNull();
       expect(today.temp_deviation).toBeNull();
       // Same-day metrics are still present.
@@ -228,9 +214,10 @@ describe('runSync', () => {
 
     it('returns an all-null today summary and zero counts when the API has no data', async () => {
       installFetch({});
-      await runSync({ format: 'json', db: TEST_DB, tz: 'UTC' });
+      const { out, db } = await runSyncFor('json');
+      db.close();
 
-      const { import: result, today } = JSON.parse(logs[0]!);
+      const { import: result, today } = out.json as { import: ImportResult; today: DaySummary };
       expect(Object.values(result.counts).every(c => c === 0)).toBe(true);
       expect(today.day).toBe(TODAY);
       expect(today.sleep_score).toBeNull();
@@ -241,66 +228,65 @@ describe('runSync', () => {
   });
 
   describe('table output', () => {
-    it('forwards console.log to the importer so progress lines are printed', async () => {
+    it('forwards a logger to the importer so progress lines are buffered into text()', async () => {
       installFetch(todayFixture());
-      await runSync({ format: 'table', db: TEST_DB, tz: 'UTC' });
+      const { out, db } = await runSyncFor('table');
+      db.close();
 
-      const joined = logs.join('\n');
-      expect(joined).toMatch(/Import complete\./);
+      expect(out.text()).toMatch(/Import complete\./);
     });
 
     it('labels a first sync as a 30-day backfill, naming the resolved date range', async () => {
       installFetch(todayFixture());
-      await runSync({ format: 'table', db: TEST_DB, tz: 'UTC' });
+      const { out, db } = await runSyncFor('table');
+      db.close();
 
-      const joined = logs.join('\n');
-      expect(joined).toContain('First sync — backfilling the last 30 days: 2026-05-16 → 2026-06-15');
+      expect(out.text()).toContain('First sync — backfilling the last 30 days: 2026-05-16 → 2026-06-15');
     });
 
     it('labels an incremental sync with just the resolved date range, no "First sync"', async () => {
       installFetch(todayFixture());
-      await runSync({ format: 'table', db: TEST_DB, tz: 'UTC' });
-      logs = [];
+      const first = await runSyncFor('table');
+      first.db.close();
 
       installFetch({});
-      await runSync({ format: 'table', db: TEST_DB, tz: 'UTC' });
+      const { out, db } = await runSyncFor('table');
+      db.close();
 
-      const joined = logs.join('\n');
-      expect(joined).toContain(`Syncing ${TODAY} → ${TODAY}`);
-      expect(joined).not.toContain('First sync');
+      const text = out.text();
+      expect(text).toContain(`Syncing ${TODAY} → ${TODAY}`);
+      expect(text).not.toContain('First sync');
     });
 
-    it('prints a per-collection count summary, including zero counts for empty collections', async () => {
+    it('includes a per-collection count summary, including zero counts for empty collections', async () => {
       installFetch(todayFixture());
-      await runSync({ format: 'table', db: TEST_DB, tz: 'UTC' });
+      const { out, db } = await runSyncFor('table');
+      db.close();
 
-      const joined = logs.join('\n');
-      expect(joined).toContain('Imported 2026-05-16 → 2026-06-15:');
-      expect(joined).toMatch(/sleep 1/);
+      const text = out.text();
+      expect(text).toContain('Imported 2026-05-16 → 2026-06-15:');
+      expect(text).toMatch(/sleep 1/);
       // workouts and heartrate have no fixture rows and must still show as 0.
-      expect(joined).toMatch(/workouts 0/);
-      expect(joined).toMatch(/heart rate 0/);
+      expect(text).toMatch(/workouts 0/);
+      expect(text).toMatch(/heart rate 0/);
     });
 
-    it('prints exactly formatDaySummary(today, "table") as its final line', async () => {
+    it('ends with exactly formatDaySummary(today, "table")', async () => {
       installFetch(todayFixture());
-      await runSync({ format: 'table', db: TEST_DB, tz: 'UTC' });
+      const { out, db } = await runSyncFor('table');
 
-      // Reconstruct what the summary should be by reopening the persisted db.
-      const db = new Database(TEST_DB);
       const summary = getDaySummary(db, TODAY);
       db.close();
 
-      expect(logs[logs.length - 1]).toBe(formatDaySummary(summary, 'table'));
+      expect(out.text().endsWith(formatDaySummary(summary, 'table'))).toBe(true);
     });
   });
 
   describe('persistence', () => {
     it('writes imported rows to the db file at the configured path', async () => {
       installFetch(todayFixture());
-      await runSync({ format: 'json', db: TEST_DB, tz: 'UTC' });
+      const { db } = await runSyncFor('json');
 
-      const db = new Database(TEST_DB);
       const sleep = db.query('SELECT score FROM daily_sleep WHERE day = ?').get(TODAY) as { score: number } | undefined;
       const activity = db.query('SELECT steps FROM daily_activity WHERE day = ?').get(TODAY) as { steps: number } | undefined;
       db.close();
@@ -310,38 +296,14 @@ describe('runSync', () => {
     });
 
     it('creates and migrates the schema on a brand-new db file', async () => {
-      // Nothing pre-exists at TEST_DB; runSync must run ensureSchema itself.
+      // Nothing pre-exists at TEST_DB; runSyncFor must run ensureSchema itself.
       installFetch({});
-      await runSync({ format: 'json', db: TEST_DB, tz: 'UTC' });
+      const { db } = await runSyncFor('json');
 
-      const db = new Database(TEST_DB);
       const version = db.query('SELECT MAX(version) AS v FROM _schema_version').get() as { v: number | null };
       db.close();
       expect(typeof version.v).toBe('number');
       expect(version.v).toBeGreaterThan(0);
-    });
-  });
-
-  describe('authentication', () => {
-    it('propagates a TOKEN_MISSING CliError when no token can be resolved', async () => {
-      installFetch(todayFixture());
-      delete process.env.OURA_TOKEN;
-      const prevPath = process.env.OURA_TOKEN_PATH;
-      process.env.OURA_TOKEN_PATH = join(tmpdir(), `no-such-oura-token-${process.pid}`);
-      removeDb(process.env.OURA_TOKEN_PATH);
-
-      let caught: unknown;
-      try {
-        await runSync({ format: 'json', db: TEST_DB, tz: 'UTC' });
-      } catch (e) {
-        caught = e;
-      } finally {
-        if (prevPath === undefined) delete process.env.OURA_TOKEN_PATH;
-        else process.env.OURA_TOKEN_PATH = prevPath;
-      }
-
-      expect(caught).toBeInstanceOf(CliError);
-      expect((caught as CliError).code).toBe('TOKEN_MISSING');
     });
   });
 });

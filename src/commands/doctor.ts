@@ -1,4 +1,3 @@
-import { defineCommand } from 'citty';
 import { resolve } from 'path';
 import { homedir } from 'os';
 import { readFileSync } from 'fs';
@@ -6,39 +5,11 @@ import type { Database } from '../lib/db.js';
 import { openDatabase, ensureSchema, getDbPath } from '../db/database.js';
 import { OuraClient } from '../api/client.js';
 import { CliError, exitCodeFor } from '../lib/errors.js';
-import { todayDate } from './helpers.js';
-import { resolveFormat } from '../lib/format-resolve.js';
-import { commonArgs, handleError, applyNoColor } from './common.js';
 import { formatDoctorTable } from '../render/doctor-table.js';
+import { dataCommand } from './run-command.js';
+import type { CheckStatus, DoctorCheck, DoctorResult, DoctorDeps, TokenResolution } from '../render/doctor-types.js';
 
-export type CheckId = 'token' | 'token-valid' | 'database' | 'data';
-export type CheckStatus = 'ok' | 'warn' | 'fail';
-
-export interface DoctorCheck {
-  id: CheckId;
-  status: CheckStatus;
-  detail: string;
-  fix?: string;
-}
-
-export interface DoctorResult {
-  ok: boolean;
-  checks: DoctorCheck[];
-  nextStep: string | null;
-}
-
-export interface TokenResolution {
-  token: string | null;
-  source: string;
-}
-
-export interface DoctorDeps {
-  resolveToken: () => TokenResolution;
-  openDb: () => { db: Database; path: string };
-  createClient: (token: string) => { fetch: (endpoint: 'daily_sleep', start: string, end?: string) => Promise<unknown[]> };
-  offline: boolean;
-  today: string;
-}
+export type { CheckId, CheckStatus, DoctorCheck, DoctorResult, DoctorDeps, TokenResolution } from '../render/doctor-types.js';
 
 export async function runChecks(deps: DoctorDeps): Promise<DoctorResult> {
   const checks: DoctorCheck[] = [];
@@ -138,36 +109,26 @@ export function resolveTokenLikeClient(explicitToken?: string): TokenResolution 
   }
 }
 
-export const doctorCommand = defineCommand({
+export const doctorCommand = dataCommand({
   meta: { name: 'doctor', description: 'Diagnose token, database, and sync health, and suggest the next step.' },
-  args: {
-    ...commonArgs,
-    offline: { type: 'boolean', default: false, description: 'Skip the live Oura API token-validation call' },
-  },
-  async run({ args }) {
-    applyNoColor(args);
-    try {
-      const format = resolveFormat({ explicit: args.format, isTty: process.stdout.isTTY === true });
-      const deps: DoctorDeps = {
-        resolveToken: () => resolveTokenLikeClient(args.token as string | undefined),
-        openDb: () => {
-          const db = openDatabase({ dbPath: args.db });
-          ensureSchema(db);
-          return { db, path: getDbPath({ dbPath: args.db }) };
-        },
-        createClient: (token: string) => new OuraClient({ token }),
-        offline: args.offline === true,
-        today: todayDate(args.tz),
-      };
-      const result = await runChecks(deps);
-      if (format === 'json') {
-        console.log(JSON.stringify(result, null, 2));
-      } else {
-        console.log(formatDoctorTable(result));
-      }
-      process.exit(exitCodeForChecks(result.checks));
-    } catch (err) {
-      handleError(err, args);
-    }
+  args: { offline: { type: 'boolean', default: false, description: 'Skip the live Oura API token-validation call' } },
+  async run(ctx, args) {
+    const deps: DoctorDeps = {
+      resolveToken: () => resolveTokenLikeClient(args.token as string | undefined),
+      openDb: () => {
+        const db = openDatabase({ dbPath: args.db as string | undefined });
+        ensureSchema(db);
+        return { db, path: getDbPath({ dbPath: args.db as string | undefined }) };
+      },
+      createClient: (token: string) => new OuraClient({ token }),
+      offline: args.offline === true,
+      today: ctx.today,
+    };
+    const result = await runChecks(deps);
+    return {
+      json: result,
+      text: () => formatDoctorTable(result),
+      exitCode: exitCodeForChecks(result.checks),
+    };
   },
 });

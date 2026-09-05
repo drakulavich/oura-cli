@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import type { CheckStatus, DoctorResult } from '../commands/doctor.js';
+import type { CheckStatus, DoctorResult } from './doctor-types.js';
 
 function statusSymbol(status: CheckStatus): string {
   if (status === 'ok') return chalk.green('✓');
