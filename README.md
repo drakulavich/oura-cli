@@ -173,7 +173,7 @@ If you're driving the CLI from a script or LLM harness:
 - `oura-cli healthcheck` — `{ok, version, latencyMs}` JSON for liveness probes.
 - Errors emit a stable JSON envelope on stderr: `{"error":{"code":"…","message":"…","hint":"…"}}`.
 - Documented exit codes: `0` success, `1` user error, `2` auth, `3` API, `4` storage.
-- JSON Schemas under [`docs/schemas/`](docs/schemas/) describe every output shape, semver-stable.
+- JSON Schemas under [`docs/schemas/`](docs/schemas/) describe every output shape, semver-stable. Per-collection schemas pin the identity fields (`id`, `day`, `timestamp`) and allow the rest of the Oura record through unchanged, so new upstream fields never break validation.
 
 Plays cleanly with [OpenClaw](https://github.com/openclaw/openclaw) — `oura-cli manifest` returns the tool-registry shape. A first-party `oura-mcp` companion is on the roadmap.
 

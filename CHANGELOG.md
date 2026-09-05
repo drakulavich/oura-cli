@@ -43,6 +43,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `fetch --day/--from/--to` and `db date` reject calendar-invalid dates such as `2026-02-30` with `BAD_ARGS` instead of sending them to the API or querying nothing. `db trends <days>` rejects anything but a positive integer instead of failing with `UNKNOWN` (`abc`) or silently returning nothing (`0`).
 - An unknown `--format` is rejected for `fetch` too (it used to be silently accepted); `fetch` errors now render as text on a TTY and as JSON when piped.
 - An unknown `--tz` / `OURA_TZ` is reported as `BAD_ARGS` with a hint instead of an `UNKNOWN` error from the date formatter.
+- `fetch hr` and the heartrate step of `sync` now send `start_datetime`/`end_datetime` (UTC instants covering the requested local days in `OURA_TZ`), which is what the Oura heartrate endpoint takes; every other collection keeps `start_date`/`end_date`. Previously heartrate was queried with date parameters the endpoint does not define.
+- The API client follows `next_token` and returns every page, so ranges longer than one page (heartrate over several days) are no longer silently truncated.
+- Local-day boundaries are computed at local midnight instead of noon, so `fetch hr --day` on a DST transition day covers the whole 23- or 25-hour day rather than shifting by an hour (internal `localDateToUtcRange`, previously unused).
 - Interactive `oura-cli login` now hides the Personal Access Token while it is
   typed and explains how to use `--token` safely in non-interactive contexts.
 - `oura-cli report` now explains when no data is available and directs new

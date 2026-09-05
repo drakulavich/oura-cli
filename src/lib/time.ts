@@ -36,13 +36,19 @@ function getTimezoneOffsetMs(utc: Date, tz: string): number {
   return sign * (parseInt(m[2]!, 10) * 3600 + parseInt(m[3]!, 10) * 60) * 1000;
 }
 
+/** The UTC instant of 00:00 local time on `day` in `tz`, correct across DST transitions. */
+function localMidnightMs(day: string, tz: string): number {
+  const naiveMs = new Date(`${day}T00:00:00Z`).getTime();
+  // The offset in force at local midnight is the one to subtract; a first guess using the
+  // offset at the naive instant is off by the DST delta on transition days, so re-read it there.
+  const guessMs = naiveMs - getTimezoneOffsetMs(new Date(naiveMs), tz);
+  return naiveMs - getTimezoneOffsetMs(new Date(guessMs), tz);
+}
+
+/** `[start, end)` UTC instants of the local calendar day: local midnight to the next local midnight. */
 export function localDateToUtcRange(localDate: string, timezone: string): [string, string] {
-  const probe = new Date(`${localDate}T12:00:00Z`);
-  const offsetMs = getTimezoneOffsetMs(probe, timezone);
-  const startMs = new Date(`${localDate}T00:00:00Z`).getTime() - offsetMs;
-  const endMs = startMs + 24 * 3600 * 1000;
   const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
-  return [iso(startMs), iso(endMs)];
+  return [iso(localMidnightMs(localDate, timezone)), iso(localMidnightMs(shiftDay(localDate, 1), timezone))];
 }
 
 export function resolveDefaultTimezone(): string {

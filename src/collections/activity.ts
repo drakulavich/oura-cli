@@ -4,7 +4,7 @@ import type { OuraActivityDay } from '../api/types.js';
 export const activity = defineCollection<OuraActivityDay>({
   name: 'activity', endpoint: 'daily_activity', table: 'daily_activity',
   description: 'Daily activity score, steps, calories and activity-time buckets',
-  conflict: 'replace', syncWindow: 'range',
+  conflict: 'replace', syncWindow: 'range', rangeParams: 'date',
   identity: [
     { field: 'id', description: 'Oura record id' },
     { field: 'day', format: 'date', description: 'Date the record applies to (YYYY-MM-DD)' },

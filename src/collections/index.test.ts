@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import { Database } from 'bun:sqlite';
-import { COLLECTIONS, ddl, insertSql, rowValues, names, byName } from './index.js';
+import { COLLECTIONS, ddl, insertSql, rowValues, names, byName, rangeQuery } from './index.js';
 
 describe('collection registry', () => {
   it('has unique names, endpoints and tables', () => {
@@ -39,5 +39,24 @@ describe('collection registry', () => {
   it('exposes names for the fetch enum', () => {
     expect(names()).toContain('sleep');
     expect(byName('nope')).toBeUndefined();
+  });
+});
+
+describe('rangeQuery', () => {
+  it('uses start_date/end_date for daily collections', () => {
+    expect(rangeQuery(byName('sleep')!, '2026-06-01', '2026-06-07', 'Europe/Berlin'))
+      .toEqual({ start_date: '2026-06-01', end_date: '2026-06-07' });
+  });
+
+  it('uses UTC start_datetime/end_datetime covering the local days for heartrate', () => {
+    // Berlin is UTC+2 in June: local midnight is 22:00Z the previous evening.
+    expect(rangeQuery(byName('hr')!, '2026-06-01', '2026-06-01', 'Europe/Berlin'))
+      .toEqual({ start_datetime: '2026-05-31T22:00:00Z', end_datetime: '2026-06-01T22:00:00Z' });
+  });
+
+  it('every registered collection declares which range parameters its endpoint takes', () => {
+    for (const c of COLLECTIONS) {
+      expect(c.rangeParams).toBe(c.endpoint === 'heartrate' ? 'datetime' : 'date');
+    }
   });
 });
