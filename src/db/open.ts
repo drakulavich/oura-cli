@@ -1,4 +1,4 @@
-import { Database } from 'bun:sqlite';
+import { Database, SQLiteError } from 'bun:sqlite';
 import { resolve, dirname } from 'path';
 import { homedir } from 'os';
 import { mkdirSync } from 'fs';
@@ -10,6 +10,11 @@ export const DB_HINT = 'Check the path in --db / OURA_DB_PATH and that the file 
 function dbError(what: string, err: unknown): CliError {
   const detail = err instanceof Error ? err.message : String(err);
   return new CliError('DB_ERROR', `${what}: ${detail}`, DB_HINT);
+}
+
+/** The DB_ERROR for a SQLite failure raised by a query (corrupt file, missing table), or undefined for anything else. */
+export function asDbError(err: unknown): CliError | undefined {
+  return err instanceof SQLiteError ? new CliError('DB_ERROR', err.message, DB_HINT) : undefined;
 }
 
 export type { Database };

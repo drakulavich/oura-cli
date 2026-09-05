@@ -17,13 +17,18 @@ describe('fromCittyError', () => {
   });
 
   it.each([
-    ['reset', 'sync'],
-    ['import', 'sync'],
-    ['hr', 'fetch <collection>'],
-    ['sleep', 'fetch <collection>'],
-  ])('points a removed command %s at its replacement', (name, expected) => {
-    const err = fromCittyError(cittyError(`Unknown command ${name}`, 'E_UNKNOWN_COMMAND')) as CliError;
-    expect(err.hint).toContain(expected);
+    ['reset', 'use sync'],
+    ['hr', 'use fetch'],
+  ])('uses the caller-supplied hint for a removed command %s', (name, expected) => {
+    const hints = { reset: 'use sync', hr: 'use fetch' };
+    const err = fromCittyError(cittyError(`Unknown command ${name}`, 'E_UNKNOWN_COMMAND'), hints) as CliError;
+    expect(err.hint).toBe(expected);
+  });
+
+  it('does not read hints off Object.prototype', () => {
+    const err = fromCittyError(cittyError('Unknown command constructor', 'E_UNKNOWN_COMMAND'), {}) as CliError;
+    expect(typeof err.hint).toBe('string');
+    expect(err.hint).toContain('--help');
   });
 
   it('turns a missing positional into BAD_ARGS', () => {

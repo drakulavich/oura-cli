@@ -93,10 +93,10 @@ describe('OuraClient', () => {
   });
 
   describe('token hygiene', () => {
-    afterEach(() => { delete process.env.OURA_TOKEN; });
+    const path = `/tmp/oura-token-multiline-${process.pid}`;
+    afterEach(async () => { delete process.env.OURA_TOKEN; try { await Bun.file(path).delete(); } catch {} });
 
     it('rejects a token file with a second line as TOKEN_INVALID without quoting the token', async () => {
-      const path = `/tmp/oura-token-multiline-${process.pid}`;
       await Bun.write(path, 'FAKETOKEN123456789\nnote to self\n');
       delete process.env.OURA_TOKEN;
       let err: unknown;

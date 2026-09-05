@@ -13,8 +13,9 @@ Fixes from the 0.5.0 exploratory testing sessions, all on the seam between citty
 ### Fixed
 - A token containing whitespace or a line break (for example a token file with a second line) is rejected as `TOKEN_INVALID` (exit 2) naming the source; previously it reached the API layer and came back as `UNKNOWN` with the token quoted in the message. Every error message and hint is now passed through the secret redactor. (#47)
 - `DB_ERROR` (exit 4) is reachable: a corrupt cache file, an unusable `--db` path or a failing query in `db *`, `sync` and `report` now report `DB_ERROR` with a hint instead of `UNKNOWN` / exit 1. (#48)
-- Errors raised before a command runs — unknown command, missing positional, no command on a pipe — use the same envelope as every other error: JSON on stderr when piped, text on a TTY, nothing on stdout, `--no-color` honoured. The commands removed in 0.5.0 (`db reset`, `db import`, `sleep|readiness|activity|hr|spo2|stress|workout …`) point at `fetch`/`sync`. `--help` and a bare `oura-cli` on a TTY still show usage, and `--version` now answers even when other flags are present (it used to exit 1 with usage unless it was the only argument). (#49)
-- Undeclared flags and extra positionals are `BAD_ARGS` instead of being ignored: `fetch sleep --dayz 7` no longer returns today's data with exit 0, and `db trends -5` no longer falls back to the 30-day default. (#50, part of #52)
+- Errors raised before a command runs — unknown command, missing positional, no command on a pipe — use the same envelope as every other error: JSON on stderr when piped, text on a TTY, nothing on stdout, `--no-color` honoured. The commands removed in 0.5.0 (`db reset`, `db import`, `sleep|readiness|activity|hr|spo2|stress|workout …`) point at `fetch`/`sync`. `--help` and a bare `oura-cli` on a TTY still show usage, and `--version` now answers even when other flags are present (it used to exit 1 with usage unless it was the only argument), but not when it sits in another flag's value position. (#49)
+- Undeclared flags and extra positionals are `BAD_ARGS` instead of being ignored, for every command including `describe`, `manifest`, `healthcheck` and `login`: `fetch sleep --dayz 7` no longer returns today's data with exit 0, and `db trends -5` no longer falls back to the 30-day default. (#50, part of #52)
+- Global flags placed before the subcommand are no longer moved past a `--` separator, and `oura-cli constructor` (any `Object.prototype` name) is an unknown command instead of a silent exit 0.
 
 ## [0.5.0] - 2026-09-05
 
@@ -317,6 +318,8 @@ Fixes from the 0.5.0 exploratory testing sessions, all on the seam between citty
 - Local SQLite cache at `~/.oura-cli/oura.db`.
 - Auth via `oura-cli login`, `OURA_TOKEN`, `OURA_TOKEN_PATH`, or `~/.oura-token`.
 
+[0.5.1]: https://github.com/drakulavich/oura-cli/releases/tag/v0.5.1
+[0.5.0]: https://github.com/drakulavich/oura-cli/releases/tag/v0.5.0
 [0.4.4]: https://github.com/drakulavich/oura-cli/releases/tag/v0.4.4
 [0.4.3]: https://github.com/drakulavich/oura-cli/releases/tag/v0.4.3
 [0.4.2]: https://github.com/drakulavich/oura-cli/releases/tag/v0.4.2

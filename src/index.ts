@@ -39,6 +39,16 @@ const subCommands: SubCommandsDef = Object.assign(Object.create(null) as SubComm
   report:      reportCommand,
 });
 
+const FETCH_HINT = 'The per-collection commands were replaced in 0.5.0 by `oura-cli fetch <collection>`, e.g. `oura-cli fetch sleep --day 2026-09-01`. Run `oura-cli fetch --help`.';
+
+/** Commands removed in 0.5.0 and where their job went; shown when someone still types them. */
+const REMOVED_COMMANDS: Readonly<Record<string, string>> = {
+  reset: '`db reset` was removed in 0.5.0; delete the database file (`--db` / OURA_DB_PATH) and run `oura-cli sync` to rebuild it.',
+  import: '`db import` was removed in 0.5.0; `oura-cli sync` downloads and stores everything.',
+  sleep: FETCH_HINT, readiness: FETCH_HINT, activity: FETCH_HINT, hr: FETCH_HINT,
+  spo2: FETCH_HINT, stress: FETCH_HINT, workout: FETCH_HINT,
+};
+
 const main = defineCommand({
   meta: {
     name: 'oura-cli',
@@ -64,7 +74,7 @@ if (isVersionRequest(rawArgs)) {
   // positional) get the same envelope and exit code as errors raised inside a command,
   // instead of citty's coloured usage dump on stdout.
   runCommand(main, { rawArgs }).catch((raw: unknown) => {
-    const err = fromCittyError(raw);
+    const err = fromCittyError(raw, REMOVED_COMMANDS);
     emitError(err, formatFromArgv(rawArgs, process.stdout.isTTY === true));
     process.exit(exitCodeFor(err));
   });

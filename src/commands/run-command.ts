@@ -1,8 +1,7 @@
 import chalk from 'chalk';
 import { defineCommand } from 'citty';
 import type { ArgsDef, CommandDef, CommandMeta, ParsedArgs } from 'citty';
-import { SQLiteError } from 'bun:sqlite';
-import { openDatabase, ensureSchema, DB_HINT } from '../db/open.js';
+import { openDatabase, ensureSchema, asDbError } from '../db/open.js';
 import type { Database } from '../db/open.js';
 import { CliError } from '../lib/errors.js';
 import { OuraClient } from '../api/client.js';
@@ -73,7 +72,11 @@ export function assertKnownArgs(declared: ArgsDef, args: Record<string, unknown>
   const unknown = Object.keys(args).filter(k => !known.has(k));
   if (unknown.length > 0) {
     const flags = unknown.map(f => (f.length === 1 ? `-${f}` : `--${f}`)).join(', ');
-    throw new CliError('BAD_ARGS', `Unknown flag${unknown.length > 1 ? 's' : ''}: ${flags}.`, 'Run the command with --help to see its flags.');
+    // mri splits "-30" into the keys "3" and "0" (and reorders them), so name the cause rather than the letters.
+    const hint = unknown.every(f => f.length === 1)
+      ? 'oura-cli has no single-letter flags; a value that starts with "-" must come after "--".'
+      : 'Run the command with --help to see its flags.';
+    throw new CliError('BAD_ARGS', `Unknown flag${unknown.length > 1 ? 's' : ''}: ${flags}.`, hint);
   }
   const extra = ((args._ as string[] | undefined) ?? []).slice(positionals);
   if (extra.length > 0) {
@@ -86,7 +89,8 @@ export async function execute<A extends ArgsDef>(
   args: ParsedArgs<A & CommonArgsDef>,
   io: RunnerIo = processIo,
 ): Promise<void> {
-  if (args['no-color'] || process.env.NO_COLOR) chalk.level = 0;
+  // citty parses --no-color as { 'no-color': false, color: false }, so check the negation key too.
+  if (args['no-color'] === true || (args as { color?: unknown }).color === false || process.env.NO_COLOR) chalk.level = 0;
   let db: Database | undefined;
   let format: OutputFormat = io.isTty ? 'table' : 'json';
   let exitCode = 0;
@@ -111,7 +115,7 @@ export async function execute<A extends ArgsDef>(
     exitCode = out.exitCode ?? 0;
   } catch (raw) {
     // A query failing inside run() (corrupt file, missing table) is a DB_ERROR, not UNKNOWN.
-    const err = raw instanceof SQLiteError ? new CliError('DB_ERROR', raw.message, DB_HINT) : raw;
+    const err = asDbError(raw) ?? raw;
     io.stderr(formatError(err, format).text);
     exitCode = exitCodeFor(err);
   } finally {
