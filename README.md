@@ -17,7 +17,7 @@
 - **Offline-first.** Everything caches into `~/.oura-cli/oura.db` after one `oura-cli sync`. Reports keep working when your internet doesn't.
 - **Real terminal reports.** `oura-cli report` writes a weekly or monthly digest with averages, trend deltas, and "you slept poorly Tuesday" callouts. No dashboards, no logging in.
 - **Pipe-friendly.** Output auto-switches to stable JSON when stdout isn't a terminal. Analyse with `jq`, plot with `gnuplot`, or feed it into your own scripts.
-- **Single 100 kB binary, MIT, no telemetry.** Built on Bun; zero native dependencies.
+- **Single ~110 kB binary, MIT, no telemetry.** Built on Bun; zero native dependencies.
 
 ## Install
 
@@ -50,18 +50,18 @@ Four commands get you there:
 ```bash
 oura-cli login    # paste your PAT — input is hidden, nothing echoes to the terminal
 oura-cli doctor   # confirm the token works and the local database is ready
-oura-cli sync     # first sync backfills the last 30 days; later syncs are incremental
+oura-cli sync     # first sync fetches the last 30 days; later syncs resume from the last stored day
 oura-cli report   # weekly digest in the terminal
 ```
 
-Subsequent `oura-cli sync` only pulls new days, and `oura-cli db today` / `oura-cli db week` read the local cache instantly, no API call.
+Subsequent `oura-cli sync` re-fetches each collection from its own last stored day (Oura revises recent days, so the overlap is deliberate) and reports rows fetched (+new). `oura-cli sync --from 2026-08-01 [--to 2026-08-07]` re-fetches an explicit window for every collection instead — for example after an interrupted sync. `oura-cli db today` / `oura-cli db week` read the local cache instantly, no API call.
 
 ### If something looks wrong
 
 | What you see | What to run |
 |---|---|
 | `No Oura data is available for this report yet.` | `oura-cli sync` |
-| `No Oura access token at ~/.oura-token` | `oura-cli login` |
+| `No Oura access token at /…/.oura-token` | `oura-cli login` |
 | `Oura API 401` | `oura-cli login` with a fresh PAT |
 | `db today` empty right after a sync | Normal — Oura publishes a day's summary after that night's sleep syncs from the ring. |
 | Anything else | `oura-cli doctor` |
@@ -123,7 +123,7 @@ Collections: `sleep readiness activity hr spo2 stress workout sleep-periods cv-a
 Output auto-switches to JSON the moment you pipe it:
 
 ```bash
-oura-cli fetch sleep --days 7 | jq '.[] | {day, score, hrv: .contributors.hrv_balance}'
+oura-cli fetch sleep --days 7 | jq '.[] | {day, score, deep: .contributors.deep_sleep}'
 oura-cli db trends 90 > trends.json
 ```
 
@@ -163,7 +163,7 @@ This tool reads your personal health data — handle the token with care.
 | Sleep model      | Oura V2 `sleep`               | `sleep_model`         |
 | Cardiovascular age | Oura V2 `cardiovascular_age` | `cardiovascular_age`  |
 
-Runtime: [Bun](https://bun.sh). Storage: built-in `bun:sqlite`. CLI parsing: [citty](https://github.com/unjs/citty). Output styling: [chalk](https://github.com/chalk/chalk). One 100 kB `dist/index.js`, no native deps.
+Runtime: [Bun](https://bun.sh). Storage: built-in `bun:sqlite`. CLI parsing: [citty](https://github.com/unjs/citty). Output styling: [chalk](https://github.com/chalk/chalk). One ~110 kB `dist/index.js`, no native deps.
 
 ## Automation (LLM agents, scripts, MCP)
 
