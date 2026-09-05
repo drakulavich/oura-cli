@@ -17,8 +17,9 @@ export async function runSync(opts: { format?: string; db?: string; token?: stri
   ensureSchema(db);
   const client = getClient(opts);
   const log = format === 'table' ? console.log : undefined;
-  const importResult = await importDaily(db, client, log);
-  const today = getDaySummary(db, todayDate(opts.tz));
+  const day = todayDate(opts.tz);
+  const importResult = await importDaily(db, client, day, log);
+  const today = getDaySummary(db, day);
   db.close();
 
   if (format === 'json') {

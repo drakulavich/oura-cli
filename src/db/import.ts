@@ -1,5 +1,6 @@
 import type { Database } from '../lib/db.js';
 import { OuraClient } from '../api/client.js';
+import { shiftDay } from '../lib/time.js';
 import type {
   OuraSleepDay, OuraReadinessDay, OuraActivityDay, OuraHeartRate,
   OuraSpO2Day, OuraStressDay, OuraWorkout, OuraCardiovascularAge,
@@ -15,9 +16,10 @@ export interface ImportResult {
   isFirstSync: boolean;
 }
 
-export async function importDaily(db: Database, client: OuraClient, log?: (msg: string) => void): Promise<ImportResult> {
+export async function importDaily(
+  db: Database, client: OuraClient, today: string, log?: (msg: string) => void,
+): Promise<ImportResult> {
   const _log = log ?? (() => {});
-  const today = new Date().toISOString().slice(0, 10);
 
   const lastDates: string[] = [];
   for (const tbl of ['daily_sleep', 'daily_readiness', 'daily_activity'] as const) {
@@ -25,9 +27,7 @@ export async function importDaily(db: Database, client: OuraClient, log?: (msg: 
     if (row?.d) lastDates.push(row.d);
   }
   const isFirstSync = lastDates.length === 0;
-  const startDate = isFirstSync
-    ? new Date(Date.now() - BACKFILL_DAYS * 86400000).toISOString().slice(0, 10)
-    : lastDates.sort()[0];
+  const startDate = isFirstSync ? shiftDay(today, -BACKFILL_DAYS) : lastDates.sort()[0];
 
   _log(isFirstSync
     ? `First sync — backfilling the last ${BACKFILL_DAYS} days: ${startDate} → ${today}`

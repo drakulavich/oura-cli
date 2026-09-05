@@ -1,4 +1,5 @@
 import type { Database } from '../lib/db.js';
+import { shiftDay } from '../lib/time.js';
 
 export interface ReportData {
   period: 'week' | 'month';
@@ -49,19 +50,17 @@ function dayLabel(dateStr: string): string {
   return `${day} ${dd}/${mm}`;
 }
 
-export function getReport(db: Database, days: number): ReportData {
+export function getReport(db: Database, days: number, today: string): ReportData {
   const period: 'week' | 'month' = days <= 7 ? 'week' : 'month';
-  const today = new Date();
-  const weekEnd = today.toISOString().slice(0, 10);
-  const weekStartDate = new Date(today.getTime() - (days - 1) * 86400000);
-  const weekStart = weekStartDate.toISOString().slice(0, 10);
-  const prevWeekEnd = new Date(today.getTime() - days * 86400000).toISOString().slice(0, 10);
-  const prevWeekStart = new Date(today.getTime() - (days * 2 - 1) * 86400000).toISOString().slice(0, 10);
+  const weekEnd = today;
+  const weekStart = shiftDay(today, -(days - 1));
+  const prevWeekEnd = shiftDay(today, -days);
+  const prevWeekStart = shiftDay(today, -(days * 2 - 1));
 
   // Daily table
   const dailyRows: ReportData['days'] = [];
   for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(today.getTime() - i * 86400000).toISOString().slice(0, 10);
+    const d = shiftDay(today, -i);
     const sl = db.query('SELECT score FROM daily_sleep WHERE day=?').get(d) as { score: number | null } | undefined;
     const rd = db.query('SELECT score FROM daily_readiness WHERE day=?').get(d) as { score: number | null } | undefined;
     const ac = db.query('SELECT score, steps FROM daily_activity WHERE day=?').get(d) as { score: number | null; steps: number | null } | undefined;
