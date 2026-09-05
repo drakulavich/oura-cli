@@ -1,108 +1,41 @@
 # Architecture
 
-A one-page tour of how oura-cli is laid out. The codebase is ~1500 LOC of TypeScript organised into four layers; each layer depends only on layers below.
+`oura-cli` is a Bun-only CLI (`bun:sqlite` has no native dependency) built on `citty`. It pulls Oura Ring data into a local SQLite cache and prints it as JSON for agents or text for a terminal.
 
-## Layer cake
+## Layers
+
+Dependencies point strictly downward.
 
 ```
-┌──────────────────────────────────────────────────┐
-│  src/index.ts          ← CLI entry / Commander   │
-└────────────────────────┬─────────────────────────┘
-                         │
-┌────────────────────────▼─────────────────────────┐
-│  src/commands/         ← thin Commander wrappers │
-│    login, describe, healthcheck, manifest,       │
-│    sync, db, report, api-command, helpers        │
-└────────────────────────┬─────────────────────────┘
-                         │
-       ┌─────────────────┴─────────────────┐
-       │                                   │
-┌──────▼──────────────┐         ┌──────────▼───────┐
-│  src/api/           │         │  src/db/         │
-│    client, types    │         │    database,     │
-│                     │         │    schema,       │
-│                     │         │    queries,      │
-│                     │         │    import,       │
-│                     │         │    csv-import,   │
-│                     │         │    report        │
-└──────────┬──────────┘         └─────────┬────────┘
-           │                              │
-           └────────────┬─────────────────┘
-                        │
-┌───────────────────────▼──────────────────────────┐
-│  src/lib/             ← stable helpers           │
-│    db, time, errors, format-resolve              │
-└──────────────────────────────────────────────────┘
+src/index.ts      wiring: builds the citty tree, reads the version from package.json
+src/commands/     citty command definitions; the only place that writes to stdout
+src/render/       text formatters (day/week/trends/stats, report, doctor); no I/O
+src/db/           open.ts (path, WAL, migrations), migrations.ts (frozen SQL), sync.ts, queries.ts, report.ts
+src/collections/  one descriptor per Oura collection; derives DDL, inserts, fetch enum, manifests, JSON Schemas
+src/api/          client.ts (HTTP), token.ts (resolution order), types.ts (upstream row shapes)
+src/lib/          errors, time, argv-normalize, format-resolve — no domain knowledge
 ```
 
-**The rule:** `commands → api/db → lib`, never the reverse. `commands` import from `api`, `db`, or `lib`. `api` and `db` import from `lib`. `lib` imports from nothing inside this package.
+## Command runner
 
-CI does not enforce this with a tool today (an `eslint-plugin-import` boundary rule is a candidate for a future audit pass). The rule is enforced by convention and review.
+`src/commands/run-command.ts` exports `dataCommand(def)`. Given `{ meta, args, needs, jsonOnly, run }` it returns a citty command whose handler applies `--no-color`, resolves the output format, opens and migrates the database when `needs.db`, creates an `OuraClient` when `needs.client`, calls `run(ctx, args)` and prints `Output.json` or `Output.text()`. Errors are formatted per the resolved format and mapped to exit codes; the database is closed in `finally`. Exceptions: `login` (interactive), `healthcheck` (always `{ok,…}` JSON), `describe`/`manifest` (pure JSON).
 
-## Layer responsibilities
+## Collection registry
 
-### `src/lib/`
+`src/collections/index.ts` exports `COLLECTIONS` and the derivations `ddl`, `insertSql`, `rowValues`, `names`, `byName`, `jsonSchema`. Each descriptor lists `columns` with a typed `pick` against `api/types.ts`, so an upstream rename fails `tsc`. Shipped migrations stay as frozen SQL; `src/db/migrations.test.ts` proves the registry DDL produces the same `PRAGMA table_info`/`index_list` for every table.
 
-Stable, reusable helpers with no domain knowledge.
+## Adding a collection
 
-- `db.ts` — wraps `bun:sqlite` with WAL, idempotent migrations, default path resolution
-- `time.ts` — `nowUtc()`, `formatLocal*`, `localDateToUtcRange`, timezone detection
-- `errors.ts` — `CliError` class, exhaustive `exitCodeFor`, format-aware `formatError`, `redactSecrets`
-- `format-resolve.ts` — TTY auto-detect for `--format`
+1. Add the row type to `src/api/types.ts` and the endpoint to `OuraEndpoint`.
+2. Create `src/collections/<name>.ts` with `defineCollection<Row>({ … })` and add it to `COLLECTIONS`.
+3. Append a migration to `src/db/migrations.ts` creating the table (never edit an existing entry).
+4. Run `bun run schemas` and commit the new `docs/schemas/<name>.json`.
+5. `bun test` — the equivalence, registry and schema-drift tests must pass. `fetch <name>`, `sync`, `describe` and `manifest` pick it up automatically.
 
-These are the helpers we promised to inline from `@openclaw/cli-common` during the OSS extraction. They are owned by oura-cli now.
+## Adding a command
 
-### `src/api/`
+Create it in `src/commands/` with `dataCommand`, register it in `src/index.ts`, and add its name to `SUBCOMMANDS` in `src/lib/argv-normalize.ts` (citty does not hoist root flags onto subcommands; that normaliser does). `describe` and `manifest` are generated from the registered tree and need no edit. Update `src/commands/__snapshots__/describe.test.ts.snap` via `bun test -u` and review the diff.
 
-Talks to the Oura Cloud API.
+## Output contract
 
-- `client.ts` — `OuraClient.fetch(endpoint, start, end)`, auth resolution (token / env / file), error mapping to `CliError`
-- `types.ts` — `OuraEndpoint` union and response row types
-
-This layer knows about HTTP but not about SQLite. It returns plain arrays of typed rows.
-
-### `src/db/`
-
-Owns the local SQLite cache.
-
-- `database.ts` — package-specific wrapper over `lib/db.ts` with default `OURA_DB_PATH` / `~/.oura-cli/oura.db`
-- `schema.ts` — versioned migrations (array of `{ version, sql }`)
-- `queries.ts` — day-summary and bulk reads
-- `import.ts` — pulls from Oura API and upserts into the cache
-- `csv-import.ts` — rebuilds the cache from exported CSV files
-- `report.ts` — aggregates a date window into `ReportData` for the `report` command
-
-This layer knows about SQL but not about output formatting.
-
-### `src/commands/`
-
-Each file maps one Commander subcommand to a call into `api`/`db`. Format resolution happens here. Output goes to stdout/stderr from here.
-
-- `helpers.ts` — `getClient(opts)`, `todayDate(tz)`, `dateRange(days, tz)`, `getGlobalOpts(command)` for parent-chain access
-- `api-command.ts` — factory for the 7 per-endpoint commands (`sleep`, `readiness`, …)
-- `db.ts` — `db today | date | week | trends | stats | import | reset`
-- `sync.ts` — exports `runSync(opts)` which is also called by `db import`
-- `report.ts` — `report --period week|month` driving `getReport` + `formatReport`
-- `login.ts` — interactive token capture
-- `describe.ts` — JSON manifest for agents
-- `index.ts` — also hosts inline `init`, `healthcheck`, `manifest` subcommands (small enough not to warrant their own files)
-
-### `src/index.ts`
-
-Just wires everything: declares global options, adds subcommands, calls `parseAsync` with a format-aware `.catch` that uses `emitError` + `exitCodeFor` from `lib/errors`.
-
-## What's NOT in the layering
-
-- Tests are co-located with the modules they cover (`*.test.ts` next to `*.ts`).
-- JSON Schemas under `docs/schemas/` describe the JSON output contract; they live outside `src/` because they are consumed externally (agents, the `describe` manifest).
-- Build output under `dist/` is generated by `bun build`. Don't edit by hand.
-
-## Adding a new feature
-
-- A new top-level command: file under `src/commands/`, registered in `src/index.ts`, optional schema under `docs/schemas/` if it produces structured output.
-- A new Oura endpoint: add the row type to `src/api/types.ts`, optionally a cache table in `src/db/schema.ts` (migration), and a per-endpoint command via the factory in `src/commands/api-command.ts`.
-- A new helper: usually `src/lib/` is the right place. If it grows enough to deserve its own module, split. Avoid bucket files.
-
-## Why Bun and not Node
-
-`bun:sqlite` is built into the runtime — zero native dependencies, single 142 kB `dist/index.js`. The compiled binary uses `#!/usr/bin/env bun`, so users do need Bun installed. Node compatibility via `better-sqlite3` is on the roadmap (see audit issue #1).
+JSON shapes are a published contract: `docs/schemas/*.json` (per-collection files are generated), `describe`, exit codes 0/1/2/3/4. Changing a shape means changing the schema in the same PR.

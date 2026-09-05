@@ -4,6 +4,7 @@ import { resolve, dirname } from 'path';
 import { homedir } from 'os';
 import chalk from 'chalk';
 import { CliError, emitError, exitCodeFor } from '../lib/errors.js';
+import { commonArgs } from './common.js';
 
 type HiddenTokenInput = {
   isTTY?: boolean;
@@ -75,7 +76,7 @@ export const loginCommand = defineCommand({
   args: {
     token:      { type: 'string',  description: 'Pass token non-interactively (e.g. for scripts)' },
     path:       { type: 'string',  description: 'Where to save the token (default: $OURA_TOKEN_PATH or ~/.oura-token)' },
-    'no-color': { type: 'boolean', default: false, description: 'Disable ANSI colors (also honors NO_COLOR env)' },
+    'no-color': commonArgs['no-color'],
   },
   async run({ args }) {
     try {

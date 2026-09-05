@@ -2,6 +2,7 @@ import { defineCommand } from 'citty';
 import { getDaySummary, getTrends, getStats } from '../db/queries.js';
 import { formatDaySummary, formatWeekTable, formatTrends, formatStats } from '../render/format.js';
 import { daysBack } from '../lib/time.js';
+import { assertCalendarDate, assertPositiveInt } from '../lib/validate.js';
 import { dataCommand } from './run-command.js';
 
 const SYNC_HINT = 'Run `oura-cli sync` to download your data. Oura publishes a day\'s summary after that night\'s sleep syncs from the ring.';
@@ -23,7 +24,8 @@ export const dbCommand = defineCommand({
       args: { day: { type: 'positional', required: true, description: 'Target date (YYYY-MM-DD)' } },
       needs: { db: true },
       run(ctx, args) {
-        const summary = getDaySummary(ctx.db!, args.day);
+        const day = assertCalendarDate(String(args.day), '<day>');
+        const summary = getDaySummary(ctx.db!, day);
         return { json: summary, text: () => formatDaySummary(summary, 'table') };
       },
     }),
@@ -42,7 +44,7 @@ export const dbCommand = defineCommand({
       args: { days: { type: 'positional', required: false, description: 'Window size in days (default: 30)' } },
       needs: { db: true },
       run(ctx, args) {
-        const n = args.days ? parseInt(String(args.days), 10) : 30;
+        const n = args.days === undefined ? 30 : assertPositiveInt(String(args.days), '<days>');
         const trends = getTrends(ctx.db!, n, ctx.today);
         return { json: trends, text: () => formatTrends(trends, n, 'table') };
       },

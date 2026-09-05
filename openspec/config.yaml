@@ -8,7 +8,7 @@ context: |
   Commands: `login` (stores a Personal Access Token at `~/.oura-token`, 0600),
   `sync` (backfill new days into the cache), `report` (weekly/monthly digest with
   averages and trend deltas), `db` (query cached data), and the agent-facing
-  `describe` / `manifest` / `healthcheck` / `api-command`. Output auto-switches to
+  `describe` / `manifest` / `healthcheck` / `fetch`. Output auto-switches to
   stable JSON when stdout is not a TTY, and table/text on a TTY.
   Conventions: Bun >= 1.0 (no Node fallback); TypeScript strict with
   `bunx tsc --noEmit`; named exports only (no default export outside

@@ -2,32 +2,25 @@ import { OuraClient } from '../api/client.js';
 import { byName, names } from '../collections/index.js';
 import { CliError } from '../lib/errors.js';
 import { shiftDay } from '../lib/time.js';
+import { assertCalendarDate, assertPositiveInt } from '../lib/validate.js';
 import { dataCommand } from './run-command.js';
-
-const DATE = /^\d{4}-\d{2}-\d{2}$/;
-
-function assertDate(value: string, flag: string): string {
-  if (!DATE.test(value)) throw new CliError('BAD_ARGS', `${flag} must be YYYY-MM-DD, got "${value}".`);
-  return value;
-}
 
 export function resolveRange(opts: { day?: string; from?: string; to?: string; days?: string; today: string }): { start: string; end: string } {
   const modes = [opts.day !== undefined, opts.from !== undefined || opts.to !== undefined, opts.days !== undefined].filter(Boolean).length;
   if (modes > 1) throw new CliError('BAD_ARGS', 'Use only one of --day, --from/--to, or --days.');
   if (opts.day !== undefined) {
-    const d = assertDate(opts.day, '--day');
+    const d = assertCalendarDate(opts.day, '--day');
     return { start: d, end: d };
   }
   if (opts.from !== undefined || opts.to !== undefined) {
     if (opts.from === undefined || opts.to === undefined) throw new CliError('BAD_ARGS', '--from and --to must be given together.');
-    const start = assertDate(opts.from, '--from');
-    const end = assertDate(opts.to, '--to');
+    const start = assertCalendarDate(opts.from, '--from');
+    const end = assertCalendarDate(opts.to, '--to');
     if (start > end) throw new CliError('BAD_ARGS', `--from (${start}) must not be after --to (${end}).`);
     return { start, end };
   }
   if (opts.days !== undefined) {
-    const n = Number(opts.days);
-    if (!Number.isInteger(n) || n < 1) throw new CliError('BAD_ARGS', `--days must be a positive integer, got "${opts.days}".`);
+    const n = assertPositiveInt(opts.days, '--days');
     return { start: shiftDay(opts.today, -(n - 1)), end: opts.today };
   }
   return { start: opts.today, end: opts.today };

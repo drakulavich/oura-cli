@@ -1,3 +1,4 @@
+import { readFileSync } from 'fs';
 import chalk from 'chalk';
 import { defineCommand, runMain } from 'citty';
 import type { SubCommandsDef } from 'citty';
@@ -13,7 +14,9 @@ import { fetchCommand } from './commands/fetch.js';
 import { commonArgs } from './commands/common.js';
 import { normalizeArgv } from './lib/argv-normalize.js';
 
-const VERSION = '0.4.5';
+const VERSION = (JSON.parse(
+  readFileSync(new URL('../package.json', import.meta.url), 'utf-8'),
+) as { version: string }).version;
 
 // Apply --no-color / NO_COLOR early, before any chalk usage in this process.
 if (process.argv.includes('--no-color') || process.env.NO_COLOR) {

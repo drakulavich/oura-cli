@@ -38,7 +38,7 @@ export interface Collection<Row> {
   identity: readonly IdentityField[];
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// Erases the row type at the registry boundary; each descriptor is typed via defineCollection<Row>.
 export type AnyCollection = Collection<any>;
 
 export function defineCollection<Row>(c: Collection<Row>): Collection<Row> {

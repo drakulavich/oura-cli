@@ -6,6 +6,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-05
+
+### Breaking
+- Per-collection API commands replaced by `fetch <collection>`; `db reset` and `db import` removed. See "Changed" and "Removed" below.
+
 ### Changed
 - README "First five minutes" now leads with a concrete report sample,
   documents `login` → `doctor` → `sync` → `report` as the onboarding path,
@@ -21,7 +26,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Removed
 - `db reset` and the CSV importer it relied on (it read a hard-coded personal directory), and the `db import` alias of `sync`.
-- `vo2max` no longer appears in `db stats`; the table was never populated.
+- `vo2max` no longer appears in `db stats`; the table was never populated. `db stats` now lists tables in registry order (`heartrate` fourth, `cardiovascular_age` last); key by `table`, not position.
 
 ### Added
 - `oura-cli doctor` diagnoses token resolution (honoring `--token` like every
@@ -35,6 +40,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   as `docs/schemas/doctor.json`.
 
 ### Fixed
+- `fetch --day/--from/--to` and `db date` reject calendar-invalid dates such as `2026-02-30` with `BAD_ARGS` instead of sending them to the API or querying nothing. `db trends <days>` rejects anything but a positive integer instead of failing with `UNKNOWN` (`abc`) or silently returning nothing (`0`).
+- An unknown `--format` is rejected for `fetch` too (it used to be silently accepted); `fetch` errors now render as text on a TTY and as JSON when piped.
+- An unknown `--tz` / `OURA_TZ` is reported as `BAD_ARGS` with a hint instead of an `UNKNOWN` error from the date formatter.
 - Interactive `oura-cli login` now hides the Personal Access Token while it is
   typed and explains how to use `--token` safely in non-interactive contexts.
 - `oura-cli report` now explains when no data is available and directs new

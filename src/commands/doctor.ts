@@ -66,6 +66,8 @@ export async function runChecks(deps: DoctorDeps): Promise<DoctorResult> {
     checks.push({ id: 'data', status: 'fail', detail: 'Cannot check data — database unavailable.' });
   }
 
+  db?.close();
+
   // A later check's fix is only trustworthy if every earlier check passed —
   // otherwise it may recommend a command blocked by the same root cause
   // (e.g. suggesting `sync` when token-valid already found the API

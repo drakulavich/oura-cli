@@ -148,6 +148,16 @@ describe('doctor runChecks', () => {
     expect(dataCheck.detail).toContain('2026-08-30');
   });
 
+  it('closes the database opened by openDb after runChecks completes', async () => {
+    const db = new Database(':memory:');
+    ensureSchema(db);
+
+    await runChecks(makeDeps({ openDb: () => ({ db, path: ':memory:' }) }));
+
+    // bun:sqlite throws when querying a closed database.
+    expect(() => db.query('SELECT 1').get()).toThrow();
+  });
+
   it('reports data freshness from daily_readiness alone, not just daily_sleep or daily_activity', async () => {
     const db = new Database(':memory:');
     ensureSchema(db);

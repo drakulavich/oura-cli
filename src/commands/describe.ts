@@ -53,7 +53,12 @@ function resolved(def: SubCommandsDef[string]): CommandDef {
 function describeArgs(command: string, args: ArgsDef | undefined): ManifestArg[] {
   const out: ManifestArg[] = [];
   for (const [key, raw] of Object.entries(args ?? {})) {
-    if (key in commonArgs) continue;
+    // Skip by object identity, not by key name: a command can declare its
+    // own arg under a global flag's name (e.g. login's --token means
+    // something different from the global --token) and that must still be
+    // listed. A command opts into hiding a flag by reusing the shared
+    // definition object (e.g. `'no-color': commonArgs['no-color']`).
+    if (raw === (commonArgs as ArgsDef)[key]) continue;
     const a = raw as ArgDef & { required?: boolean; options?: readonly string[] };
     const values = ENUM_ARGS[command]?.[key] ?? (a.type === 'enum' ? [...(a.options ?? [])] : undefined);
     if (a.type === 'positional') {
