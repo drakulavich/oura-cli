@@ -1,7 +1,7 @@
 import { defineCommand } from 'citty';
 import { openDatabase, ensureSchema } from '../db/database.js';
 import { getReport } from '../db/report.js';
-import { formatReport } from '../format-report.js';
+import { formatReport } from '../render/format-report.js';
 import { resolveFormat } from '../lib/format-resolve.js';
 import { CliError } from '../lib/errors.js';
 import { commonArgs, handleError, applyNoColor } from './common.js';

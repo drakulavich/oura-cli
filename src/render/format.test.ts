@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'bun:test';
 import chalk from 'chalk';
 import { formatDaySummary, formatWeekTable, formatTrends, formatStats, formatImportSummary } from './format.js';
-import type { DaySummary, TrendRow, DbStats } from './db/queries.js';
-import type { ImportResult } from './db/import.js';
+import type { DaySummary, TrendRow, DbStats } from '../db/queries.js';
+import type { ImportResult } from '../db/import.js';
 
 // Strip ANSI escape codes to assert on *visible* text, regardless of chalk level.
 const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, '');

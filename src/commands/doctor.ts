@@ -2,7 +2,6 @@ import { defineCommand } from 'citty';
 import { resolve } from 'path';
 import { homedir } from 'os';
 import { readFileSync } from 'fs';
-import chalk from 'chalk';
 import type { Database } from '../lib/db.js';
 import { openDatabase, ensureSchema, getDbPath } from '../db/database.js';
 import { OuraClient } from '../api/client.js';
@@ -10,6 +9,7 @@ import { CliError, exitCodeFor } from '../lib/errors.js';
 import { todayDate } from './helpers.js';
 import { resolveFormat } from '../lib/format-resolve.js';
 import { commonArgs, handleError, applyNoColor } from './common.js';
+import { formatDoctorTable } from '../render/doctor-table.js';
 
 export type CheckId = 'token' | 'token-valid' | 'database' | 'data';
 export type CheckStatus = 'ok' | 'warn' | 'fail';
@@ -125,23 +125,6 @@ export function exitCodeForChecks(checks: DoctorCheck[]): number {
   // 'data' only ever fails when 'database' already failed (and sorts first
   // in `checks`), so this line is reached only for id === 'database'.
   return exitCodeFor(new CliError('DB_ERROR', fail.detail));
-}
-
-function statusSymbol(status: CheckStatus): string {
-  if (status === 'ok') return chalk.green('✓');
-  if (status === 'warn') return chalk.yellow('!');
-  return chalk.red('✗');
-}
-
-export function formatDoctorTable(result: DoctorResult): string {
-  const lines = ['', chalk.bold('  Doctor'), chalk.gray('─'.repeat(50))];
-  for (const c of result.checks) {
-    lines.push(`  ${statusSymbol(c.status)} ${c.id.padEnd(12)} ${c.detail}`);
-  }
-  lines.push('');
-  const next = result.nextStep ?? (result.ok ? 'nothing — everything looks healthy.' : 'see the failing checks above.');
-  lines.push(`  Next: ${next}`);
-  return lines.join('\n');
 }
 
 export function resolveTokenLikeClient(explicitToken?: string): TokenResolution {

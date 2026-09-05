@@ -4,7 +4,7 @@ import { dirname } from 'path';
 import { openDatabase, ensureSchema, getDbPath } from '../db/database.js';
 import { importDaily } from '../db/import.js';
 import { getDaySummary } from '../db/queries.js';
-import { formatDaySummary, formatImportSummary } from '../format.js';
+import { formatDaySummary, formatImportSummary } from '../render/format.js';
 import { getClient, todayDate } from './helpers.js';
 import { resolveFormat } from '../lib/format-resolve.js';
 import { commonArgs, handleError, applyNoColor } from './common.js';

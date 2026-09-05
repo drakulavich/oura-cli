@@ -1,9 +1,9 @@
 import chalk from 'chalk';
-import type { DaySummary, TrendRow, DbStats } from './db/queries.js';
-import type { ImportResult } from './db/import.js';
-import type { OutputFormat } from './lib/format-resolve.js';
+import type { DaySummary, TrendRow, DbStats } from '../db/queries.js';
+import type { ImportResult } from '../db/import.js';
+import type { OutputFormat } from '../lib/format-resolve.js';
 
-export type { OutputFormat } from './lib/format-resolve.js';
+export type { OutputFormat } from '../lib/format-resolve.js';
 
 function scoreColor(score: number | null): string {
   if (score === null) return chalk.gray('—');

@@ -3,9 +3,10 @@ import { Database } from 'bun:sqlite';
 import { ensureSchema } from '../db/database.js';
 import { CliError } from '../lib/errors.js';
 import {
-  runChecks, exitCodeForChecks, formatDoctorTable, resolveTokenLikeClient,
+  runChecks, exitCodeForChecks, resolveTokenLikeClient,
   type DoctorDeps, type DoctorCheck,
 } from './doctor.js';
+import { formatDoctorTable } from '../render/doctor-table.js';
 
 function makeDeps(overrides: Partial<DoctorDeps> = {}): DoctorDeps {
   const db = new Database(':memory:');

@@ -4,7 +4,7 @@ import { dirname } from 'path';
 import { openDatabase, ensureSchema, getDbPath } from '../db/database.js';
 import { importFromCSV } from '../db/csv-import.js';
 import { getDaySummary, getTrends, getStats } from '../db/queries.js';
-import { formatDaySummary, formatWeekTable, formatTrends, formatStats } from '../format.js';
+import { formatDaySummary, formatWeekTable, formatTrends, formatStats } from '../render/format.js';
 import { todayDate } from './helpers.js';
 import { daysBack } from '../lib/time.js';
 import { resolveFormat } from '../lib/format-resolve.js';
