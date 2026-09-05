@@ -51,14 +51,48 @@ describe('execute', () => {
   });
 
   it('closes the database and emits a formatted error with the mapped exit code when run throws', async () => {
+    let captured: Ctx['db'];
+    const dbClosedAtExit: boolean[] = [];
     const def: DataCommandDef<{}> = {
       meta: { name: 'x' }, needs: { db: true },
-      run: () => { throw new CliError('DB_ERROR', 'boom'); },
+      run: ctx => { captured = ctx.db; throw new CliError('DB_ERROR', 'boom'); },
     };
-    const { io, err, exits } = fakeIo(false);
+    const err: string[] = []; const exits: number[] = [];
+    const io: RunnerIo = {
+      stdout: () => {}, stderr: s => err.push(s), isTty: false,
+      exit: c => {
+        dbClosedAtExit.push((() => {
+          try { captured!.query('SELECT 1').get(); return false; } catch { return true; }
+        })());
+        exits.push(c);
+      },
+    };
     await execute(def, baseArgs, io);
     expect(JSON.parse(err[0])).toEqual({ error: { code: 'DB_ERROR', message: 'boom' } });
     expect(exits).toEqual([4]);
+    expect(dbClosedAtExit).toEqual([true]);
+  });
+
+  it('closes the database before exiting when run returns a non-zero exitCode', async () => {
+    let captured: Ctx['db'];
+    const dbClosedAtExit: boolean[] = [];
+    const def: DataCommandDef<{}> = {
+      meta: { name: 'x' }, needs: { db: true },
+      run: ctx => { captured = ctx.db; return { json: 1, text: () => '1', exitCode: 2 }; },
+    };
+    const out: string[] = []; const exits: number[] = [];
+    const io: RunnerIo = {
+      stdout: s => out.push(s), stderr: () => {}, isTty: false,
+      exit: c => {
+        dbClosedAtExit.push((() => {
+          try { captured!.query('SELECT 1').get(); return false; } catch { return true; }
+        })());
+        exits.push(c);
+      },
+    };
+    await execute(def, baseArgs, io);
+    expect(exits).toEqual([2]);
+    expect(dbClosedAtExit).toEqual([true]);
   });
 
   it('resolves ctx.today in the requested timezone', async () => {

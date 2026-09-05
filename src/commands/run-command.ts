@@ -58,6 +58,7 @@ export async function execute<A extends ArgsDef>(
   if (args['no-color'] || process.env.NO_COLOR) chalk.level = 0;
   let db: Database | undefined;
   let format: OutputFormat = io.isTty ? 'table' : 'json';
+  let exitCode = 0;
   try {
     format = def.jsonOnly
       ? 'json'
@@ -74,13 +75,16 @@ export async function execute<A extends ArgsDef>(
     }
     const out = await def.run(ctx, args);
     io.stdout(format === 'json' ? JSON.stringify(out.json, null, 2) : out.text());
-    if (out.exitCode) io.exit(out.exitCode);
+    exitCode = out.exitCode ?? 0;
   } catch (err) {
     io.stderr(formatError(err, format).text);
-    io.exit(exitCodeFor(err));
+    exitCode = exitCodeFor(err);
   } finally {
     db?.close();
   }
+  // io.exit is called only after the finally above has run, so a real
+  // process.exit (which terminates synchronously) never skips DB cleanup.
+  if (exitCode !== 0) io.exit(exitCode);
 }
 
 export function dataCommand<A extends ArgsDef>(def: DataCommandDef<A>): CommandDef<A & CommonArgsDef> {
