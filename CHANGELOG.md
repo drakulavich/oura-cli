@@ -8,9 +8,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.5.1] - 2026-09-05
 
-Fixes from the 0.5.0 exploratory testing sessions, all on the seam between citty and the command runner.
+Fixes from the 0.5.0 exploratory testing sessions: the seam between citty and the command runner, and the sync window.
+
+### Changed
+- `sync` JSON: `import.counts` is replaced by `import.fetched` (rows the API returned per table) and `import.added` (net growth: days or samples the table did not hold before; a revised row for a day already stored counts as fetched, not new). The text summary prints `sleep 28 (+0)` in the same spirit, so a repeat run no longer looks like it imported 28 days. (#51)
+- `sync --from YYYY-MM-DD [--to YYYY-MM-DD]` re-fetches an explicit window for every collection, for recovery after an interrupted run or a deliberate backfill. `--to` defaults to today and requires `--from`. (#53)
 
 ### Fixed
+- `sync` resumes every collection from its own last stored day instead of a single watermark taken from the three daily tables. A run interrupted after those tables (Ctrl-C, a crash) used to advance the watermark and leave the other six collections with a permanent gap that no later sync could fill. (#53)
+- First sync fetches exactly 30 inclusive days, as documented, not 31. (#46)
+- `fetch sleep-periods --day D` and `sync` no longer miss the requested day's sleep periods, and `fetch workout --from A --to B` no longer drops workouts on day B: Oura treats `start_date` as exclusive for `sleep` and `end_date` as exclusive for `workout`, and the request bounds are now shifted accordingly. (#58)
+- Two `oura-cli` processes on the same cache no longer fail with `database is locked`: connections wait up to 5 s for a lock, `PRAGMA journal_mode = WAL` is only issued when the file is not already in WAL mode (that statement itself needs an exclusive lock), and a lock that does outlast the wait reports a hint naming the cause. (#56)
+- `~/.oura-cli/` and a newly created cache file are created with `0700` / `0600` permissions, matching the token file; existing files are left alone. (#60)
+- `doctor --offline` reports the token check as `skip` rather than `ok`. The new status keeps `ok: true` and produces no next step, but an agent gating on the JSON can now tell "not checked" from "passed"; `docs/schemas/doctor.json` lists the value. (#59)
+- README: bundle size, the sync wording above, the token-missing message shape, and the `fetch sleep` pipe example, which read a readiness contributor (`hrv_balance`) off the sleep collection and printed `null` for every row. (#62)
 - A token containing whitespace or a line break (for example a token file with a second line) is rejected as `TOKEN_INVALID` (exit 2) naming the source; previously it reached the API layer and came back as `UNKNOWN` with the token quoted in the message. Every error message and hint is now passed through the secret redactor. (#47)
 - `DB_ERROR` (exit 4) is reachable: a corrupt cache file, an unusable `--db` path or a failing query in `db *`, `sync` and `report` now report `DB_ERROR` with a hint instead of `UNKNOWN` / exit 1. (#48)
 - Errors raised before a command runs — unknown command, missing positional, no command on a pipe — use the same envelope as every other error: JSON on stderr when piped, text on a TTY, nothing on stdout, `--no-color` honoured. The commands removed in 0.5.0 (`db reset`, `db import`, `sleep|readiness|activity|hr|spo2|stress|workout …`) point at `fetch`/`sync`. `--help` and a bare `oura-cli` on a TTY still show usage, and `--version` now answers even when other flags are present (it used to exit 1 with usage unless it was the only argument), but not when it sits in another flag's value position. (#49)
