@@ -86,7 +86,7 @@ oura-cli db date 2026-05-10
 
 ```bash
 oura-cli db week                  # local cache summary, no API hit
-oura-cli sleep week               # fresh sleep details direct from Oura
+oura-cli fetch sleep --days 7     # fresh sleep details direct from Oura
 ```
 
 ### Reports
@@ -105,26 +105,25 @@ oura-cli db trends 30             # score trends across the last 30 days
 oura-cli db stats                 # row counts, date range, personal bests
 ```
 
-### Per-endpoint detail
+### Raw API records
 
-When you want raw Oura V2 data, every endpoint shares the same shape — `today | date <day> | week`:
+`fetch` returns one collection straight from the Oura API as JSON, without touching the local cache.
 
 ```bash
-oura-cli sleep today
-oura-cli readiness date 2026-05-10
-oura-cli activity week
-oura-cli hr week
-oura-cli spo2 week
-oura-cli stress week
-oura-cli workout week
+oura-cli fetch sleep                       # today
+oura-cli fetch hr --days 7                 # last 7 days
+oura-cli fetch workout --from 2026-05-01 --to 2026-05-31
+oura-cli fetch sleep-periods --day 2026-06-01 | jq '.[] | {day, type, average_hrv}'
 ```
+
+Collections: `sleep readiness activity hr spo2 stress workout sleep-periods cv-age`.
 
 ### Piping to other tools
 
 Output auto-switches to JSON the moment you pipe it:
 
 ```bash
-oura-cli sleep week | jq '.[] | {day, score, hrv: .contributors.hrv_balance}'
+oura-cli fetch sleep --days 7 | jq '.[] | {day, score, hrv: .contributors.hrv_balance}'
 oura-cli db trends 90 > trends.json
 ```
 

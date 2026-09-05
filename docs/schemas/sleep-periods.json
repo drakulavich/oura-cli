@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/drakulavich/oura-cli/blob/main/docs/schemas/stress.json",
-  "title": "oura-cli fetch stress output",
-  "description": "Daily stress summary with high-stress and high-recovery seconds",
+  "$id": "https://github.com/drakulavich/oura-cli/blob/main/docs/schemas/sleep-periods.json",
+  "title": "oura-cli fetch sleep-periods output",
+  "description": "Individual sleep periods with stages, HRV, heart rate and efficiency",
   "type": "array",
   "items": {
     "type": "object",

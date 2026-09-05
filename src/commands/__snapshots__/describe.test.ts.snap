@@ -1,0 +1,274 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`buildManifest matches the snapshot (any diff here is a contract change) 1`] = `
+{
+  "auth": {
+    "envVars": [
+      "OURA_TOKEN",
+      "OURA_TOKEN_PATH",
+    ],
+    "loginCommand": "oura-cli login",
+    "tokenFile": "~/.oura-token",
+  },
+  "commands": [
+    {
+      "args": [
+        {
+          "description": "Collection: sleep | readiness | activity | hr | spo2 | stress | workout | sleep-periods | cv-age",
+          "name": "<collection>",
+          "required": true,
+          "type": "string",
+          "values": [
+            "sleep",
+            "readiness",
+            "activity",
+            "hr",
+            "spo2",
+            "stress",
+            "workout",
+            "sleep-periods",
+            "cv-age",
+          ],
+        },
+        {
+          "description": "Single day (YYYY-MM-DD). Default: today.",
+          "name": "--day",
+          "required": false,
+          "type": "string",
+        },
+        {
+          "description": "Range start (YYYY-MM-DD); requires --to",
+          "name": "--from",
+          "required": false,
+          "type": "string",
+        },
+        {
+          "description": "Range end (YYYY-MM-DD); requires --from",
+          "name": "--to",
+          "required": false,
+          "type": "string",
+        },
+        {
+          "description": "Last N days ending today",
+          "name": "--days",
+          "required": false,
+          "type": "string",
+        },
+      ],
+      "description": "Fetch raw records for one Oura collection straight from the API (JSON).",
+      "name": "fetch",
+      "outputSchemas": {
+        "activity": "docs/schemas/activity.json",
+        "cv-age": "docs/schemas/cv-age.json",
+        "hr": "docs/schemas/hr.json",
+        "readiness": "docs/schemas/readiness.json",
+        "sleep": "docs/schemas/sleep.json",
+        "sleep-periods": "docs/schemas/sleep-periods.json",
+        "spo2": "docs/schemas/spo2.json",
+        "stress": "docs/schemas/stress.json",
+        "workout": "docs/schemas/workout.json",
+      },
+    },
+    {
+      "args": [],
+      "description": "Query and manage the local SQLite database",
+      "name": "db",
+      "subcommands": [
+        {
+          "args": [],
+          "description": "Today's summary from local database",
+          "name": "today",
+        },
+        {
+          "args": [
+            {
+              "description": "Target date (YYYY-MM-DD)",
+              "name": "<day>",
+              "required": true,
+              "type": "string",
+            },
+          ],
+          "description": "Summary for specific date from local database",
+          "name": "date",
+        },
+        {
+          "args": [],
+          "description": "Last 7 days from local database",
+          "name": "week",
+        },
+        {
+          "args": [
+            {
+              "description": "Window size in days (default: 30)",
+              "name": "[days]",
+              "required": false,
+              "type": "string",
+            },
+          ],
+          "description": "Score and metric trends over N days (default: 30)",
+          "name": "trends",
+        },
+        {
+          "args": [],
+          "description": "Row counts, date range, and record highs from local database",
+          "name": "stats",
+        },
+      ],
+    },
+    {
+      "args": [
+        {
+          "description": "Report window: week | month",
+          "name": "--period",
+          "required": false,
+          "type": "enum",
+          "values": [
+            "week",
+            "month",
+          ],
+        },
+      ],
+      "description": "Generate a narrative health report from local data.",
+      "name": "report",
+    },
+    {
+      "args": [
+        {
+          "description": "Skip the live Oura API token-validation call",
+          "name": "--offline",
+          "required": false,
+          "type": "boolean",
+        },
+      ],
+      "description": "Diagnose token, database, and sync health, and suggest the next step.",
+      "name": "doctor",
+      "outputSchema": "docs/schemas/doctor.json",
+    },
+    {
+      "args": [],
+      "description": "Save a token.",
+      "name": "login",
+    },
+  ],
+  "compatManifestCommand": "oura-cli manifest",
+  "exitCodes": [
+    {
+      "code": 0,
+      "meaning": "success",
+    },
+    {
+      "code": 1,
+      "meaning": "user error (bad arguments)",
+    },
+    {
+      "code": 2,
+      "meaning": "auth error (missing or invalid token)",
+    },
+    {
+      "code": 3,
+      "meaning": "API or network error",
+    },
+    {
+      "code": 4,
+      "meaning": "database or local storage error",
+    },
+  ],
+  "globalFlags": [
+    {
+      "description": "Output format (auto-detected by TTY when omitted)",
+      "name": "--format",
+      "type": "enum",
+      "values": [
+        "table",
+        "json",
+      ],
+    },
+    {
+      "description": "Override SQLite database path (env: OURA_DB_PATH)",
+      "name": "--db",
+      "type": "string",
+    },
+    {
+      "description": "Display timezone (env: OURA_TZ; default auto-detected)",
+      "name": "--tz",
+      "type": "string",
+    },
+    {
+      "description": "Inline access token (prefer env vars or \`login\`)",
+      "name": "--token",
+      "type": "string",
+    },
+    {
+      "description": "Disable ANSI colors in human output",
+      "name": "--no-color",
+      "type": "boolean",
+    },
+  ],
+  "name": "oura-cli",
+  "version": "9.9.9",
+}
+`;
+
+exports[`buildOpenclawManifest matches the snapshot 1`] = `
+{
+  "bin": "oura-cli",
+  "commands": [
+    {
+      "description": "Fetch raw records for one Oura collection straight from the API (JSON).",
+      "examples": [
+        "oura-cli fetch sleep",
+        "oura-cli fetch hr --days 7",
+        "oura-cli fetch workout --from 2026-05-01 --to 2026-05-31",
+      ],
+      "name": "fetch",
+    },
+    {
+      "description": "Query and manage the local SQLite database",
+      "examples": [
+        "oura-cli db today",
+        "oura-cli db week --format json",
+      ],
+      "name": "db",
+    },
+    {
+      "description": "Generate a narrative health report from local data.",
+      "examples": [
+        "oura-cli report --period week",
+      ],
+      "name": "report",
+    },
+    {
+      "description": "Diagnose token, database, and sync health, and suggest the next step.",
+      "examples": [
+        "oura-cli doctor --offline",
+      ],
+      "name": "doctor",
+    },
+    {
+      "description": "Save a token.",
+      "examples": [
+        "oura-cli login",
+      ],
+      "name": "login",
+    },
+  ],
+  "description": "Oura Ring CLI — query and analyze Oura Ring health data. Designed for humans and agents.",
+  "envVars": [
+    "OURA_TOKEN",
+    "OURA_TOKEN_PATH",
+    "OURA_DB_PATH",
+    "OURA_TZ",
+  ],
+  "healthcheck": {
+    "command": "healthcheck",
+    "expects": {
+      "latencyMs": "number",
+      "ok": "boolean",
+      "version": "string",
+    },
+  },
+  "id": "oura-cli",
+  "runtime": "bun",
+  "version": "9.9.9",
+}
+`;

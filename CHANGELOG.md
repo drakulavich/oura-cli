@@ -15,6 +15,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Every data command runs through one runner that resolves the output format, opens and always closes the database, creates the API client and maps errors to exit codes. `sync` progress lines are printed together with the summary instead of streaming. `--no-color` now takes effect before any output (internal).
 - Token resolution lives in `src/api/token.ts` and is shared by the API client and `doctor`; the two SQLite wrappers merged into `src/db/open.ts` (internal). A whitespace-only token is now rejected as missing instead of being sent as an empty bearer token.
 - Every Oura collection is described once in `src/collections/`; table DDL, inserts and the sync loop derive from it. A test proves the derived DDL matches the shipped migrations (internal).
+- **Breaking:** the seven per-collection commands (`sleep`, `readiness`, `activity`, `hr`, `spo2`, `stress`, `workout` × `today|date|week`) are replaced by `oura-cli fetch <collection> [--day D | --from A --to B | --days N]`. `sleep-periods` and `cv-age` are now fetchable too.
+- `describe` and `manifest` are generated from the registered command tree, so they can no longer drift from the CLI; `manifest` examples that referenced a non-existent `--start` flag are gone.
+- `docs/schemas/<collection>.json` are generated (`bun run schemas`) and checked by a test; added `sleep-periods.json` and `cv-age.json`.
 
 ### Removed
 - `db reset` and the CSV importer it relied on (it read a hard-coded personal directory), and the `db import` alias of `sync`.
