@@ -1,13 +1,11 @@
-import { resolve } from 'path';
-import { homedir } from 'os';
-import { readFileSync } from 'fs';
 import type { Database } from '../lib/db.js';
 import { openDatabase, ensureSchema, getDbPath } from '../db/database.js';
 import { OuraClient } from '../api/client.js';
+import { resolveToken } from '../api/token.js';
 import { CliError, exitCodeFor } from '../lib/errors.js';
 import { formatDoctorTable } from '../render/doctor-table.js';
 import { dataCommand } from './run-command.js';
-import type { CheckStatus, DoctorCheck, DoctorResult, DoctorDeps, TokenResolution } from '../render/doctor-types.js';
+import type { CheckStatus, DoctorCheck, DoctorResult, DoctorDeps } from '../render/doctor-types.js';
 
 export type { CheckId, CheckStatus, DoctorCheck, DoctorResult, DoctorDeps, TokenResolution } from '../render/doctor-types.js';
 
@@ -98,23 +96,12 @@ export function exitCodeForChecks(checks: DoctorCheck[]): number {
   return exitCodeFor(new CliError('DB_ERROR', fail.detail));
 }
 
-export function resolveTokenLikeClient(explicitToken?: string): TokenResolution {
-  if (explicitToken) return { token: explicitToken.trim(), source: '--token' };
-  if (process.env.OURA_TOKEN) return { token: process.env.OURA_TOKEN.trim(), source: 'OURA_TOKEN' };
-  const tokenPath = process.env.OURA_TOKEN_PATH ?? resolve(homedir(), '.oura-token');
-  try {
-    return { token: readFileSync(tokenPath, 'utf-8').trim(), source: tokenPath };
-  } catch {
-    return { token: null, source: tokenPath };
-  }
-}
-
 export const doctorCommand = dataCommand({
   meta: { name: 'doctor', description: 'Diagnose token, database, and sync health, and suggest the next step.' },
   args: { offline: { type: 'boolean', default: false, description: 'Skip the live Oura API token-validation call' } },
   async run(ctx, args) {
     const deps: DoctorDeps = {
-      resolveToken: () => resolveTokenLikeClient(args.token as string | undefined),
+      resolveToken: () => resolveToken(args.token as string | undefined),
       openDb: () => {
         const db = openDatabase({ dbPath: args.db as string | undefined });
         ensureSchema(db);
