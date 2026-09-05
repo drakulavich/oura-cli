@@ -1,4 +1,4 @@
-import { importDaily } from '../db/import.js';
+import { importDaily } from '../db/sync.js';
 import { getDaySummary } from '../db/queries.js';
 import { formatDaySummary, formatImportSummary } from '../render/format.js';
 import { dataCommand, type Ctx, type Output } from './run-command.js';
