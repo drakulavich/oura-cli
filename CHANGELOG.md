@@ -45,6 +45,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - An unknown `--tz` / `OURA_TZ` is reported as `BAD_ARGS` with a hint instead of an `UNKNOWN` error from the date formatter.
 - `fetch hr` and the heartrate step of `sync` now send `start_datetime`/`end_datetime` (UTC instants covering the requested local days in `OURA_TZ`), which is what the Oura heartrate endpoint takes; every other collection keeps `start_date`/`end_date`. Previously heartrate was queried with date parameters the endpoint does not define.
 - The API client follows `next_token` and returns every page, so ranges longer than one page (heartrate over several days) are no longer silently truncated.
+- Local-day boundaries are computed at local midnight instead of noon, so `fetch hr --day` on a DST transition day covers the whole 23- or 25-hour day rather than shifting by an hour (internal `localDateToUtcRange`, previously unused).
 - Interactive `oura-cli login` now hides the Personal Access Token while it is
   typed and explains how to use `--token` safely in non-interactive contexts.
 - `oura-cli report` now explains when no data is available and directs new

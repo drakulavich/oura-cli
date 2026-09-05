@@ -53,6 +53,21 @@ describe('localDateToUtcRange', () => {
     expect(start).toBe('2026-05-12T00:00:00Z');
     expect(end).toBe('2026-05-13T00:00:00Z');
   });
+
+  it('spans 25 hours on the DST fall-back day (Berlin, 2026-10-25)', () => {
+    // Midnight is still CEST (+02:00); the next midnight is CET (+01:00).
+    expect(localDateToUtcRange('2026-10-25', 'Europe/Berlin')).toEqual(['2026-10-24T22:00:00Z', '2026-10-25T23:00:00Z']);
+  });
+
+  it('spans 23 hours on the DST spring-forward day (Berlin, 2026-03-29)', () => {
+    expect(localDateToUtcRange('2026-03-29', 'Europe/Berlin')).toEqual(['2026-03-28T23:00:00Z', '2026-03-29T22:00:00Z']);
+  });
+
+  it('chains without gaps around a transition: each day ends where the next begins', () => {
+    for (const day of ['2026-10-24', '2026-10-25', '2026-03-28', '2026-03-29']) {
+      expect(localDateToUtcRange(day, 'America/New_York')[1]).toBe(localDateToUtcRange(shiftDay(day, 1), 'America/New_York')[0]);
+    }
+  });
 });
 
 describe('resolveDefaultTimezone', () => {

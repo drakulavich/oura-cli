@@ -213,6 +213,16 @@ describe('OuraClient', () => {
       expect(urls.every(u => new URL(u).searchParams.get('start_date') === '2026-05-01')).toBe(true);
     });
 
+    it('stops with API_ERROR when the token stream never ends', async () => {
+      let n = 0;
+      globalThis.fetch = (async () => new Response(JSON.stringify({ data: [], next_token: `t${n++}` }), { status: 200 })) as unknown as typeof globalThis.fetch;
+      const err = await new OuraClient().fetch('daily_sleep', { start_date: '2026-05-01' }).catch(e => e);
+      expect(err).toBeInstanceOf(CliError);
+      expect((err as CliError).code).toBe('API_ERROR');
+      expect((err as CliError).message).toContain('pages');
+      expect(n).toBe(10_000);
+    });
+
     it('stops with API_ERROR when the API hands back a token it already served', async () => {
       mockPages([
         { data: [1], next_token: 'loop' },
