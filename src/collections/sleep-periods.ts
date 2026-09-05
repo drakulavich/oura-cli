@@ -4,7 +4,7 @@ import type { OuraSleepModel } from '../api/types.js';
 export const sleepPeriods = defineCollection<OuraSleepModel>({
   name: 'sleep-periods', endpoint: 'sleep', table: 'sleep_model',
   description: 'Individual sleep periods with stages, HRV, heart rate and efficiency',
-  conflict: 'replace', syncWindow: 'range', rangeParams: 'date',
+  conflict: 'replace', rangeParams: 'date',
   identity: [
     { field: 'id', description: 'Oura record id' },
     { field: 'day', format: 'date', description: 'Date the record applies to (YYYY-MM-DD)' },

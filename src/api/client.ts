@@ -24,8 +24,8 @@ export class OuraClient {
 
   /**
    * GET every page of `endpoint` for `query` and return the concatenated `data`.
-   * Callers build the query with `rangeQuery()` from the collection registry, because
-   * heartrate takes `start_datetime`/`end_datetime` while the other endpoints take dates.
+   * Callers go through `fetchCollection()` in the collection registry, which builds the
+   * query: heartrate takes `start_datetime`/`end_datetime` while the other endpoints take dates.
    */
   async fetch<T>(endpoint: OuraEndpoint, query: Record<string, string>): Promise<T[]> {
     const rows: T[] = [];

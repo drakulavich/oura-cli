@@ -4,7 +4,7 @@ import type { OuraCardiovascularAge } from '../api/types.js';
 export const cvAge = defineCollection<OuraCardiovascularAge>({
   name: 'cv-age', endpoint: 'daily_cardiovascular_age', table: 'cardiovascular_age',
   description: 'Daily cardiovascular (vascular) age estimate',
-  conflict: 'replace', syncWindow: 'range', rangeParams: 'date',
+  conflict: 'replace', rangeParams: 'date',
   identity: [
     { field: 'id', description: 'Oura record id' },
     { field: 'day', format: 'date', description: 'Date the record applies to (YYYY-MM-DD)' },

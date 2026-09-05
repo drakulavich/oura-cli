@@ -1,5 +1,6 @@
 import type { AnyCollection, Collection, SqlValue } from './types.js';
-import { localDateToUtcRange } from '../lib/time.js';
+import type { OuraClient } from '../api/client.js';
+import { localDateToUtcRange, shiftDay } from '../lib/time.js';
 import { sleep } from './sleep.js';
 import { readiness } from './readiness.js';
 import { activity } from './activity.js';
@@ -46,13 +47,55 @@ export function rowValues<Row>(c: Collection<Row>, row: Row): SqlValue[] {
   return c.columns.map(col => col.pick(row));
 }
 
+const MS_PER_DAY = 86_400_000;
+
+/** Split the inclusive day range [start, end] into consecutive pieces of at most `maxDays` days. */
+function dateQueries(start: string, end: string, maxDays: number | undefined): Array<Record<string, string>> {
+  if (!maxDays) return [{ start_date: start, end_date: end }];
+  const out: Array<Record<string, string>> = [];
+  for (let s = start; s <= end; s = shiftDay(s, maxDays)) {
+    const e = shiftDay(s, maxDays - 1);
+    out.push({ start_date: s, end_date: e < end ? e : end });
+  }
+  return out;
+}
+
 /**
- * Query parameters for the inclusive local-day range [start, end] in `tz`, shaped the way
- * the collection's endpoint expects: plain dates, or UTC instants covering those days.
+ * Split the UTC instants covering the local days [start, end] into pieces of at most
+ * `maxDays` × 24h. Both heartrate bounds are inclusive at millisecond precision, so a piece
+ * ends 1 ms before the next one starts and the last ends 1 ms before the next local midnight:
+ * no sample is fetched twice and none falls in a gap, on DST transition days included.
  */
-export function rangeQuery(c: AnyCollection, start: string, end: string, tz: string): Record<string, string> {
-  if (c.rangeParams === 'date') return { start_date: start, end_date: end };
-  return { start_datetime: localDateToUtcRange(start, tz)[0], end_datetime: localDateToUtcRange(end, tz)[1] };
+function datetimeQueries(start: string, end: string, tz: string, maxDays: number | undefined): Array<Record<string, string>> {
+  const from = Date.parse(localDateToUtcRange(start, tz)[0]);
+  const to = Date.parse(localDateToUtcRange(end, tz)[1]) - 1;
+  const span = (maxDays ?? Infinity) * MS_PER_DAY;
+  const out: Array<Record<string, string>> = [];
+  for (let s = from; s <= to; s += span) {
+    out.push({ start_datetime: new Date(s).toISOString(), end_datetime: new Date(Math.min(s + span - 1, to)).toISOString() });
+  }
+  return out;
+}
+
+/**
+ * One query per request needed to cover the inclusive local-day range [start, end] in `tz`,
+ * shaped the way the collection's endpoint expects (`rangeParams`) and no longer than the
+ * endpoint allows (`maxRangeDays`). Empty when the range is inverted.
+ */
+export function rangeQueries(c: AnyCollection, start: string, end: string, tz: string): Array<Record<string, string>> {
+  if (start > end) return [];
+  return c.rangeParams === 'date'
+    ? dateQueries(start, end, c.maxRangeDays)
+    : datetimeQueries(start, end, tz, c.maxRangeDays);
+}
+
+/** Every row of `c` for the inclusive local-day range [start, end] in `tz`, across range pieces and pages. */
+export async function fetchCollection(client: OuraClient, c: AnyCollection, start: string, end: string, tz: string): Promise<unknown[]> {
+  const rows: unknown[] = [];
+  for (const query of rangeQueries(c, start, end, tz)) {
+    for (const row of await client.fetch<unknown>(c.endpoint, query)) rows.push(row);
+  }
+  return rows;
 }
 
 export function jsonSchema(c: AnyCollection): Record<string, unknown> {
