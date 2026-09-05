@@ -1,4 +1,6 @@
 import { describe, it, expect, afterEach } from 'bun:test';
+import { CliError } from '../lib/errors.js';
+import { mkdtempSync, writeFileSync } from 'fs';
 import { Database } from 'bun:sqlite';
 import { openDatabase, ensureSchema, type Migration } from './open.js';
 import { unlinkSync } from 'fs';
@@ -93,5 +95,29 @@ describe('Database', () => {
 
       db.close();
     });
+  });
+});
+
+describe('openDatabase errors', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'oura-open-'));
+
+  it('reports a file that is not a database as DB_ERROR with a hint', () => {
+    const junk = join(dir, 'junk.db');
+    writeFileSync(junk, 'this is not sqlite');
+    let err: unknown;
+    try { openDatabase(junk); } catch (e) { err = e; }
+    expect(err).toBeInstanceOf(CliError);
+    expect((err as CliError).code).toBe('DB_ERROR');
+    expect((err as CliError).message).toContain(junk);
+    expect((err as CliError).hint).toContain('OURA_DB_PATH');
+  });
+
+  it('reports an unusable path (parent is a regular file) as DB_ERROR', () => {
+    const file = join(dir, 'afile');
+    writeFileSync(file, '');
+    let err: unknown;
+    try { openDatabase(join(file, 'x.db')); } catch (e) { err = e; }
+    expect(err).toBeInstanceOf(CliError);
+    expect((err as CliError).code).toBe('DB_ERROR');
   });
 });
