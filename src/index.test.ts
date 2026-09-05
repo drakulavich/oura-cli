@@ -79,6 +79,44 @@ describe('undeclared arguments end to end', () => {
     expect(code).toBe(1);
   });
 
+  it('--version in a value position is a bad value, not a version request', async () => {
+    const { stdout, stderr, code } = await run('fetch', 'sleep', '--day', '--version');
+    expect(stdout).toBe('');
+    expect(envelope(stderr).code).toBe('BAD_ARGS');
+    expect(code).toBe(1);
+  });
+
+  it.each([
+    [['healthcheck', '--bogus', 'extra']],
+    [['describe', '--bogus']],
+    [['manifest', 'extra']],
+  ])('commands outside the runner reject undeclared arguments too: %j', async argv => {
+    const { stdout, stderr, code } = await run(...argv);
+    expect(stdout).toBe('');
+    expect(envelope(stderr).code).toBe('BAD_ARGS');
+    expect(code).toBe(1);
+  });
+
+  it('describe and manifest still accept the global flags the normaliser hoists onto them', async () => {
+    const { stdout, code } = await run('--format', 'json', 'describe');
+    expect(code).toBe(0);
+    expect(JSON.parse(stdout).commands.length).toBeGreaterThan(5);
+  });
+
+  it('a prototype member is an unknown command, not a silent exit 0', async () => {
+    const { stdout, stderr, code } = await run('constructor');
+    expect(stdout).toBe('');
+    expect(envelope(stderr).message).toBe('Unknown command "constructor".');
+    expect(code).toBe(1);
+  });
+
+  it('positionals after `--` are reported as typed, without the hoisted global flags', async () => {
+    const { stderr } = await run('db', 'today', '--', 'foo');
+    const e = envelope(stderr);
+    expect(e.message).toContain('foo');
+    expect(e.message).not.toContain('--db');
+  });
+
   it('a global flag after the subcommand is still accepted', async () => {
     const { stdout, code } = await run('db', 'today', '--format', 'json', '--no-color');
     expect(code).toBe(0);
@@ -95,5 +133,8 @@ describe('formatFromArgv', () => {
     expect(formatFromArgv(['db'], true)).toBe('table');
     expect(formatFromArgv(['db'], false)).toBe('json');
     expect(formatFromArgv(['--format', 'yaml'], false)).toBe('json');
+  });
+  it('does not read --format out of another flag\'s value position', () => {
+    expect(formatFromArgv(['--token', '--format', 'db'], true)).toBe('table');
   });
 });

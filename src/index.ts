@@ -12,7 +12,7 @@ import { doctorCommand } from './commands/doctor.js';
 import { manifestCommand } from './commands/manifest.js';
 import { fetchCommand } from './commands/fetch.js';
 import { commonArgs } from './commands/common.js';
-import { normalizeArgv } from './lib/argv-normalize.js';
+import { isVersionRequest, normalizeArgv } from './lib/argv-normalize.js';
 import { fromCittyError } from './lib/citty-error.js';
 import { emitError, exitCodeFor } from './lib/errors.js';
 import { formatFromArgv } from './lib/format-resolve.js';
@@ -26,7 +26,8 @@ if (process.argv.includes('--no-color') || process.env.NO_COLOR) {
   chalk.level = 0;
 }
 
-const subCommands: SubCommandsDef = {
+// Null prototype: otherwise `oura-cli constructor` resolves to Object.prototype.constructor and exits 0 silently.
+const subCommands: SubCommandsDef = Object.assign(Object.create(null) as SubCommandsDef, {
   login:       loginCommand,
   describe:    describeCommand(VERSION, () => subCommands),
   healthcheck: healthcheckCommand(VERSION),
@@ -36,7 +37,7 @@ const subCommands: SubCommandsDef = {
   sync:        syncCommand,
   db:          dbCommand,
   report:      reportCommand,
-};
+});
 
 const main = defineCommand({
   meta: {
@@ -52,7 +53,7 @@ const rawArgs = normalizeArgv(process.argv).slice(2);
 const wantsHelp = rawArgs.some(a => a === '--help' || a === '-h')
   || (rawArgs.length === 0 && process.stdout.isTTY === true);
 
-if (rawArgs.includes('--version') || rawArgs.includes('-v')) {
+if (isVersionRequest(rawArgs)) {
   // citty only answers --version when it is the sole argument; `oura-cli --db x --version` should work too.
   console.log(VERSION);
 } else if (wantsHelp) {

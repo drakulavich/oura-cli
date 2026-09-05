@@ -1,10 +1,12 @@
 import { defineCommand } from 'citty';
+import type { ArgsDef } from 'citty';
 import { writeFileSync, chmodSync, mkdirSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { homedir } from 'os';
 import chalk from 'chalk';
 import { CliError, emitError, exitCodeFor } from '../lib/errors.js';
 import { commonArgs } from './common.js';
+import { assertKnownArgs } from './run-command.js';
 
 type HiddenTokenInput = {
   isTTY?: boolean;
@@ -74,12 +76,13 @@ export function writeToken(path: string, token: string): void {
 export const loginCommand = defineCommand({
   meta: { name: 'login', description: 'Save an Oura Personal Access Token for future commands.' },
   args: {
+    ...commonArgs,
     token:      { type: 'string',  description: 'Pass token non-interactively (e.g. for scripts)' },
     path:       { type: 'string',  description: 'Where to save the token (default: $OURA_TOKEN_PATH or ~/.oura-token)' },
-    'no-color': commonArgs['no-color'],
   },
   async run({ args }) {
     try {
+      assertKnownArgs({ ...commonArgs, token: {}, path: {} } as unknown as ArgsDef, args as Record<string, unknown>);
       if (args['no-color'] || process.env.NO_COLOR) {
         const { default: chk } = await import('chalk');
         chk.level = 0;

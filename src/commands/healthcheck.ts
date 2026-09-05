@@ -1,12 +1,15 @@
 import { defineCommand } from 'citty';
 import { openDatabase, ensureSchema } from '../db/open.js';
+import type { ArgsDef } from 'citty';
 import { commonArgs } from './common.js';
+import { assertKnownArgs } from './run-command.js';
 
 export function healthcheckCommand(version: string) {
   return defineCommand({
     meta: { name: 'healthcheck', description: 'Quick local DB health probe (JSON: {ok, version, latencyMs}).' },
     args: { ...commonArgs },
     run({ args }) {
+      assertKnownArgs(commonArgs as ArgsDef, args as Record<string, unknown>);
       const start = Date.now();
       let ok = true;
       let error: string | undefined;

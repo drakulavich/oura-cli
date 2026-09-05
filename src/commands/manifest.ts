@@ -1,4 +1,7 @@
 import { defineCommand } from 'citty';
+import type { ArgsDef } from 'citty';
+import { commonArgs } from './common.js';
+import { assertKnownArgs } from './run-command.js';
 import type { SubCommandsDef } from 'citty';
 import { buildManifest } from './describe.js';
 
@@ -41,8 +44,9 @@ export function buildOpenclawManifest(version: string, commands: SubCommandsDef)
 export function manifestCommand(version: string, getCommands: () => SubCommandsDef) {
   return defineCommand({
     meta: { name: 'manifest', description: 'Print openclaw-tool-registry-compatible manifest as JSON.' },
-    args: {},
-    run() {
+    args: { ...commonArgs },
+    run({ args }) {
+      assertKnownArgs(commonArgs as ArgsDef, args as Record<string, unknown>);
       console.log(JSON.stringify(buildOpenclawManifest(version, getCommands()), null, 2));
     },
   });

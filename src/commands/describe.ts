@@ -2,6 +2,7 @@ import { defineCommand } from 'citty';
 import type { ArgDef, ArgsDef, CommandDef, SubCommandsDef } from 'citty';
 import { names } from '../collections/index.js';
 import { commonArgs } from './common.js';
+import { assertKnownArgs } from './run-command.js';
 
 export interface ManifestArg {
   name: string;
@@ -124,8 +125,9 @@ export function buildManifest(version: string, commands: SubCommandsDef): Manife
 export function describeCommand(version: string, getCommands: () => SubCommandsDef) {
   return defineCommand({
     meta: { name: 'describe', description: 'Emit a machine-readable manifest of commands, args, and outputs.' },
-    args: {},
-    run() {
+    args: { ...commonArgs },
+    run({ args }) {
+      assertKnownArgs(commonArgs as ArgsDef, args as Record<string, unknown>);
       console.log(JSON.stringify(buildManifest(version, getCommands()), null, 2));
     },
   });
