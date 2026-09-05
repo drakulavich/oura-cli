@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-09-05
+
+Fixes from the 0.5.0 exploratory testing sessions, all on the seam between citty and the command runner.
+
+### Fixed
+- A token containing whitespace or a line break (for example a token file with a second line) is rejected as `TOKEN_INVALID` (exit 2) naming the source; previously it reached the API layer and came back as `UNKNOWN` with the token quoted in the message. Every error message and hint is now passed through the secret redactor. (#47)
+- `DB_ERROR` (exit 4) is reachable: a corrupt cache file, an unusable `--db` path or a failing query in `db *`, `sync` and `report` now report `DB_ERROR` with a hint instead of `UNKNOWN` / exit 1. (#48)
+- Errors raised before a command runs — unknown command, missing positional, no command on a pipe — use the same envelope as every other error: JSON on stderr when piped, text on a TTY, nothing on stdout, `--no-color` honoured. The commands removed in 0.5.0 (`db reset`, `db import`, `sleep|readiness|activity|hr|spo2|stress|workout …`) point at `fetch`/`sync`. `--help`, `--version` and a bare `oura-cli` on a TTY still show usage. (#49)
+- Undeclared flags and extra positionals are `BAD_ARGS` instead of being ignored: `fetch sleep --dayz 7` no longer returns today's data with exit 0, and `db trends -5` no longer falls back to the 30-day default. (#50, part of #52)
+
 ## [0.5.0] - 2026-09-05
 
 ### Breaking

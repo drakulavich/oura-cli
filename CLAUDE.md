@@ -36,7 +36,7 @@ Structured output is a published contract: the JSON Schemas under `docs/schemas/
 
 ### ERRORS THAT REACH THE CLI SURFACE ARE `CliError`
 
-Use `CliError` with a documented `ErrorCode` from `src/lib/errors.ts`; a new code also needs an arm in `exitCodeFor`. The boundary is the runner in src/commands/run-command.ts; a command built with dataCommand cannot forget it. login has its own catch; healthcheck swallows into {ok:false}.
+Use `CliError` with a documented `ErrorCode` from `src/lib/errors.ts`; a new code also needs an arm in `exitCodeFor`. The boundary is the runner in src/commands/run-command.ts; a command built with dataCommand cannot forget it. Errors citty raises *before* a command runs (unknown command, missing positional) are translated in `src/index.ts` via `src/lib/citty-error.ts`, which also holds the hints for commands removed in 0.5.0. login has its own catch; healthcheck swallows into {ok:false}. The runner rejects any flag a command did not declare in `args`, so a new flag must be declared or it is a `BAD_ARGS` at runtime.
 
 ### KEEP `bun.lock` IN SYNC
 
