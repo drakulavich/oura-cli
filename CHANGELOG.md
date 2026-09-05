@@ -26,7 +26,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Removed
 - `db reset` and the CSV importer it relied on (it read a hard-coded personal directory), and the `db import` alias of `sync`.
-- `vo2max` no longer appears in `db stats`; the table was never populated.
+- `vo2max` no longer appears in `db stats`; the table was never populated. `db stats` now lists tables in registry order (`heartrate` fourth, `cardiovascular_age` last); key by `table`, not position.
 
 ### Added
 - `oura-cli doctor` diagnoses token resolution (honoring `--token` like every

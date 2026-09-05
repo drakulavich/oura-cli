@@ -53,7 +53,7 @@ user reads, not what they type to set up.
 
 Releases are tag-driven now (per audit #15):
 
-1. Bump `package.json` version and `VERSION` constant in `src/index.ts`.
+1. Bump the version in `package.json` (the CLI reads it at runtime).
 2. Add a `## [x.y.z] - YYYY-MM-DD` section to `CHANGELOG.md`.
 3. Commit, then `git tag vx.y.z && git push origin main vx.y.z`.
 4. The `release.yml` workflow runs tests, publishes to npm (with provenance), and creates a GitHub Release whose body is the matching CHANGELOG section.

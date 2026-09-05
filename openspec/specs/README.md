@@ -55,7 +55,7 @@ Specs reference these named personas instead of a generic "user":
 | query | `db`: reading cached data by day/range/Data type |
 | report | `report`: weekly/monthly digest with averages and trend deltas |
 | output-contract | JSON-off-TTY / table-on-TTY switch, exit codes, `CliError`/`ErrorCode` |
-| agent-surface | `manifest`, `healthcheck`, `describe`, `api-command`, OpenClaw skill |
+| agent-surface | `manifest`, `healthcheck`, `describe`, `fetch`, OpenClaw skill |
 
 *(Links are added as each `spec.md` is written; rows without a link are not yet
 extracted — see Status above.)*
