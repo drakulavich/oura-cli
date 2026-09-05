@@ -10,8 +10,8 @@ const SUBCOMMANDS = new Set([
  * This normaliser moves any global flag appearing BEFORE the subcommand name
  * to AFTER it, so citty receives them in the subcommand context.
  *
- * Example: ['bun', 'script', '--format', 'json', 'sleep', 'today']
- *       → ['bun', 'script', 'sleep', 'today', '--format', 'json']
+ * Example: ['bun', 'script', '--format', 'json', 'fetch', 'sleep']
+ *       → ['bun', 'script', 'fetch', 'sleep', '--format', 'json']
  */
 export function normalizeArgv(argv: string[]): string[] {
   const [bun, script, ...rest] = argv;
