@@ -1,4 +1,5 @@
 import { CliError } from './errors.js';
+import { GLOBAL_FLAGS_WITH_VALUE } from './argv-normalize.js';
 
 export type OutputFormat = 'table' | 'json';
 
@@ -25,8 +26,9 @@ export function formatFromArgv(argv: readonly string[], isTty: boolean): OutputF
   let explicit: string | undefined;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!;
-    if (a === '--format') explicit = argv[i + 1];
+    if (a === '--format') { explicit = argv[i + 1]; i++; }
     else if (a.startsWith('--format=')) explicit = a.slice('--format='.length);
+    else if (GLOBAL_FLAGS_WITH_VALUE.has(a)) i++; // skip the value: `--token --format` is a token, not a format
   }
   try {
     return resolveFormat({ explicit, isTty });

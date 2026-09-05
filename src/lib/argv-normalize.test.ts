@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { normalizeArgv } from './argv-normalize.js';
+import { isVersionRequest, normalizeArgv } from './argv-normalize.js';
 
 describe('normalizeArgv', () => {
   it('passes through argv that has no subcommand', () => {
@@ -41,5 +41,34 @@ describe('normalizeArgv', () => {
     // Unknown --weird flag should stay where it is (let citty reject it normally).
     const argv = ['bun', '/path/index.ts', '--weird', 'something', 'fetch', 'sleep'];
     expect(normalizeArgv(argv)).toEqual(argv);
+  });
+});
+
+describe('normalizeArgv and `--`', () => {
+  it('keeps hoisted global flags before a `--` separator', () => {
+    expect(normalizeArgv(['bun', 's', '--db', 'x', 'db', 'today', '--', 'foo']))
+      .toEqual(['bun', 's', 'db', 'today', '--db', 'x', '--', 'foo']);
+  });
+});
+
+describe('isVersionRequest', () => {
+  it.each([
+    [['--version']],
+    [['-v']],
+    [['--db', 'x', '--version']],
+    [['--no-color', '--version', '--db', 'x']],
+  ])('is true for %j', argv => {
+    expect(isVersionRequest(argv)).toBe(true);
+  });
+
+  it.each([
+    [[]],
+    [['--db', '--version']],          // --version is the value of --db
+    [['--tz', '-v']],
+    [['fetch', 'sleep', '--version']], // after a subcommand it is that command's (unknown) flag
+    [['fetch', 'sleep', '--day', '--version']],
+    [['db', 'today']],
+  ])('is false for %j', argv => {
+    expect(isVersionRequest(argv)).toBe(false);
   });
 });

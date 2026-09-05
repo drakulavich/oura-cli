@@ -24,7 +24,8 @@ export function fromCittyError(err: unknown): unknown {
   switch (code) {
     case 'E_UNKNOWN_COMMAND': {
       const name = message.replace(/^Unknown command\s*/, '').trim();
-      return new CliError('BAD_ARGS', `Unknown command "${name}".`, REMOVED_COMMANDS[name] ?? 'Run `oura-cli --help` for the list of commands.');
+      const hint = Object.hasOwn(REMOVED_COMMANDS, name) ? REMOVED_COMMANDS[name] : 'Run `oura-cli --help` for the list of commands.';
+      return new CliError('BAD_ARGS', `Unknown command "${name}".`, hint);
     }
     case 'EARG':
       return new CliError('BAD_ARGS', message.endsWith('.') ? message : `${message}.`, 'Run the command with --help to see its arguments.');
