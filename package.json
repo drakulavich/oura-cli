@@ -22,6 +22,7 @@
     "build": "bun build src/index.ts --outdir dist --target bun --banner '#!/usr/bin/env bun'",
     "dev": "bun run src/index.ts",
     "test": "bun test",
+    "schemas": "bun run scripts/generate-schemas.ts",
     "prepublishOnly": "bun run build"
   },
   "exports": {

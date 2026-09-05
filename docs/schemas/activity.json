@@ -1,15 +1,26 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/drakulavich/oura-cli/blob/main/docs/schemas/activity.json",
-  "title": "oura-cli activity output",
+  "title": "oura-cli fetch activity output",
+  "description": "Daily activity score, steps, calories and activity-time buckets",
   "type": "array",
   "items": {
     "type": "object",
     "additionalProperties": true,
-    "required": ["id", "day"],
+    "required": [
+      "id",
+      "day"
+    ],
     "properties": {
-      "id":  { "type": "string", "description": "Oura record id" },
-      "day": { "type": "string", "format": "date", "description": "Date the record applies to (YYYY-MM-DD)" }
+      "id": {
+        "type": "string",
+        "description": "Oura record id"
+      },
+      "day": {
+        "type": "string",
+        "format": "date",
+        "description": "Date the record applies to (YYYY-MM-DD)"
+      }
     }
   }
 }
