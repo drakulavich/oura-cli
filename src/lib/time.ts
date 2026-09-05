@@ -1,5 +1,3 @@
-import { CliError } from './errors.js';
-
 export function nowUtc(): string {
   return new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 }
@@ -81,12 +79,4 @@ export function isCalendarDate(value: string): boolean {
   if (!CALENDAR_DATE.test(value)) return false;
   const ms = new Date(`${value}T00:00:00Z`).getTime();
   return !Number.isNaN(ms) && new Date(ms).toISOString().slice(0, 10) === value;
-}
-
-/** Return `value` when it is a real calendar date; otherwise throw BAD_ARGS naming `label`. */
-export function assertCalendarDate(value: string, label: string): string {
-  if (!isCalendarDate(value)) {
-    throw new CliError('BAD_ARGS', `${label} must be a real YYYY-MM-DD date, got "${value}".`);
-  }
-  return value;
 }

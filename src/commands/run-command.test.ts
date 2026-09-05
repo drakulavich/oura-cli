@@ -131,6 +131,16 @@ describe('execute', () => {
     expect(exits).toEqual([2]);
   });
 
+  it('rejects an unknown --tz with BAD_ARGS before running the command', async () => {
+    let ran = false;
+    const def: DataCommandDef<{}> = { meta: { name: 'x' }, run: () => { ran = true; return { json: 1, text: () => '1' }; } };
+    const { io, err, exits } = fakeIo(false);
+    await execute(def, { ...baseArgs, tz: 'Not/AZone' }, io);
+    expect(ran).toBe(false);
+    expect(JSON.parse(err[0]).error.code).toBe('BAD_ARGS');
+    expect(exits).toEqual([1]);
+  });
+
   it('rejects an unknown --format with BAD_ARGS', async () => {
     const def: DataCommandDef<{}> = { meta: { name: 'x' }, run: () => ({ json: 1, text: () => '1' }) };
     const { io, err, exits } = fakeIo(false);

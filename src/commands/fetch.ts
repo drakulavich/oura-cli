@@ -1,7 +1,8 @@
 import { OuraClient } from '../api/client.js';
 import { byName, names } from '../collections/index.js';
 import { CliError } from '../lib/errors.js';
-import { assertCalendarDate, shiftDay } from '../lib/time.js';
+import { shiftDay } from '../lib/time.js';
+import { assertCalendarDate, assertPositiveInt } from '../lib/validate.js';
 import { dataCommand } from './run-command.js';
 
 export function resolveRange(opts: { day?: string; from?: string; to?: string; days?: string; today: string }): { start: string; end: string } {
@@ -19,8 +20,7 @@ export function resolveRange(opts: { day?: string; from?: string; to?: string; d
     return { start, end };
   }
   if (opts.days !== undefined) {
-    const n = Number(opts.days);
-    if (!Number.isInteger(n) || n < 1) throw new CliError('BAD_ARGS', `--days must be a positive integer, got "${opts.days}".`);
+    const n = assertPositiveInt(opts.days, '--days');
     return { start: shiftDay(opts.today, -(n - 1)), end: opts.today };
   }
   return { start: opts.today, end: opts.today };

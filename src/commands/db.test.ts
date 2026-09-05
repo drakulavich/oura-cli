@@ -21,3 +21,18 @@ describe('db date', () => {
     expect(JSON.parse(stdout).day).toBe('2026-06-15');
   });
 });
+
+describe('db trends', () => {
+  it.each(['abc', '0', '1.5'])('rejects a window of %j with BAD_ARGS', async days => {
+    const { stdout, stderr, code } = await run('db', 'trends', days, '--format', 'json');
+    expect(stdout).toBe('');
+    expect(JSON.parse(stderr).error.code).toBe('BAD_ARGS');
+    expect(code).toBe(1);
+  });
+
+  it('accepts a positive window', async () => {
+    const { stdout, code } = await run('db', 'trends', '7', '--format', 'json');
+    expect(code).toBe(0);
+    expect(Array.isArray(JSON.parse(stdout))).toBe(true);
+  });
+});

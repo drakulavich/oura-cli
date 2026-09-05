@@ -7,6 +7,7 @@ import { OuraClient } from '../api/client.js';
 import { formatError, exitCodeFor } from '../lib/errors.js';
 import { resolveFormat, type OutputFormat } from '../lib/format-resolve.js';
 import { today, resolveDefaultTimezone } from '../lib/time.js';
+import { assertTimezone } from '../lib/validate.js';
 import { commonArgs } from './common.js';
 
 export type CommonArgsDef = typeof commonArgs;
@@ -64,7 +65,7 @@ export async function execute<A extends ArgsDef>(
     // errors from jsonOnly commands are still rendered for the terminal the user is on.
     format = resolveFormat({ explicit: args.format as string | undefined, isTty: io.isTty });
     const outputFormat: OutputFormat = def.jsonOnly ? 'json' : format;
-    const tz = (args.tz as string | undefined) ?? resolveDefaultTimezone();
+    const tz = assertTimezone((args.tz as string | undefined) ?? resolveDefaultTimezone());
     const ctx: Ctx = { format: outputFormat, tz, today: today(tz) };
     if (def.needs?.db) {
       db = openDatabase(args.db as string | undefined);
