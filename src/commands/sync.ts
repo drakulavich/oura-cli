@@ -1,44 +1,21 @@
-import { defineCommand } from 'citty';
-import { mkdirSync } from 'fs';
-import { dirname } from 'path';
-import { openDatabase, ensureSchema, getDbPath } from '../db/database.js';
 import { importDaily } from '../db/import.js';
 import { getDaySummary } from '../db/queries.js';
 import { formatDaySummary, formatImportSummary } from '../render/format.js';
-import { getClient, todayDate } from './helpers.js';
-import { resolveFormat } from '../lib/format-resolve.js';
-import { commonArgs, handleError, applyNoColor } from './common.js';
+import { dataCommand, type Ctx, type Output } from './run-command.js';
 
-export async function runSync(opts: { format?: string; db?: string; token?: string; tz?: string }): Promise<void> {
-  const format = resolveFormat({ explicit: opts.format, isTty: process.stdout.isTTY === true });
-  const dbPath = getDbPath({ dbPath: opts.db });
-  mkdirSync(dirname(dbPath), { recursive: true });
-  const db = openDatabase({ dbPath: opts.db });
-  ensureSchema(db);
-  const client = getClient(opts);
-  const log = format === 'table' ? console.log : undefined;
-  const day = todayDate(opts.tz);
-  const importResult = await importDaily(db, client, day, log);
-  const today = getDaySummary(db, day);
-  db.close();
-
-  if (format === 'json') {
-    console.log(JSON.stringify({ import: importResult, today }, null, 2));
-  } else {
-    console.log(formatImportSummary(importResult));
-    console.log(formatDaySummary(today, format));
-  }
+export async function runSync(ctx: Ctx): Promise<Output> {
+  const lines: string[] = [];
+  const log = ctx.format === 'table' ? (m: string) => lines.push(m) : undefined;
+  const importResult = await importDaily(ctx.db!, ctx.client!, ctx.today, log);
+  const today = getDaySummary(ctx.db!, ctx.today);
+  return {
+    json: { import: importResult, today },
+    text: () => [...lines, formatImportSummary(importResult), formatDaySummary(today, 'table')].join('\n'),
+  };
 }
 
-export const syncCommand = defineCommand({
+export const syncCommand = dataCommand({
   meta: { name: 'sync', description: "Import latest data from Oura API and return today's summary" },
-  args: { ...commonArgs },
-  async run({ args }) {
-    applyNoColor(args);
-    try {
-      await runSync({ format: args.format, db: args.db, token: args.token, tz: args.tz });
-    } catch (err) {
-      handleError(err, args);
-    }
-  },
+  needs: { db: true, client: true },
+  run: runSync,
 });
