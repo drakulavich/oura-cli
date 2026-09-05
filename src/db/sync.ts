@@ -1,6 +1,6 @@
 import type { Database } from './open.js';
 import type { OuraClient } from '../api/client.js';
-import { COLLECTIONS, insertSql, rowValues } from '../collections/index.js';
+import { COLLECTIONS, insertSql, rangeQuery, rowValues } from '../collections/index.js';
 import { shiftDay } from '../lib/time.js';
 
 const BACKFILL_DAYS = 30;
@@ -13,9 +13,16 @@ export interface ImportResult {
   isFirstSync: boolean;
 }
 
+export interface SyncClock {
+  /** YYYY-MM-DD in `tz` */
+  today: string;
+  tz: string;
+}
+
 export async function importDaily(
-  db: Database, client: OuraClient, today: string, log?: (msg: string) => void,
+  db: Database, client: OuraClient, clock: SyncClock, log?: (msg: string) => void,
 ): Promise<ImportResult> {
+  const { today, tz } = clock;
   const _log = log ?? (() => {});
 
   const lastDates: string[] = [];
@@ -33,7 +40,7 @@ export async function importDaily(
   const counts: Record<string, number> = {};
   for (const c of COLLECTIONS) {
     const start = c.syncWindow === 'today-only' ? today : startDate;
-    const rows = await client.fetch<unknown>(c.endpoint, start, today);
+    const rows = await client.fetch<unknown>(c.endpoint, rangeQuery(c, start, today, tz));
     const stmt = db.query(insertSql(c));
     db.transaction((rs: unknown[]) => { for (const r of rs) stmt.run(...rowValues(c, r)); })(rows);
     counts[c.table] = rows.length;

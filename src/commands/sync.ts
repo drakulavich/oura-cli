@@ -6,7 +6,7 @@ import { dataCommand, type Ctx, type Output } from './run-command.js';
 export async function runSync(ctx: Ctx): Promise<Output> {
   const lines: string[] = [];
   const log = ctx.format === 'table' ? (m: string) => lines.push(m) : undefined;
-  const importResult = await importDaily(ctx.db!, ctx.client!, ctx.today, log);
+  const importResult = await importDaily(ctx.db!, ctx.client!, { today: ctx.today, tz: ctx.tz }, log);
   const today = getDaySummary(ctx.db!, ctx.today);
   return {
     json: { import: importResult, today },

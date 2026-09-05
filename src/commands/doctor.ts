@@ -26,7 +26,7 @@ export async function runChecks(deps: DoctorDeps): Promise<DoctorResult> {
   } else {
     try {
       const client = deps.createClient(token);
-      await client.fetch('daily_sleep', deps.today, deps.today);
+      await client.fetch('daily_sleep', { start_date: deps.today, end_date: deps.today });
       checks.push({ id: 'token-valid', status: 'ok', detail: 'Token accepted by the Oura API.' });
     } catch (err) {
       if (err instanceof CliError && err.code === 'TOKEN_INVALID') {

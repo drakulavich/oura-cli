@@ -22,7 +22,7 @@ export type { TokenResolution };
 export interface DoctorDeps {
   resolveToken: () => TokenResolution;
   openDb: () => { db: Database; path: string };
-  createClient: (token: string) => { fetch: (endpoint: 'daily_sleep', start: string, end?: string) => Promise<unknown[]> };
+  createClient: (token: string) => { fetch: (endpoint: 'daily_sleep', query: Record<string, string>) => Promise<unknown[]> };
   offline: boolean;
   today: string;
 }

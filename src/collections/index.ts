@@ -1,4 +1,5 @@
 import type { AnyCollection, Collection, SqlValue } from './types.js';
+import { localDateToUtcRange } from '../lib/time.js';
 import { sleep } from './sleep.js';
 import { readiness } from './readiness.js';
 import { activity } from './activity.js';
@@ -43,6 +44,15 @@ export function insertSql(c: AnyCollection): string {
 
 export function rowValues<Row>(c: Collection<Row>, row: Row): SqlValue[] {
   return c.columns.map(col => col.pick(row));
+}
+
+/**
+ * Query parameters for the inclusive local-day range [start, end] in `tz`, shaped the way
+ * the collection's endpoint expects: plain dates, or UTC instants covering those days.
+ */
+export function rangeQuery(c: AnyCollection, start: string, end: string, tz: string): Record<string, string> {
+  if (c.rangeParams === 'date') return { start_date: start, end_date: end };
+  return { start_datetime: localDateToUtcRange(start, tz)[0], end_datetime: localDateToUtcRange(end, tz)[1] };
 }
 
 export function jsonSchema(c: AnyCollection): Record<string, unknown> {
