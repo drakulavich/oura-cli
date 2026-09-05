@@ -259,13 +259,14 @@ describe('formatImportSummary', () => {
       startDate: '2026-05-16',
       endDate: '2026-06-15',
       isFirstSync: true,
-      counts: { daily_sleep: 5 },
+      fetched: { daily_sleep: 5 },
+      added: { daily_sleep: 2 },
     };
     const out = formatImportSummary(result);
-    expect(out).toContain('sleep 5');
-    expect(out).toContain('workouts 0');
-    expect(out).toContain('heart rate 0');
-    expect(out).toContain('cardiovascular age 0');
+    expect(out).toContain('sleep 5 (+2)');
+    expect(out).toContain('workouts 0 (+0)');
+    expect(out).toContain('heart rate 0 (+0)');
+    expect(out).toContain('cardiovascular age 0 (+0)');
     expect(out).not.toContain('undefined');
   });
 });

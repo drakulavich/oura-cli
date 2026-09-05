@@ -62,11 +62,12 @@ export function formatDaySummary(summary: DaySummary, format: OutputFormat, empt
 }
 
 export function formatImportSummary(result: ImportResult): string {
-  const c = result.counts;
+  // "fetched (+new)": re-fetched rows are replaced or ignored, only +new tells whether anything arrived.
+  const n = (table: string) => `${result.fetched[table] ?? 0} (+${result.added[table] ?? 0})`;
   return [
-    `  Imported ${result.startDate} → ${result.endDate}:`,
-    `    sleep ${c.daily_sleep ?? 0}   readiness ${c.daily_readiness ?? 0}   activity ${c.daily_activity ?? 0}   sleep periods ${c.sleep_model ?? 0}`,
-    `    spo2 ${c.daily_spo2 ?? 0}    stress ${c.daily_stress ?? 0}      workouts ${c.workouts ?? 0}   heart rate ${c.heartrate ?? 0}   cardiovascular age ${c.cardiovascular_age ?? 0}`,
+    `  Fetched ${result.startDate} → ${result.endDate}, rows fetched (+new):`,
+    `    sleep ${n('daily_sleep')}   readiness ${n('daily_readiness')}   activity ${n('daily_activity')}   sleep periods ${n('sleep_model')}`,
+    `    spo2 ${n('daily_spo2')}   stress ${n('daily_stress')}   workouts ${n('workouts')}   heart rate ${n('heartrate')}   cardiovascular age ${n('cardiovascular_age')}`,
   ].join('\n');
 }
 

@@ -3,7 +3,8 @@ import { Database } from 'bun:sqlite';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { unlinkSync } from 'fs';
-import { runSync } from './sync.js';
+import { runSync, resolveWindow } from './sync.js';
+import { CliError } from '../lib/errors.js';
 import { ensureSchema } from '../db/open.js';
 import { getDaySummary } from '../db/queries.js';
 import { formatDaySummary } from '../render/format.js';
@@ -124,16 +125,16 @@ describe('runSync', () => {
       expect(result.endDate).toBe(TODAY);
       expect(typeof result.startDate).toBe('string');
       // One row was returned for each of these endpoints in the fixture.
-      expect(result.counts.daily_sleep).toBe(1);
-      expect(result.counts.daily_readiness).toBe(1);
-      expect(result.counts.daily_activity).toBe(1);
-      expect(result.counts.daily_spo2).toBe(1);
-      expect(result.counts.daily_stress).toBe(1);
-      expect(result.counts.sleep_model).toBe(1);
+      expect(result.fetched.daily_sleep).toBe(1);
+      expect(result.fetched.daily_readiness).toBe(1);
+      expect(result.fetched.daily_activity).toBe(1);
+      expect(result.fetched.daily_spo2).toBe(1);
+      expect(result.fetched.daily_stress).toBe(1);
+      expect(result.fetched.sleep_model).toBe(1);
       // Endpoints with no fixture rows count zero (and are still requested).
-      expect(result.counts.workouts).toBe(0);
-      expect(result.counts.heartrate).toBe(0);
-      expect(result.counts.cardiovascular_age).toBe(0);
+      expect(result.fetched.workouts).toBe(0);
+      expect(result.fetched.heartrate).toBe(0);
+      expect(result.fetched.cardiovascular_age).toBe(0);
     });
 
     it('flags a sync against an empty db as isFirstSync with a 30-day backfill start date', async () => {
@@ -143,8 +144,8 @@ describe('runSync', () => {
 
       const { import: result } = out.json as { import: ImportResult; today: DaySummary };
       expect(result.isFirstSync).toBe(true);
-      // FROZEN_NOW is 2026-06-15T12:00:00Z; 30 days back is 2026-05-16.
-      expect(result.startDate).toBe('2026-05-16');
+      // FROZEN_NOW is 2026-06-15T12:00:00Z; 30 inclusive days end there, so the window opens on 2026-05-17.
+      expect(result.startDate).toBe('2026-05-17');
     });
 
     it('flags a sync against a db with existing rows as an incremental sync', async () => {
@@ -158,7 +159,10 @@ describe('runSync', () => {
 
       const { import: result } = out.json as { import: ImportResult; today: DaySummary };
       expect(result.isFirstSync).toBe(false);
-      expect(result.startDate).toBe(TODAY);
+      // Tables the fixture filled resume from today; the still-empty ones (workouts, heart rate,
+      // cardiovascular age) are backfilled, so the earliest window across collections is the backfill.
+      expect(result.startDate).toBe('2026-05-17');
+      expect(result.fetched.daily_sleep).toBe(0);
     });
 
     it('reads back the freshly-imported rows for today into the today summary', async () => {
@@ -218,7 +222,8 @@ describe('runSync', () => {
       db.close();
 
       const { import: result, today } = out.json as { import: ImportResult; today: DaySummary };
-      expect(Object.values(result.counts).every(c => c === 0)).toBe(true);
+      expect(Object.values(result.fetched).every(c => c === 0)).toBe(true);
+      expect(Object.values(result.added).every(c => c === 0)).toBe(true);
       expect(today.day).toBe(TODAY);
       expect(today.sleep_score).toBeNull();
       expect(today.readiness_score).toBeNull();
@@ -241,7 +246,7 @@ describe('runSync', () => {
       const { out, db } = await runSyncFor('table');
       db.close();
 
-      expect(out.text()).toContain('First sync — backfilling the last 30 days: 2026-05-16 → 2026-06-15');
+      expect(out.text()).toContain('First sync — backfilling the last 30 days: 2026-05-17 → 2026-06-15');
     });
 
     it('labels an incremental sync with just the resolved date range, no "First sync"', async () => {
@@ -254,7 +259,7 @@ describe('runSync', () => {
       db.close();
 
       const text = out.text();
-      expect(text).toContain(`Syncing ${TODAY} → ${TODAY}`);
+      expect(text).toContain(`Syncing 2026-05-17 → ${TODAY}`);
       expect(text).not.toContain('First sync');
     });
 
@@ -264,11 +269,11 @@ describe('runSync', () => {
       db.close();
 
       const text = out.text();
-      expect(text).toContain('Imported 2026-05-16 → 2026-06-15:');
-      expect(text).toMatch(/sleep 1/);
+      expect(text).toContain('Fetched 2026-05-17 → 2026-06-15, rows fetched (+new):');
+      expect(text).toMatch(/sleep 1 \(\+1\)/);
       // workouts and heartrate have no fixture rows and must still show as 0.
-      expect(text).toMatch(/workouts 0/);
-      expect(text).toMatch(/heart rate 0/);
+      expect(text).toMatch(/workouts 0 \(\+0\)/);
+      expect(text).toMatch(/heart rate 0 \(\+0\)/);
     });
 
     it('ends with exactly formatDaySummary(today, "table")', async () => {
@@ -305,5 +310,25 @@ describe('runSync', () => {
       expect(typeof version.v).toBe('number');
       expect(version.v).toBeGreaterThan(0);
     });
+  });
+});
+
+describe('resolveWindow', () => {
+  it('returns an empty window when no flags are given', () => {
+    expect(resolveWindow({})).toEqual({ from: undefined, to: undefined });
+  });
+  it('accepts --from alone and --from with --to', () => {
+    expect(resolveWindow({ from: '2026-08-01' })).toEqual({ from: '2026-08-01', to: undefined });
+    expect(resolveWindow({ from: '2026-08-01', to: '2026-08-07' })).toEqual({ from: '2026-08-01', to: '2026-08-07' });
+  });
+  it.each([
+    [{ to: '2026-08-07' }],
+    [{ from: '2026-08-07', to: '2026-08-01' }],
+    [{ from: '2026-02-30' }],
+  ])('rejects %j with BAD_ARGS', opts => {
+    let err: unknown;
+    try { resolveWindow(opts); } catch (e) { err = e; }
+    expect(err).toBeInstanceOf(CliError);
+    expect((err as CliError).code).toBe('BAD_ARGS');
   });
 });
