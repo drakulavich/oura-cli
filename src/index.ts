@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import chalk from 'chalk';
-import { defineCommand, runMain } from 'citty';
+import { defineCommand, runCommand, runMain } from 'citty';
 import type { SubCommandsDef } from 'citty';
 import { loginCommand } from './commands/login.js';
 import { describeCommand } from './commands/describe.js';
@@ -13,6 +13,9 @@ import { manifestCommand } from './commands/manifest.js';
 import { fetchCommand } from './commands/fetch.js';
 import { commonArgs } from './commands/common.js';
 import { normalizeArgv } from './lib/argv-normalize.js';
+import { fromCittyError } from './lib/citty-error.js';
+import { emitError, exitCodeFor } from './lib/errors.js';
+import { formatFromArgv } from './lib/format-resolve.js';
 
 const VERSION = (JSON.parse(
   readFileSync(new URL('../package.json', import.meta.url), 'utf-8'),
@@ -45,5 +48,20 @@ const main = defineCommand({
   subCommands,
 });
 
-const normalized = normalizeArgv(process.argv);
-runMain(main, { rawArgs: normalized.slice(2) });
+const rawArgs = normalizeArgv(process.argv).slice(2);
+const wantsUsage = rawArgs.some(a => a === '--help' || a === '-h' || a === '--version' || a === '-v')
+  || (rawArgs.length === 0 && process.stdout.isTTY === true);
+
+if (wantsUsage) {
+  // citty renders usage and the version itself.
+  runMain(main, { rawArgs });
+} else {
+  // Everything else: errors citty raises before a command runs (unknown command, missing
+  // positional) get the same envelope and exit code as errors raised inside a command,
+  // instead of citty's coloured usage dump on stdout.
+  runCommand(main, { rawArgs }).catch((raw: unknown) => {
+    const err = fromCittyError(raw);
+    emitError(err, formatFromArgv(rawArgs, process.stdout.isTTY === true));
+    process.exit(exitCodeFor(err));
+  });
+}
