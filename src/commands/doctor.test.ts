@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'bun:test';
 import { Database } from 'bun:sqlite';
-import { ensureSchema } from '../db/database.js';
+import { ensureSchema } from '../db/open.js';
 import { CliError } from '../lib/errors.js';
 import {
-  runChecks, exitCodeForChecks, resolveTokenLikeClient,
+  runChecks, exitCodeForChecks,
   type DoctorDeps, type DoctorCheck,
 } from './doctor.js';
 import { formatDoctorTable } from '../render/doctor-table.js';
@@ -217,19 +217,5 @@ describe('formatDoctorTable', () => {
     };
 
     expect(formatDoctorTable(result)).toContain('everything looks healthy');
-  });
-});
-
-describe('resolveTokenLikeClient', () => {
-  it('prefers an explicit token over OURA_TOKEN and the token file', () => {
-    const prevToken = process.env.OURA_TOKEN;
-    process.env.OURA_TOKEN = 'env-token-should-be-ignored';
-    try {
-      const result = resolveTokenLikeClient('explicit-token-abc');
-      expect(result.token).toBe('explicit-token-abc');
-      expect(result.source).toBe('--token');
-    } finally {
-      if (prevToken === undefined) delete process.env.OURA_TOKEN; else process.env.OURA_TOKEN = prevToken;
-    }
   });
 });

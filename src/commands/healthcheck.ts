@@ -1,5 +1,5 @@
 import { defineCommand } from 'citty';
-import { openDatabase, ensureSchema } from '../db/database.js';
+import { openDatabase, ensureSchema } from '../db/open.js';
 import { commonArgs } from './common.js';
 
 export function healthcheckCommand(version: string) {
@@ -11,7 +11,7 @@ export function healthcheckCommand(version: string) {
       let ok = true;
       let error: string | undefined;
       try {
-        const db = openDatabase({ dbPath: args.db });
+        const db = openDatabase(args.db);
         ensureSchema(db);
         db.query('SELECT 1').get();
         db.close();

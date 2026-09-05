@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import { Database } from 'bun:sqlite';
-import { ensureSchema } from '../db/database.js';
+import { ensureSchema } from '../db/open.js';
 import { getReport } from '../db/report.js';
 
 describe('getReport', () => {

@@ -4,7 +4,7 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import { unlinkSync } from 'fs';
 import { runSync } from './sync.js';
-import { ensureSchema } from '../db/database.js';
+import { ensureSchema } from '../db/open.js';
 import { getDaySummary } from '../db/queries.js';
 import { formatDaySummary } from '../render/format.js';
 import { OuraClient } from '../api/client.js';

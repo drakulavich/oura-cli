@@ -1,4 +1,5 @@
-import type { Database } from '../lib/db.js';
+import type { Database } from '../db/open.js';
+import type { TokenResolution } from '../api/token.js';
 
 export type CheckId = 'token' | 'token-valid' | 'database' | 'data';
 export type CheckStatus = 'ok' | 'warn' | 'fail';
@@ -16,10 +17,7 @@ export interface DoctorResult {
   nextStep: string | null;
 }
 
-export interface TokenResolution {
-  token: string | null;
-  source: string;
-}
+export type { TokenResolution };
 
 export interface DoctorDeps {
   resolveToken: () => TokenResolution;

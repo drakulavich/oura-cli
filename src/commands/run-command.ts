@@ -1,8 +1,8 @@
 import chalk from 'chalk';
 import { defineCommand } from 'citty';
 import type { ArgsDef, CommandDef, CommandMeta, ParsedArgs } from 'citty';
-import type { Database } from '../lib/db.js';
-import { openDatabase, ensureSchema } from '../db/database.js';
+import { openDatabase, ensureSchema } from '../db/open.js';
+import type { Database } from '../db/open.js';
 import { OuraClient } from '../api/client.js';
 import { formatError, exitCodeFor } from '../lib/errors.js';
 import { resolveFormat, type OutputFormat } from '../lib/format-resolve.js';
@@ -66,7 +66,7 @@ export async function execute<A extends ArgsDef>(
     const tz = (args.tz as string | undefined) ?? resolveDefaultTimezone();
     const ctx: Ctx = { format, tz, today: today(tz) };
     if (def.needs?.db) {
-      db = openDatabase({ dbPath: args.db as string | undefined });
+      db = openDatabase(args.db as string | undefined);
       ensureSchema(db);
       ctx.db = db;
     }

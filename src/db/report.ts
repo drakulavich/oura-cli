@@ -1,4 +1,4 @@
-import type { Database } from '../lib/db.js';
+import type { Database } from './open.js';
 import { shiftDay } from '../lib/time.js';
 
 export interface ReportData {
