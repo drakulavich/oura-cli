@@ -1,5 +1,7 @@
 import { describe, it, expect, setSystemTime } from 'bun:test';
+import { CliError } from './errors.js';
 import {
+  isCalendarDate, assertCalendarDate,
   nowUtc,
   formatLocal,
   formatLocalDate,
@@ -86,6 +88,31 @@ describe('today', () => {
     } finally {
       setSystemTime();
       if (prev === undefined) delete process.env.OURA_TZ; else process.env.OURA_TZ = prev;
+    }
+  });
+});
+
+describe('isCalendarDate', () => {
+  it.each(['2026-06-15', '2024-02-29', '2026-12-31'])('accepts %s', d => {
+    expect(isCalendarDate(d)).toBe(true);
+  });
+  it.each(['2026-02-30', '2025-02-29', '2026-13-01', '2026-00-10', '2026-6-15', '06/15/2026', '2026-06-15T00:00:00Z', ''])('rejects %j', d => {
+    expect(isCalendarDate(d)).toBe(false);
+  });
+});
+
+describe('assertCalendarDate', () => {
+  it('returns the value unchanged when valid', () => {
+    expect(assertCalendarDate('2026-06-15', '--day')).toBe('2026-06-15');
+  });
+  it('throws BAD_ARGS naming the flag when invalid', () => {
+    try {
+      assertCalendarDate('2026-02-30', '--day');
+      throw new Error('did not throw');
+    } catch (e) {
+      expect(e).toBeInstanceOf(CliError);
+      expect((e as CliError).code).toBe('BAD_ARGS');
+      expect((e as CliError).message).toContain('--day');
     }
   });
 });

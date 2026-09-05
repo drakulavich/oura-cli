@@ -1,3 +1,5 @@
+import { CliError } from './errors.js';
+
 export function nowUtc(): string {
   return new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 }
@@ -70,4 +72,21 @@ export function daysBack(endDay: string, n: number): string[] {
   const out: string[] = [];
   for (let i = n - 1; i >= 0; i--) out.push(shiftDay(endDay, -i));
   return out;
+}
+
+const CALENDAR_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** True for a real YYYY-MM-DD calendar date: "2026-02-30" and "2026-13-01" are not. */
+export function isCalendarDate(value: string): boolean {
+  if (!CALENDAR_DATE.test(value)) return false;
+  const ms = new Date(`${value}T00:00:00Z`).getTime();
+  return !Number.isNaN(ms) && new Date(ms).toISOString().slice(0, 10) === value;
+}
+
+/** Return `value` when it is a real calendar date; otherwise throw BAD_ARGS naming `label`. */
+export function assertCalendarDate(value: string, label: string): string {
+  if (!isCalendarDate(value)) {
+    throw new CliError('BAD_ARGS', `${label} must be a real YYYY-MM-DD date, got "${value}".`);
+  }
+  return value;
 }

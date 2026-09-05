@@ -40,6 +40,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   as `docs/schemas/doctor.json`.
 
 ### Fixed
+- `fetch --day/--from/--to` and `db date` reject calendar-invalid dates such as `2026-02-30` with `BAD_ARGS` instead of sending them to the API or querying nothing.
+- An unknown `--format` is rejected for JSON-only commands (`fetch`, `describe`, `manifest`) as well; their errors now render as text on a TTY and as JSON when piped.
 - Interactive `oura-cli login` now hides the Personal Access Token while it is
   typed and explains how to use `--token` safely in non-interactive contexts.
 - `oura-cli report` now explains when no data is available and directs new

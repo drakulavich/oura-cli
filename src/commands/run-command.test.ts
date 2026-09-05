@@ -35,6 +35,23 @@ describe('execute', () => {
     expect(out[0]).toBe(JSON.stringify([1], null, 2));
   });
 
+  it('rejects an unknown --format for jsonOnly commands too', async () => {
+    const def: DataCommandDef<{}> = { meta: { name: 'x' }, jsonOnly: true, run: () => ({ json: 1, text: () => '1' }) };
+    const { io, out, err, exits } = fakeIo(false);
+    await execute(def, { ...baseArgs, format: 'yaml' }, io);
+    expect(out).toEqual([]);
+    expect(JSON.parse(err[0]).error.code).toBe('BAD_ARGS');
+    expect(exits).toEqual([1]);
+  });
+
+  it('renders errors from jsonOnly commands as text on a TTY', async () => {
+    const def: DataCommandDef<{}> = { meta: { name: 'x' }, jsonOnly: true, run: () => { throw new CliError('BAD_ARGS', 'nope'); } };
+    const { io, err } = fakeIo(true);
+    await execute(def, baseArgs, io);
+    expect(err[0]).toContain('error: nope');
+    expect(() => JSON.parse(err[0])).toThrow();
+  });
+
   it('opens a schema-ready database when needs.db is set and closes it afterwards', async () => {
     let captured: Ctx['db'];
     const def: DataCommandDef<{}> = {

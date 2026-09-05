@@ -60,11 +60,12 @@ export async function execute<A extends ArgsDef>(
   let format: OutputFormat = io.isTty ? 'table' : 'json';
   let exitCode = 0;
   try {
-    format = def.jsonOnly
-      ? 'json'
-      : resolveFormat({ explicit: args.format as string | undefined, isTty: io.isTty });
+    // Resolve --format for every command so an unknown value is always rejected, and so
+    // errors from jsonOnly commands are still rendered for the terminal the user is on.
+    format = resolveFormat({ explicit: args.format as string | undefined, isTty: io.isTty });
+    const outputFormat: OutputFormat = def.jsonOnly ? 'json' : format;
     const tz = (args.tz as string | undefined) ?? resolveDefaultTimezone();
-    const ctx: Ctx = { format, tz, today: today(tz) };
+    const ctx: Ctx = { format: outputFormat, tz, today: today(tz) };
     if (def.needs?.db) {
       db = openDatabase(args.db as string | undefined);
       ensureSchema(db);
@@ -74,7 +75,7 @@ export async function execute<A extends ArgsDef>(
       ctx.client = new OuraClient(args.token ? { token: args.token as string } : {});
     }
     const out = await def.run(ctx, args);
-    io.stdout(format === 'json' ? JSON.stringify(out.json, null, 2) : out.text());
+    io.stdout(outputFormat === 'json' ? JSON.stringify(out.json, null, 2) : out.text());
     exitCode = out.exitCode ?? 0;
   } catch (err) {
     io.stderr(formatError(err, format).text);

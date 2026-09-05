@@ -62,13 +62,6 @@ export interface OuraStressDay {
   stress_high: number | null;
 }
 
-export interface OuraVo2Max {
-  id: string;
-  day: string;
-  vo2_max: number | null;
-  timestamp: string;
-}
-
 export interface OuraCardiovascularAge {
   id: string;
   day: string;
