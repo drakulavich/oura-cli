@@ -11,6 +11,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   documents `login` → `doctor` → `sync` → `report` as the onboarding path,
   states plainly that `login` hides the token as you type, and adds a
   symptom → command recovery table.
+- Text formatters moved from the repo root into `src/render/` (internal).
 
 ### Added
 - `oura-cli doctor` diagnoses token resolution (honoring `--token` like every
@@ -44,6 +45,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   assume one that never arrives. `importDaily` now maps an absent value to
   `NULL` explicitly instead of relying on `bun:sqlite` silently coercing
   `undefined`.
+- `db week`, `db trends`, `db stats`, `report` and `sync` now compute "today"
+  and every window boundary in the configured timezone (`--tz` / `OURA_TZ`);
+  previously they used UTC and disagreed with `db today` around midnight.
 
 ## [0.4.5] - 2026-07-18
 

@@ -28,7 +28,7 @@ Commands are `defineCommand`/`runMain` from `citty`. `docs/ARCHITECTURE.md` stil
 
 `src/lib/` (generic helpers, no domain knowledge) → `src/api/` (HTTP; knows nothing about SQLite) → `src/db/` (SQL and the local cache; imports `api/` for row types and sync, but knows nothing about output formatting) → `src/commands/` (format resolution; every `console.log`/`process.stdout` write lives here) → `src/index.ts` (wiring only).
 
-Reaching *upward* is the mistake to avoid — `lib/` must not import `api/`, `api/` must not import `db/`. Table formatters are the exception to the directory rule: they live at `src/format.ts` and `src/format-report.ts` (root level, importing `db` types), not under `commands/`.
+Reaching *upward* is the mistake to avoid — `lib/` must not import `api/`, `api/` must not import `db/`. Text formatters live in `src/render/` (between `db/` and `commands/`): they import `db` types and write nothing to stdout.
 
 `docs/ARCHITECTURE.md` has per-module detail but is **stale**: its diagram shows `api` and `db` as peers that only import `lib`, it omits the format modules, and it describes a Commander `parseAsync().catch()` entrypoint that no longer exists. Trust the code.
 
