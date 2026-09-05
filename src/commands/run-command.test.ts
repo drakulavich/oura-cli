@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'bun:test';
 import { execute, type RunnerIo, type DataCommandDef, type Ctx } from './run-command.js';
 import { CliError } from '../lib/errors.js';
+import { OuraClient } from '../api/client.js';
 
 function fakeIo(isTty = false) {
   const out: string[] = []; const err: string[] = []; const exits: number[] = [];
@@ -119,5 +120,36 @@ describe('execute', () => {
     await execute(def, { ...baseArgs, format: 'yaml' }, io);
     expect(JSON.parse(err[0]).error.code).toBe('BAD_ARGS');
     expect(exits).toEqual([1]);
+  });
+
+  it('maps a missing token to TOKEN_MISSING / exit 2 when needs.client is set', async () => {
+    const saved = { OURA_TOKEN: process.env.OURA_TOKEN, OURA_TOKEN_PATH: process.env.OURA_TOKEN_PATH };
+    delete process.env.OURA_TOKEN;
+    process.env.OURA_TOKEN_PATH = '/nonexistent/oura-token-for-runner-test';
+    try {
+      const def: DataCommandDef<{}> = {
+        meta: { name: 'x' }, needs: { client: true },
+        run: () => ({ json: 'unreachable', text: () => 'unreachable' }),
+      };
+      const { io, out, err, exits } = fakeIo(false);
+      await execute(def, { ...baseArgs, token: undefined }, io);
+      expect(out).toEqual([]);
+      expect(JSON.parse(err[0]).error.code).toBe('TOKEN_MISSING');
+      expect(exits).toEqual([2]);
+    } finally {
+      for (const [k, v] of Object.entries(saved)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+    }
+  });
+
+  it('builds ctx.client from args.token when needs.client is set', async () => {
+    let captured: Ctx['client'];
+    const def: DataCommandDef<{}> = {
+      meta: { name: 'x' }, needs: { client: true },
+      run: ctx => { captured = ctx.client; return { json: true, text: () => '' }; },
+    };
+    const { io, exits } = fakeIo(false);
+    await execute(def, { ...baseArgs, token: 'inline-token' }, io);
+    expect(captured).toBeInstanceOf(OuraClient);
+    expect(exits).toEqual([]);
   });
 });
