@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import { defineCommand, runMain } from 'citty';
+import type { SubCommandsDef } from 'citty';
 import { loginCommand } from './commands/login.js';
 import { describeCommand } from './commands/describe.js';
 import { syncCommand } from './commands/sync.js';
@@ -19,6 +20,18 @@ if (process.argv.includes('--no-color') || process.env.NO_COLOR) {
   chalk.level = 0;
 }
 
+const subCommands: SubCommandsDef = {
+  login:       loginCommand,
+  describe:    describeCommand(VERSION, () => subCommands),
+  healthcheck: healthcheckCommand(VERSION),
+  doctor:      doctorCommand,
+  manifest:    manifestCommand(VERSION, () => subCommands),
+  fetch:       fetchCommand,
+  sync:        syncCommand,
+  db:          dbCommand,
+  report:      reportCommand,
+};
+
 const main = defineCommand({
   meta: {
     name: 'oura-cli',
@@ -26,17 +39,7 @@ const main = defineCommand({
     description: 'Oura Ring CLI — query and analyze Oura Ring health data. Designed for humans and agents.',
   },
   args: { ...commonArgs },
-  subCommands: {
-    login:       loginCommand,
-    describe:    describeCommand(VERSION),
-    healthcheck: healthcheckCommand(VERSION),
-    doctor:      doctorCommand,
-    manifest:    manifestCommand(VERSION),
-    fetch:       fetchCommand,
-    sync:        syncCommand,
-    db:          dbCommand,
-    report:      reportCommand,
-  },
+  subCommands,
 });
 
 const normalized = normalizeArgv(process.argv);
