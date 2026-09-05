@@ -1,10 +1,13 @@
 import { describe, it, expect } from 'bun:test';
+import { join } from 'path';
 import { formatFromArgv } from './lib/format-resolve.js';
+
+const ENTRY = join(import.meta.dir, 'index.ts');
 
 // End-to-end through src/index.ts: everything here is piped (no TTY), so errors must be
 // a single JSON envelope on stderr with nothing on stdout.
 async function run(...argv: string[]) {
-  const proc = Bun.spawn(['bun', 'run', 'src/index.ts', '--db', ':memory:', ...argv], { stdout: 'pipe', stderr: 'pipe' });
+  const proc = Bun.spawn(['bun', 'run', ENTRY, '--db', ':memory:', ...argv], { stdout: 'pipe', stderr: 'pipe', cwd: join(import.meta.dir, '..') });
   const [stdout, stderr] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
   const code = await proc.exited;
   return { stdout, stderr, code };

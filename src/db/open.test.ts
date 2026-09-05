@@ -1,6 +1,6 @@
-import { describe, it, expect, afterEach } from 'bun:test';
+import { describe, it, expect, afterEach, afterAll } from 'bun:test';
 import { CliError } from '../lib/errors.js';
-import { mkdtempSync, writeFileSync } from 'fs';
+import { mkdtempSync, writeFileSync, rmSync } from 'fs';
 import { Database } from 'bun:sqlite';
 import { openDatabase, ensureSchema, type Migration } from './open.js';
 import { unlinkSync } from 'fs';
@@ -100,6 +100,7 @@ describe('Database', () => {
 
 describe('openDatabase errors', () => {
   const dir = mkdtempSync(join(tmpdir(), 'oura-open-'));
+  afterAll(() => { rmSync(dir, { recursive: true, force: true }); });
 
   it('reports a file that is not a database as DB_ERROR with a hint', () => {
     const junk = join(dir, 'junk.db');

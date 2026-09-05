@@ -147,11 +147,15 @@ describe('execute', () => {
   it('reports a corrupt database file as DB_ERROR / exit 4', async () => {
     const path = `/tmp/oura-runner-corrupt-${process.pid}.db`;
     await Bun.write(path, 'junk');
-    const def: DataCommandDef<{}> = { meta: { name: 'x' }, needs: { db: true }, run: () => ({ json: 1, text: () => '1' }) };
-    const { io, err, exits } = fakeIo(false);
-    await execute(def, { ...baseArgs, db: path }, io);
-    expect(JSON.parse(err[0]).error.code).toBe('DB_ERROR');
-    expect(exits).toEqual([4]);
+    try {
+      const def: DataCommandDef<{}> = { meta: { name: 'x' }, needs: { db: true }, run: () => ({ json: 1, text: () => '1' }) };
+      const { io, err, exits } = fakeIo(false);
+      await execute(def, { ...baseArgs, db: path }, io);
+      expect(JSON.parse(err[0]).error.code).toBe('DB_ERROR');
+      expect(exits).toEqual([4]);
+    } finally {
+      await Bun.file(path).delete();
+    }
   });
 
   describe('undeclared arguments', () => {
@@ -171,10 +175,12 @@ describe('execute', () => {
       expect(exits).toEqual([1]);
     });
 
-    it('spells a single-character key the way it was typed (-5)', async () => {
+    it('spells a single-character key the way it was typed (-5) and explains short flags', async () => {
       const { io, err } = fakeIo(false);
       await execute(def, { ...baseArgs, '5': true } as any, io);
-      expect(JSON.parse(err[0]).error.message).toContain('-5');
+      const e = JSON.parse(err[0]).error;
+      expect(e.message).toContain('-5');
+      expect(e.hint).toContain('"--"');
     });
 
     it('rejects positionals beyond the declared ones', async () => {
@@ -186,7 +192,8 @@ describe('execute', () => {
 
     it('accepts declared flags, their camelCase twins, the no- negation and the declared positional', async () => {
       const { io, out, exits } = fakeIo(false);
-      await execute(def, { ...baseArgs, day: '2026-01-01', _: ['a'], name: 'a', noColor: true, color: false } as any, io);
+      // The three keys are exactly what citty produces for `--no-color`.
+      await execute(def, { ...baseArgs, day: '2026-01-01', _: ['a'], name: 'a', 'no-color': false, noColor: false, color: false } as any, io);
       expect(JSON.parse(out[0])).toBe('ran');
       expect(exits).toEqual([]);
     });
