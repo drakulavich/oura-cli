@@ -10,6 +10,8 @@ export const hr = defineCollection<OuraHeartRate>({
     { name: 'timestamp', type: 'TEXT', pick: r => r.timestamp },
     { name: 'bpm', type: 'INTEGER', pick: r => r.bpm },
     { name: 'source', type: 'TEXT', pick: r => r.source },
+    // Calendar date as written in Oura's timestamp (UTC in practice; not re-derived from the offset), not the
+    // user's local day; `--day`/`--tz` filter by local midnight instead.
     { name: 'day', type: 'TEXT', pick: r => r.timestamp.slice(0, 10) },
   ],
   indexes: [

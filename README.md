@@ -170,10 +170,12 @@ Runtime: [Bun](https://bun.sh). Storage: built-in `bun:sqlite`. CLI parsing: [ci
 If you're driving the CLI from a script or LLM harness:
 
 - `oura-cli describe` — JSON manifest of every command, argument, and output schema. Agents discover capabilities without scraping `--help`.
-- `oura-cli healthcheck` — `{ok, version, latencyMs}` JSON for liveness probes.
+- `oura-cli healthcheck` — `{ok, version, latencyMs}` JSON for liveness probes, plus `error` when `ok` is false.
+- Gate on `.ok`, not on the exit code: `doctor` exits 0 with `ok: false` for any warning-level check (no data yet, stale data, Oura API unreachable), and `healthcheck` exits 0 with `ok: false` for an unusable database (the probe itself ran). `doctor --offline` skips the token-validation call, and a skipped check still counts towards `ok`.
 - Errors emit a stable JSON envelope on stderr: `{"error":{"code":"…","message":"…","hint":"…"}}`.
 - Documented exit codes: `0` success, `1` user error, `2` auth, `3` API, `4` storage.
-- JSON Schemas under [`docs/schemas/`](docs/schemas/) describe every output shape, semver-stable. Per-collection schemas pin the identity fields (`id`, `day`, `timestamp`) and allow the rest of the Oura record through unchanged, so new upstream fields never break validation.
+- JSON Schemas under [`docs/schemas/`](docs/schemas/) cover `fetch <collection>`, `doctor` and the `describe` manifest itself, semver-stable; `describe` names the schema next to each command. Per-collection schemas pin the identity fields (`id`, `day`, `timestamp`) and allow the rest of the Oura record through unchanged, so new upstream fields never break validation. The local-data commands (`sync`, `db *`, `report`) have no schema files yet; their shapes are versioned through the CHANGELOG.
+- Two contract quirks, kept for compatibility: `report --period month` returns its window as `weekStart`/`weekEnd`, and `heartrate.day` in the cache is the date written in Oura's timestamp (UTC in practice) while every `--day`/`--tz` argument is local.
 
 Plays cleanly with [OpenClaw](https://github.com/openclaw/openclaw) — `oura-cli manifest` returns the tool-registry shape. A first-party `oura-mcp` companion is on the roadmap.
 

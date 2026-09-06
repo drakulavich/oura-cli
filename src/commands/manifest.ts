@@ -37,7 +37,7 @@ export function buildOpenclawManifest(version: string, commands: SubCommandsDef)
       examples: EXAMPLES[c.name] ?? [`oura-cli ${c.name}`],
     })),
     envVars: ['OURA_TOKEN', 'OURA_TOKEN_PATH', 'OURA_DB_PATH', 'OURA_TZ'],
-    healthcheck: { command: 'healthcheck', expects: { ok: 'boolean', version: 'string', latencyMs: 'number' } },
+    healthcheck: { command: 'healthcheck', expects: { ok: 'boolean', version: 'string', latencyMs: 'number', error: 'string, present only when ok is false' } },
   };
 }
 

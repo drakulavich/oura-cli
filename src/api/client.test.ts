@@ -122,10 +122,12 @@ describe('OuraClient', () => {
     describe('on 401 Unauthorized', () => {
       it('classifies the response as TOKEN_INVALID so the user knows to re-authenticate', async () => {
         mockFetch({ status: 401, body: '{"detail":"Invalid token"}' });
+        // README's recovery table says `login`; the error must say so too, like TOKEN_MISSING does.
         const client = new OuraClient();
         const err = await client.fetch('daily_sleep', { start_date: '2026-05-10' }).catch(e => e);
         expect(err).toBeInstanceOf(CliError);
         expect((err as CliError).code).toBe('TOKEN_INVALID');
+        expect((err as CliError).hint).toContain('oura-cli login');
       });
     });
 
