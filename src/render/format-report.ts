@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import type { ReportData } from '../db/report.js';
+import { formatLocal } from '../lib/time.js';
 import type { OutputFormat } from '../lib/format-resolve.js';
 
 function colorizeScore(n: number): (s: string) => string {
@@ -45,6 +46,8 @@ interface WeekBucket {
   avgReadiness: number | null;
   avgActivity: number | null;
   totalSteps: number | null;
+  /** Contains a day whose activity is still accumulating; shown as `*` like the weekly rows. */
+  partial: boolean;
 }
 
 function bucketDaysIntoWeeks(days: ReportData['days']): WeekBucket[] {
@@ -65,12 +68,25 @@ function bucketDaysIntoWeeks(days: ReportData['days']): WeekBucket[] {
       avgReadiness: readinessVals.length > 0 ? readinessVals.reduce((a, b) => a + b, 0) / readinessVals.length : null,
       avgActivity: activityVals.length > 0 ? activityVals.reduce((a, b) => a + b, 0) / activityVals.length : null,
       totalSteps: stepsVals.length > 0 ? stepsVals.reduce((a, b) => a + b, 0) : null,
+      partial: chunk.some(d => d.partial),
     });
   }
   return buckets;
 }
 
-export function formatReport(data: ReportData, format: OutputFormat, period: 'week' | 'month'): string {
+/** One line explaining the `*` mark: which day is still accumulating and how far the activity averages go. */
+function partialDayNote(data: ReportData, tz: string): string | null {
+  const partial = data.days.filter(d => d.partial);
+  if (partial.length === 0) return null;
+  const newest = partial[partial.length - 1]!;
+  const newestLabel = newest.day === data.weekEnd ? 'today' : newest.dayLabel;
+  const which = partial.length === 1 ? `${newestLabel} is` : `${newestLabel} and ${partial.length - 1} earlier day${partial.length > 2 ? 's' : ''} are`;
+  const synced = data.lastUpload ? `ring last synced ${formatLocal(data.lastUpload, tz)}` : 'ring sync time unknown';
+  const covers = data.completeThrough ? `through ${data.completeThrough}` : 'no complete day yet';
+  return `  * ${which} still accumulating (${synced}); activity averages cover ${covers}.`;
+}
+
+export function formatReport(data: ReportData, format: OutputFormat, period: 'week' | 'month', tz = 'UTC'): string {
   if (format === 'json') return JSON.stringify(data, null, 2);
 
   const lines: string[] = [];
@@ -83,6 +99,8 @@ export function formatReport(data: ReportData, format: OutputFormat, period: 'we
     lines.push(chalk.bold('  Oura Monthly Report'));
   }
   lines.push(chalk.gray(`  ${data.weekStart} — ${data.weekEnd}`));
+  const note = partialDayNote(data, tz);
+  if (note) lines.push(chalk.yellow(note));
   lines.push('');
 
   const hasReportData = data.days.some(day =>
@@ -102,7 +120,7 @@ export function formatReport(data: ReportData, format: OutputFormat, period: 'we
     lines.push(`  ${'Day'.padEnd(10)} ${'Sleep'.padStart(6)} ${'Ready'.padStart(6)} ${'Active'.padStart(7)} ${'Steps'.padStart(8)}`);
     lines.push(chalk.gray('  ' + '─'.repeat(52)));
     for (const d of data.days) {
-      lines.push(`  ${d.dayLabel.padEnd(10)} ${scoreCell(d.sleep, 6)} ${scoreCell(d.readiness, 6)} ${scoreCell(d.activity, 7)} ${stepsCell(d.steps, 8)}`);
+      lines.push(`  ${(d.partial ? d.dayLabel + '*' : d.dayLabel).padEnd(10)} ${scoreCell(d.sleep, 6)} ${scoreCell(d.readiness, 6)} ${scoreCell(d.activity, 7)} ${stepsCell(d.steps, 8)}`);
     }
     lines.push('');
   } else {
@@ -116,7 +134,7 @@ export function formatReport(data: ReportData, format: OutputFormat, period: 'we
       const avgSleepInt = b.avgSleep !== null ? Math.round(b.avgSleep) : null;
       const avgReadyInt = b.avgReadiness !== null ? Math.round(b.avgReadiness) : null;
       const avgActiveInt = b.avgActivity !== null ? Math.round(b.avgActivity) : null;
-      lines.push(`  ${b.weekOf.padEnd(12)} ${scoreCell(avgSleepInt, 6)} ${scoreCell(avgReadyInt, 6)} ${scoreCell(avgActiveInt, 7)} ${stepsCell(b.totalSteps, 10)}`);
+      lines.push(`  ${(b.partial ? b.weekOf + '*' : b.weekOf).padEnd(12)} ${scoreCell(avgSleepInt, 6)} ${scoreCell(avgReadyInt, 6)} ${scoreCell(avgActiveInt, 7)} ${stepsCell(b.totalSteps, 10)}`);
     }
     lines.push('');
   }

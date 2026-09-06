@@ -10,10 +10,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 - `db trends N` covers N calendar days ending today; it used to include one day more than the heading claimed. (#52)
+- `report` no longer averages a day whose activity is still accumulating as if it were complete. A day counts as complete once it is over in the report timezone and the ring has uploaded past its end (the newest heart-rate sample in the cache is the proxy); activity and steps averages, the high-activity pattern and the steps recommendation stop at the last complete day, while sleep and readiness — final once they exist — still use the whole window. The partial day stays in the daily table, marked `*`, with one line explaining it. (#57)
 - A 401/403 from the Oura API carries a hint (`oura-cli login` with a fresh token), like a missing token already did. (#54)
 
 ### Changed
 - `manifest`: `healthcheck.expects` lists the `error` field that `healthcheck` emits when `ok` is false. (#54)
+- `report` JSON: `days[].partial`, `completeThrough`, `lastUpload` and `averages[].count` are added; nothing is removed or renamed. (#57)
 - README's automation section no longer claims JSON Schemas for every output shape (they cover `fetch` and `doctor`), explains that `doctor` and `healthcheck` exit 0 with `ok: false` when the probe itself ran, and records two quirks kept for compatibility: `report --period month` returns `weekStart`/`weekEnd`, and `heartrate.day` is the date written in Oura's timestamp, UTC in practice. (#54)
 
 ## [0.5.1] - 2026-09-05

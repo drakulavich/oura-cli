@@ -32,6 +32,9 @@ function insertActivity(dayStr: string, score: number | null, steps: number | nu
     nextId(), dayStr, score, steps
   );
 }
+function insertHeartrate(timestamp: string): void {
+  db.query("INSERT INTO heartrate (timestamp, bpm, source, day) VALUES (?, 60, 'awake', ?)").run(timestamp, timestamp.slice(0, 10));
+}
 function insertSpo2(dayStr: string, avg: number | null): void {
   db.query('INSERT INTO daily_spo2 (id, day, spo2_average) VALUES (?,?,?)').run(nextId(), dayStr, avg);
 }
@@ -260,5 +263,95 @@ describe('getReport recommendations', () => {
     insertActivity(day(1), 80, 9000); // not < 8000, not >= 10000
 
     expect(getReport(db, 7, TODAY).recommendations).toEqual([]);
+  });
+});
+
+describe('getReport partial days', () => {
+  // Activity accumulates all day; sleep and readiness are final once they exist.
+
+  it('marks today as partial and keeps its steps out of the activity average, while its sleep score counts', () => {
+    insertActivity(day(1), 80, 10000);
+    insertActivity(day(0), 50, 300);
+    insertSleep(day(1), 80);
+    insertSleep(day(0), 90);
+    insertHeartrate(`${day(0)}T09:00:00Z`);
+
+    const report = getReport(db, 7, TODAY, 'UTC');
+    const byDay = Object.fromEntries(report.days.map(d => [d.day, d]));
+    expect(byDay[day(0)]!.partial).toBe(true);
+    expect(byDay[day(1)]!.partial).toBe(false);
+    expect(byDay[day(0)]!.steps).toBe(300); // still shown, just not averaged
+    expect(report.completeThrough).toBe(day(1));
+    expect(report.lastUpload).toBe(`${day(0)}T09:00:00Z`);
+
+    const steps = report.averages.find(a => a.label === 'Steps')!;
+    expect(steps.avg).toBe(10000);
+    expect(steps.count).toBe(1);
+    const sleep = report.averages.find(a => a.label === 'Sleep')!;
+    expect(sleep.avg).toBe(85);
+    expect(sleep.count).toBe(2);
+    expect(report.recommendations).toContain('steps_great');
+    expect(report.recommendations).not.toContain('steps_low');
+  });
+
+  it('treats an earlier day as partial when the ring stopped uploading before that day ended (#57)', () => {
+    insertActivity(day(2), 80, 9000);
+    insertActivity(day(1), 60, 382);          // ring uploaded its first hour, then went quiet
+    insertHeartrate(`${day(1)}T01:08:00Z`);
+
+    const report = getReport(db, 7, TODAY, 'UTC');
+    expect(report.completeThrough).toBe(day(2));
+    expect(report.days.find(d => d.day === day(1))!.partial).toBe(true);
+    expect(report.days.find(d => d.day === day(2))!.partial).toBe(false);
+    expect(report.averages.find(a => a.label === 'Steps')!.avg).toBe(9000);
+    expect(report.recommendations).not.toContain('steps_low');
+    expect(report.patterns.highActivity.map(p => p.day)).not.toContain(day(1));
+  });
+
+  it('decides "the day is over" in the report timezone', () => {
+    insertActivity(day(2), 80, 9000);
+    insertActivity(day(1), 85, 9500);
+    // day(1) ends at 20:00Z in Dubai (UTC+4) but at 00:00Z the next day in UTC.
+    insertHeartrate(`${day(1)}T21:00:00Z`);
+
+    expect(getReport(db, 7, TODAY, 'Asia/Dubai').completeThrough).toBe(day(1));
+    expect(getReport(db, 7, TODAY, 'UTC').completeThrough).toBe(day(2));
+  });
+
+  it('falls back to the calendar when the cache holds no heart-rate samples', () => {
+    insertActivity(day(1), 80, 5000);
+    insertActivity(day(0), 70, 100);
+
+    const report = getReport(db, 7, TODAY);
+    expect(report.lastUpload).toBeNull();
+    expect(report.completeThrough).toBe(day(1));
+    expect(report.days.find(d => d.day === day(0))!.partial).toBe(true);
+    expect(report.averages.find(a => a.label === 'Steps')!.avg).toBe(5000);
+    expect(report.recommendations).toContain('steps_low');
+  });
+
+  it('omits the activity average and steps recommendation when the only activity data is today\'s', () => {
+    insertActivity(day(0), 70, 100);
+    insertHeartrate(`${day(0)}T09:00:00Z`);
+
+    const report = getReport(db, 7, TODAY, 'UTC');
+    expect(report.completeThrough).toBe(day(1)); // yesterday is over, it just has no rows
+    expect(report.averages.find(a => a.label === 'Steps')).toBeUndefined();
+    expect(report.recommendations).toEqual([]);
+  });
+
+  it('has no complete day when the ring has not uploaded past the end of any day in the window', () => {
+    insertActivity(day(6), 70, 100);
+    insertHeartrate(`${day(6)}T09:00:00Z`);
+
+    const report = getReport(db, 7, TODAY, 'UTC');
+    expect(report.completeThrough).toBeNull();
+    expect(report.days.find(d => d.day === day(6))!.partial).toBe(true);
+    expect(report.averages.find(a => a.label === 'Steps')).toBeUndefined();
+  });
+
+  it('never marks a day partial for sleep alone', () => {
+    insertSleep(day(0), 90);
+    expect(getReport(db, 7, TODAY, 'UTC').days.find(d => d.day === day(0))!.partial).toBe(false);
   });
 });

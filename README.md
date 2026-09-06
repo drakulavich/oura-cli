@@ -96,7 +96,7 @@ oura-cli report                   # weekly (default)
 oura-cli report --period month    # 30-day window with weekly buckets
 ```
 
-Reports cover daily scores, averages, deltas vs the previous window, sleep details, and a short recommendation block.
+Reports cover daily scores, averages, deltas vs the previous window, sleep details, and a short recommendation block. A day whose activity is still accumulating (today, or the last day before the ring stopped syncing) is shown with a `*` and kept out of the activity averages and recommendations; the JSON says so via `days[].partial` and `completeThrough`.
 
 ### Trends and stats
 

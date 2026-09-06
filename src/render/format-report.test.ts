@@ -10,9 +10,11 @@ const fixture: ReportData = {
   weekStart: '2026-05-07',
   weekEnd: '2026-05-13',
   days: [
-    { day: '2026-05-07', dayLabel: 'Thu 07/05', sleep: 87, readiness: 85, activity: 90, steps: 9668 },
-    { day: '2026-05-08', dayLabel: 'Fri 08/05', sleep: 71, readiness: 74, activity: 88, steps: 7697 },
+    { day: '2026-05-07', dayLabel: 'Thu 07/05', sleep: 87, readiness: 85, activity: 90, steps: 9668, partial: false },
+    { day: '2026-05-08', dayLabel: 'Fri 08/05', sleep: 71, readiness: 74, activity: 88, steps: 7697, partial: false },
   ],
+  completeThrough: '2026-05-13',
+  lastUpload: null,
   averages: [],
   spo2: null,
   patterns: { lowSleep: [], lowReadiness: [], highActivity: [] },
@@ -45,8 +47,8 @@ describe('formatReport — daily table column alignment', () => {
     const lowFixture: ReportData = {
       ...fixture,
       days: [
-        { day: '2026-05-13', dayLabel: 'Wed 13/05', sleep: 44, readiness: 57, activity: 63, steps: 795 },
-        { day: '2026-05-07', dayLabel: 'Thu 07/05', sleep: 87, readiness: 85, activity: 90, steps: 9668 },
+        { day: '2026-05-13', dayLabel: 'Wed 13/05', sleep: 44, readiness: 57, activity: 63, steps: 795, partial: false },
+        { day: '2026-05-07', dayLabel: 'Thu 07/05', sleep: 87, readiness: 85, activity: 90, steps: 9668, partial: false },
       ],
     };
     const out = stripAnsi(formatReport(lowFixture, 'table', 'week'));
@@ -99,5 +101,44 @@ describe('formatReport — first run', () => {
 
     expect(out).toContain('Sleep Details (averages):');
     expect(out).not.toContain('No Oura data is available for this report yet.');
+  });
+});
+
+describe('formatReport — partial day', () => {
+  const partialFixture: ReportData = {
+    ...fixture,
+    weekEnd: '2026-05-08',
+    days: [fixture.days[0]!, { ...fixture.days[1]!, steps: 382, partial: true }],
+    completeThrough: '2026-05-07',
+    lastUpload: '2026-05-08T01:08:00Z',
+  };
+
+  it('marks the accumulating row with * and explains it once, in the report timezone', () => {
+    const out = stripAnsi(formatReport(partialFixture, 'table', 'week', 'Asia/Dubai'));
+    expect(out).toContain('Fri 08/05*');
+    expect(out).toContain('Thu 07/05 ');
+    expect(out).toContain('* today is still accumulating (ring last synced 2026-05-08 05:08); activity averages cover through 2026-05-07.');
+  });
+
+  it('names the day when the partial day is not today', () => {
+    const data = { ...partialFixture, weekEnd: '2026-05-09' };
+    const out = stripAnsi(formatReport(data, 'table', 'week'));
+    expect(out).toContain('* Fri 08/05 is still accumulating');
+  });
+
+  it('counts several accumulating days in the note', () => {
+    const data = { ...partialFixture, days: partialFixture.days.map(d => ({ ...d, partial: true })), weekEnd: '2026-05-09' };
+    const out = stripAnsi(formatReport(data, 'table', 'week'));
+    expect(out).toContain('* Fri 08/05 and 1 earlier day are still accumulating');
+  });
+
+  it('marks the monthly bucket that holds the accumulating day and keeps the note', () => {
+    const out = stripAnsi(formatReport({ ...partialFixture, period: 'month' }, 'table', 'month'));
+    expect(out).toContain('2026-05-07*');
+    expect(out).toContain('still accumulating');
+  });
+
+  it('prints no note when every day is complete', () => {
+    expect(stripAnsi(formatReport(fixture, 'table', 'week'))).not.toContain('still accumulating');
   });
 });
