@@ -290,13 +290,43 @@ describe('formatImportSummary', () => {
       fetched: { daily_sleep: 5 },
       added: { daily_sleep: 2 },
     };
-    const out = formatImportSummary(result);
-    expect(out).toContain('sleep 5 (+2)');
-    expect(out).toContain('workout 0 (+0)');
-    expect(out).toContain('hr 0 (+0)');
-    expect(out).toContain('cv-age 0 (+0)');
-    expect(out).toContain('battery 0 (+0)'); // every registry collection is listed
+    const out = formatImportSummary(result, 80);
+    expect(out).toMatch(/sleep +5 \(\+2\)/);
+    expect(out).toMatch(/workout +0 \(\+0\)/);
+    expect(out).toMatch(/hr +0 \(\+0\)/);
+    expect(out).toMatch(/cv-age +0 \(\+0\)/);
+    expect(out).toMatch(/battery +0 \(\+0\)/); // every registry collection is listed
     expect(out).not.toContain('undefined');
+  });
+
+  // Regression for #83: cells were joined with a fixed separator and no width input, so a
+  // narrow terminal wrapped mid-cell and `hr 70 (+0)` printed as `hr 7` / `0 (+0)`.
+  const wide: ImportResult = {
+    startDate: '2026-08-07', endDate: '2026-09-06', isFirstSync: false,
+    fetched: { heartrate: 12172 }, added: { heartrate: 8004 },
+  };
+
+  it('keeps each collection whole on one line at a narrow width', () => {
+    for (const width of [40, 60, 74, 80, 120]) {
+      const rows = formatImportSummary(wide, width).split('\n').slice(1);
+      for (const row of rows) expect(row).toMatch(/^ +[a-z0-9-]+ +\d+ \(\+\d+\)( +[a-z0-9-]+ +\d+ \(\+\d+\))*$/);
+      expect(rows.every(r => r.length <= width)).toBe(true);
+      expect(rows.join('\n')).toContain('hr');
+    }
+  });
+
+  it('lays out one cell per line when the terminal is too narrow for two', () => {
+    const rows = formatImportSummary(wide, 30).split('\n').slice(1);
+    expect(rows).toHaveLength(17); // one per registry collection
+  });
+
+  it('starts every column at the same offset', () => {
+    const rows = formatImportSummary(wide, 80).split('\n').slice(1);
+    const nameOffsets = (row: string) => [...row.matchAll(/[a-z][a-z0-9-]*/g)].map(m => m.index);
+    const columns = Math.max(...rows.map(r => nameOffsets(r).length));
+    const full = rows.filter(r => nameOffsets(r).length === columns);
+    expect(full.length).toBeGreaterThan(1);
+    for (const row of full) expect(nameOffsets(row)).toEqual(nameOffsets(full[0]!));
   });
 });
 
