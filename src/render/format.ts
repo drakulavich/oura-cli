@@ -63,12 +63,43 @@ export function formatDaySummary(summary: DaySummary, format: OutputFormat, empt
   return lines.join('\n');
 }
 
-export function formatImportSummary(result: ImportResult): string {
-  // "fetched (+new)": re-fetched rows are replaced or ignored, only +new tells whether anything arrived.
-  const cells = COLLECTIONS.map(c => `${c.name} ${result.fetched[c.table] ?? 0} (+${result.added[c.table] ?? 0})`);
+/** Width to lay text out in: the terminal's when there is one, else the conventional 80. */
+export function terminalWidth(): number {
+  return process.stdout.isTTY && process.stdout.columns ? process.stdout.columns : 80;
+}
+
+const SUMMARY_INDENT = 4;
+const SUMMARY_GAP = 2;
+const SUMMARY_MAX_COLUMNS = 4;
+
+/**
+ * Lay equal-width cells out in as many columns as `width` holds, at most four.
+ * Cells are never split: below ~74 columns the old fixed separator wrapped a count
+ * onto the next line, so `hr 70 (+0)` read as `hr 7` / `0 (+0)`.
+ */
+function grid(cells: string[], width: number): string[] {
+  const cellWidth = cells[0]?.length ?? 0;
+  const fits = Math.floor((width - SUMMARY_INDENT + SUMMARY_GAP) / (cellWidth + SUMMARY_GAP));
+  const columns = Math.max(1, Math.min(SUMMARY_MAX_COLUMNS, fits));
   const rows: string[] = [];
-  for (let i = 0; i < cells.length; i += 4) rows.push('    ' + cells.slice(i, i + 4).join('   '));
-  return [`  Fetched ${result.startDate} → ${result.endDate}, rows fetched (+new):`, ...rows].join('\n');
+  for (let i = 0; i < cells.length; i += columns) {
+    rows.push(' '.repeat(SUMMARY_INDENT) + cells.slice(i, i + columns).join(' '.repeat(SUMMARY_GAP)).trimEnd());
+  }
+  return rows;
+}
+
+export function formatImportSummary(result: ImportResult, width = terminalWidth()): string {
+  // "fetched (+new)": re-fetched rows are replaced or ignored, only +new tells whether anything arrived.
+  const counts = COLLECTIONS.map(c => ({
+    name: c.name,
+    fetched: String(result.fetched[c.table] ?? 0),
+    added: String(result.added[c.table] ?? 0),
+  }));
+  const nameW = Math.max(...counts.map(c => c.name.length));
+  const fetchedW = Math.max(...counts.map(c => c.fetched.length));
+  const cells = counts.map(c => `${c.name.padEnd(nameW)} ${c.fetched.padStart(fetchedW)} (+${c.added})`);
+  const cellW = Math.max(...cells.map(c => c.length));
+  return [`  Fetched ${result.startDate} → ${result.endDate}, rows fetched (+new):`, ...grid(cells.map(c => c.padEnd(cellW)), width)].join('\n');
 }
 
 export function formatWeekTable(days: DaySummary[], format: OutputFormat, emptyHint?: string): string {

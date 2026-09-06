@@ -91,7 +91,9 @@ export async function importDaily(
     db.transaction((rs: unknown[]) => { for (const r of rs) stmt.run(...rowValues(c, r)); })(rows);
     fetched[c.table] = rows.length;
     added[c.table] = rowCount(db, c.table) - before;
-    if (rows.length > 0) _log(`  + ${c.table}: ${rows.length} fetched, ${added[c.table]} new`);
+    // Every collection gets a line, including the ones that returned nothing: a silent
+    // collection was indistinguishable from a failed one, while the summary listed it anyway.
+    _log(rows.length > 0 ? `  + ${c.table}: ${rows.length} fetched, ${added[c.table]} new` : `  + ${c.table}: 0 fetched`);
   }
 
   _log('Import complete.');
