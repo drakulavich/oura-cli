@@ -1,5 +1,5 @@
 // First: sets NO_COLOR before citty is evaluated, which is when it decides its usage colours.
-import './lib/color-mode.js';
+import './lib/apply-color-mode.js';
 import { readFileSync } from 'fs';
 import { defineCommand, runCommand, runMain } from 'citty';
 import type { SubCommandsDef } from 'citty';
