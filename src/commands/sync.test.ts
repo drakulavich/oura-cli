@@ -271,6 +271,9 @@ describe('runSync', () => {
       const text = out.text();
       expect(text).toContain('Fetched 2026-05-17 → 2026-06-15, rows fetched (+new):');
       expect(text).toMatch(/sleep +1 +\(\+1\)/);
+      // every collection reports, under both its collection name and its table name
+      expect(text).toContain('  + tags (enhanced_tags): 0 fetched, 0 new');
+      expect(text).toContain('  + sleep (daily_sleep): 1 fetched, 1 new');
       // workouts and heartrate have no fixture rows and must still show as 0.
       expect(text).toMatch(/workout +0 +\(\+0\)/);
       expect(text).toMatch(/hr +0 +\(\+0\)/);

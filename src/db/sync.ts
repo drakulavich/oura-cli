@@ -84,16 +84,18 @@ export async function importDaily(
       })(rows);
       fetched[c.table] = rows.length;
       added[c.table] = [...ids()].filter(id => !known.has(id)).length;
-      _log(rows.length > 0 ? `  + ${c.table}: ${rows.length} fetched, ${added[c.table]} new` : `  + ${c.table}: 0 fetched, table cleared`);
+      _log(`  + ${c.name} (${c.table}): ${rows.length} fetched, ${added[c.table]} new${rows.length === 0 ? ', table cleared' : ''}`);
       continue;
     }
     const before = rowCount(db, c.table);
     db.transaction((rs: unknown[]) => { for (const r of rs) stmt.run(...rowValues(c, r)); })(rows);
     fetched[c.table] = rows.length;
     added[c.table] = rowCount(db, c.table) - before;
-    // Every collection gets a line, including the ones that returned nothing: a silent
-    // collection was indistinguishable from a failed one, while the summary listed it anyway.
-    _log(rows.length > 0 ? `  + ${c.table}: ${rows.length} fetched, ${added[c.table]} new` : `  + ${c.table}: 0 fetched`);
+    // Every collection gets a line, including the ones that returned nothing: a silent collection
+    // was indistinguishable from a failed one, while the summary listed it anyway. Both names are
+    // printed because the summary and `fetch` speak in collection names while `db stats` and the
+    // schema speak in table names.
+    _log(`  + ${c.name} (${c.table}): ${rows.length} fetched, ${added[c.table]} new`);
   }
 
   _log('Import complete.');

@@ -1,5 +1,6 @@
 import chalk from 'chalk';
-import { padLeft, padRight } from '../lib/pad.js';
+import { padLeft, padRight, visibleWidth } from '../lib/pad.js';
+import { terminalWidth } from '../lib/terminal.js';
 import type { DaySummary, TrendRow, DbStats } from '../db/queries.js';
 import { COLLECTIONS } from '../collections/index.js';
 import type { ImportResult } from '../db/sync.js';
@@ -63,29 +64,21 @@ export function formatDaySummary(summary: DaySummary, format: OutputFormat, empt
   return lines.join('\n');
 }
 
-/** Width to lay text out in: the terminal's when there is one, else the conventional 80. */
-export function terminalWidth(): number {
-  return process.stdout.isTTY && process.stdout.columns ? process.stdout.columns : 80;
-}
-
 const SUMMARY_INDENT = 4;
 const SUMMARY_GAP = 2;
 const SUMMARY_MAX_COLUMNS = 4;
 
 /**
- * Lay cells out in as many columns as `width` holds, at most four. Cells are never split:
- * below ~74 columns the old fixed separator wrapped a count onto the next line, so
- * `hr 70 (+0)` read as `hr 7` / `0 (+0)`.
- *
- * `padded` cells all share a width so the columns line up; `bare` cells carry the same text
- * unpadded. In a single column there is nothing to line up with, so the bare cells are used
- * and a narrow terminal gets the shortest line the content allows.
+ * How many columns of `cellWidth` fit in `width`, at most four and always at least one. A cell is
+ * never split across lines: below ~74 columns the old fixed separator wrapped a count onto the
+ * next line, so `hr 70 (+0)` read as `hr 7` / `0 (+0)`.
  */
-function grid(padded: string[], bare: string[], width: number): string[] {
-  const cellWidth = padded[0]?.length ?? 0;
+function columnsThatFit(cellWidth: number, width: number): number {
   const fits = Math.floor((width - SUMMARY_INDENT + SUMMARY_GAP) / (cellWidth + SUMMARY_GAP));
-  const columns = Math.max(1, Math.min(SUMMARY_MAX_COLUMNS, fits));
-  const cells = columns === 1 ? bare : padded;
+  return Math.max(1, Math.min(SUMMARY_MAX_COLUMNS, fits));
+}
+
+function rowsOf(cells: string[], columns: number): string[] {
   const rows: string[] = [];
   for (let i = 0; i < cells.length; i += columns) {
     rows.push(' '.repeat(SUMMARY_INDENT) + cells.slice(i, i + columns).join(' '.repeat(SUMMARY_GAP)).trimEnd());
@@ -100,13 +93,18 @@ export function formatImportSummary(result: ImportResult, width = terminalWidth(
     fetched: String(result.fetched[c.table] ?? 0),
     added: String(result.added[c.table] ?? 0),
   }));
-  const nameW = Math.max(...counts.map(c => c.name.length));
-  const fetchedW = Math.max(...counts.map(c => c.fetched.length));
-  const cells = counts.map(c => `${c.name.padEnd(nameW)} ${c.fetched.padStart(fetchedW)} (+${c.added})`);
-  const cellW = Math.max(...cells.map(c => c.length));
+  const nameW = Math.max(...counts.map(c => visibleWidth(c.name)));
+  const fetchedW = Math.max(...counts.map(c => visibleWidth(c.fetched)));
+  // Aligned cells share a width, so the name and count columns line up down the grid; bare cells
+  // carry the same text at its natural width, which is what a single column wants — there is
+  // nothing to line up with, and padding would push a 27-character cell past a 30-column screen.
+  const aligned = counts.map(c => `${padRight(c.name, nameW)} ${padLeft(c.fetched, fetchedW)} (+${c.added})`);
   const bare = counts.map(c => `${c.name} ${c.fetched} (+${c.added})`);
+  const cellW = Math.max(...aligned.map(visibleWidth));
+  const columns = columnsThatFit(cellW, width);
+  const cells = columns === 1 ? bare : aligned.map(c => padRight(c, cellW));
   const head = `  Fetched ${result.startDate} → ${result.endDate}, rows fetched (+new):`;
-  return [head, ...grid(cells.map(c => c.padEnd(cellW)), bare, width)].join('\n');
+  return [head, ...rowsOf(cells, columns)].join('\n');
 }
 
 export function formatWeekTable(days: DaySummary[], format: OutputFormat, emptyHint?: string): string {
