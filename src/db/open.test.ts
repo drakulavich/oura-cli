@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, afterAll } from 'bun:test';
 import { CliError } from '../lib/errors.js';
 import { mkdtempSync, writeFileSync, rmSync, statSync } from 'fs';
 import { Database } from 'bun:sqlite';
-import { openDatabase, ensureSchema, asDbError, type Migration } from './open.js';
+import { openDatabase, getDbPath, ensureSchema, asDbError, type Migration } from './open.js';
 import { unlinkSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -95,6 +95,46 @@ describe('Database', () => {
 
       db.close();
     });
+  });
+});
+
+describe('getDbPath', () => {
+  const saved = process.env.OURA_DB_PATH;
+  afterEach(() => {
+    if (saved === undefined) delete process.env.OURA_DB_PATH; else process.env.OURA_DB_PATH = saved;
+  });
+
+  it('rejects an empty --db instead of falling back to the home cache', () => {
+    let err: unknown;
+    try { getDbPath(''); } catch (e) { err = e; }
+    expect(err).toBeInstanceOf(CliError);
+    expect((err as CliError).code).toBe('BAD_ARGS');
+    expect((err as CliError).message).toContain('--db');
+  });
+
+  it('rejects a blank --db the same way as an empty one', () => {
+    let err: unknown;
+    try { getDbPath('   '); } catch (e) { err = e; }
+    expect((err as CliError).code).toBe('BAD_ARGS');
+  });
+
+  it('rejects an empty OURA_DB_PATH', () => {
+    process.env.OURA_DB_PATH = '';
+    let err: unknown;
+    try { getDbPath(); } catch (e) { err = e; }
+    expect(err).toBeInstanceOf(CliError);
+    expect((err as CliError).code).toBe('BAD_ARGS');
+    expect((err as CliError).message).toContain('OURA_DB_PATH');
+  });
+
+  it('prefers an explicit path over the environment', () => {
+    process.env.OURA_DB_PATH = '/tmp/from-env.db';
+    expect(getDbPath('/tmp/explicit.db')).toBe('/tmp/explicit.db');
+  });
+
+  it('falls back to the home cache when nothing is set', () => {
+    delete process.env.OURA_DB_PATH;
+    expect(getDbPath()).toContain('.oura-cli');
   });
 });
 

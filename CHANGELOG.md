@@ -8,6 +8,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 - `db week` lost its column alignment whenever colour was on: `padStart` counted the ANSI escapes chalk had already wrapped each score in, so it padded by nothing. Piped output was correct, which is why the tests never saw it. Padding now measures visible width (`src/lib/pad.ts`), and `report` uses the same helper. (#82)
+- An empty `--db` (or `OURA_DB_PATH`) was falsy, so it fell through to the default and every command silently opened — and migrated — the home cache at `~/.oura-cli/oura.db`. A wrapper expanding an unset variable into `--db "$VAR"` therefore wrote to the user's real database. Both now fail with `BAD_ARGS`, like the blank-but-not-empty value already did. (#76)
 - `report` decided whether a day's activity was complete from the newest heart-rate sample, but Oura publishes heart-rate days after the daily summaries: right after a ring sync the report called three fully synced days "still accumulating". A day now counts as complete once a later day has its own activity record; heart-rate plays no part. `lastUpload` stays in the JSON as information and the note no longer quotes it. (#57)
 
 ### Added
