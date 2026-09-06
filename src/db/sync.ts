@@ -34,8 +34,16 @@ export interface SyncWindow {
   to?: string;
 }
 
-function lastDay(db: Database, table: string): string | null {
-  return (db.query(`SELECT MAX(day) AS d FROM ${table}`).get() as { d: string | null }).d;
+/**
+ * The newest stored day at or before `end`. Rows dated after the window are ignored on purpose:
+ * a collection whose `day` is a day the user chose (a tag, a rest-mode period, a session) can hold
+ * a day in the future, and taking the plain MAX would invert the range — which `rangeQueries`
+ * answers with no queries at all, so the collection would silently stop syncing for good. The same
+ * inversion happens for a day whenever the resolved timezone is west of the one the cache was
+ * built in (a travelling laptop, OURA_TZ, --tz).
+ */
+function lastDay(db: Database, table: string, end: string): string | null {
+  return (db.query(`SELECT MAX(day) AS d FROM ${table} WHERE day <= ?`).get(end) as { d: string | null }).d;
 }
 
 function rowCount(db: Database, table: string): number {
@@ -55,15 +63,8 @@ export async function importDaily(
   // watermark that only the first few tables advanced.
   // Snapshot collections (rangeParams 'none') have no day column and are fetched whole every run.
   const plan = COLLECTIONS.map(c => {
-    const last = c.rangeParams === 'none' ? null : lastDay(db, c.table);
-    // A watermark past the end of the window inverts the range, and an inverted range fetches
-    // nothing at all — silently. That happens whenever the resolved timezone is west of the one
-    // the cache was built in (a travelling laptop, OURA_TZ, --tz), and permanently for a
-    // collection whose day can be in the future (a tag dated next year). Clamp instead: the
-    // end day is always requested, so the run is a re-fetch rather than a no-op. An explicit
-    // --from is never clamped — `resolveWindow` rejects one that is past the end of the window.
-    const resumeFrom = last === null || last <= end ? last ?? backfillStart : end;
-    return { c, last, start: window.from ?? resumeFrom };
+    const last = c.rangeParams === 'none' ? null : lastDay(db, c.table, end);
+    return { c, last, start: window.from ?? last ?? backfillStart };
   });
   const ranged = plan.filter(p => p.c.rangeParams !== 'none');
   const isFirstSync = ranged.every(p => p.last === null);
