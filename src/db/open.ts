@@ -28,9 +28,20 @@ export interface Migration {
   sql: string;
 }
 
+const DEFAULT_DB_DISPLAY = '~/.oura-cli/oura.db';
+
+/** A path the user supplied but left blank is a mistake, not "use the default" — see below. */
+function requirePath(value: string, source: string): string {
+  // A wrapper building `--db "$VAR"` from an unset variable would otherwise silently
+  // target (and migrate) the user's real cache instead of the sandbox it meant to use.
+  if (value.trim() === '') throw new CliError('BAD_ARGS', `${source} is empty`, `Pass a file path, or omit ${source} to use ${DEFAULT_DB_DISPLAY}.`);
+  return value;
+}
+
 export function getDbPath(explicit?: string): string {
-  if (explicit) return explicit;
-  if (process.env.OURA_DB_PATH) return process.env.OURA_DB_PATH;
+  if (explicit !== undefined) return requirePath(explicit, '--db');
+  const fromEnv = process.env.OURA_DB_PATH;
+  if (fromEnv !== undefined) return requirePath(fromEnv, 'OURA_DB_PATH');
   return resolve(homedir(), '.oura-cli', 'oura.db');
 }
 
