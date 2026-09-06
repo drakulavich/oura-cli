@@ -6,26 +6,28 @@ export const SUBCOMMANDS = new Set([
 ]);
 
 /**
- * citty parses args per-command and root-level args don't reach subcommands.
- * This normaliser moves any global flag appearing BEFORE the subcommand name
- * to AFTER it, so citty receives them in the subcommand context.
+ * citty parses args per-command, and root-level args do not reach subcommands: it also resolves
+ * a subcommand by the first non-flag token it sees, so a flag's *value* sitting between a command
+ * and its subcommand is read as the subcommand name (`db --format json today` → Unknown command
+ * "json"). This normaliser lifts every global flag, wherever it appears, to the end of the
+ * command line, so citty sees only commands up front and the flags in the innermost context.
  *
- * Example: ['bun', 'script', '--format', 'json', 'fetch', 'sleep']
- *       → ['bun', 'script', 'fetch', 'sleep', '--format', 'json']
+ * Example: ['bun', 'script', 'db', '--format', 'json', 'today']
+ *       → ['bun', 'script', 'db', 'today', '--format', 'json']
+ *
+ * Tokens after `--` are left alone: they are values, not flags.
  */
 export function normalizeArgv(argv: string[]): string[] {
   const [bun, script, ...rest] = argv;
-  const subIdx = rest.findIndex(a => SUBCOMMANDS.has(a));
-  if (subIdx < 0) return argv; // no subcommand — nothing to hoist
+  const dd = rest.indexOf('--');
+  const scanned = dd >= 0 ? rest.slice(0, dd) : rest;
+  const passthrough = dd >= 0 ? rest.slice(dd) : [];
 
-  const before = rest.slice(0, subIdx);
-  const subcommandOnwards = rest.slice(subIdx);
-
+  const kept: string[] = [];
   const hoisted: string[] = [];
-  const leftover: string[] = [];
 
-  for (let i = 0; i < before.length; i++) {
-    const tok = before[i];
+  for (let i = 0; i < scanned.length; i++) {
+    const tok = scanned[i]!;
 
     // Handle --flag=value form
     if (tok.includes('=')) {
@@ -39,8 +41,8 @@ export function normalizeArgv(argv: string[]): string[] {
     // Handle --flag value form
     if (GLOBAL_FLAGS_WITH_VALUE.has(tok)) {
       hoisted.push(tok);
-      if (i + 1 < before.length) {
-        hoisted.push(before[i + 1]);
+      if (i + 1 < scanned.length) {
+        hoisted.push(scanned[i + 1]!);
         i++;
       }
       continue;
@@ -51,15 +53,11 @@ export function normalizeArgv(argv: string[]): string[] {
       continue;
     }
 
-    leftover.push(tok);
+    kept.push(tok);
   }
 
-  // Keep hoisted flags before a `--` separator; after it mri would read them as positionals.
-  const dd = subcommandOnwards.indexOf('--');
-  if (dd >= 0) {
-    return [bun, script, ...leftover, ...subcommandOnwards.slice(0, dd), ...hoisted, ...subcommandOnwards.slice(dd)];
-  }
-  return [bun, script, ...leftover, ...subcommandOnwards, ...hoisted];
+  // Hoisted flags stay before `--`; after it mri would read them as positionals.
+  return [bun, script, ...kept, ...hoisted, ...passthrough];
 }
 
 /**

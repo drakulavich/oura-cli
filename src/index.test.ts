@@ -127,6 +127,45 @@ describe('undeclared arguments end to end', () => {
   });
 });
 
+describe('a global flag between a command and its subcommand', () => {
+  // #79: the flag's value was read as a sub-subcommand name, so `db --format json today`
+  // failed with Unknown command "json" — and with --db it echoed the whole path back.
+  it.each([
+    [['db', '--format', 'json', 'today']],
+    [['db', '--tz', 'UTC', 'today', '--format', 'json']],
+    [['db', '--no-color', 'today', '--format', 'json']],
+  ])('accepts %j', async argv => {
+    const { stdout, stderr, code } = await run(...argv);
+    expect(stderr).toBe('');
+    expect(code).toBe(0);
+    expect(JSON.parse(stdout).day).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
+describe('--format validation across every command', () => {
+  // #81: the enum lives in the format resolver, which the JSON-only commands never reach, so
+  // `--format xml` exited 0 for describe, manifest and healthcheck and 1 everywhere else.
+  it.each([
+    [['describe']],
+    [['manifest']],
+    [['healthcheck']],
+    [['doctor', '--offline']],
+    [['db', 'today']],
+  ])('rejects an unknown --format for %j', async argv => {
+    const { stdout, stderr, code } = await run(...argv, '--format', 'xml');
+    expect(stdout).toBe('');
+    const e = envelope(stderr);
+    expect(e.code).toBe('BAD_ARGS');
+    expect(e.message).toContain('xml');
+    expect(code).toBe(1);
+  });
+
+  it('still accepts json and table where they are meaningful', async () => {
+    expect((await run('describe', '--format', 'json')).code).toBe(0);
+    expect((await run('db', 'today', '--format', 'table')).code).toBe(0);
+  });
+});
+
 describe('formatFromArgv', () => {
   it('honours a valid explicit --format in either spelling', () => {
     expect(formatFromArgv(['db', '--format', 'json'], true)).toBe('json');

@@ -82,6 +82,10 @@ export function assertKnownArgs(declared: ArgsDef, args: Record<string, unknown>
   if (extra.length > 0) {
     throw new CliError('BAD_ARGS', `Unexpected argument${extra.length > 1 ? 's' : ''}: ${extra.join(' ')}.`, 'Run the command with --help to see its arguments.');
   }
+  // The value, not just the name: `describe`, `manifest` and `healthcheck` are JSON-only and never
+  // reach the resolver in execute(), so `--format xml` used to exit 0 for them and 1 everywhere else.
+  // Every command calls this function, which makes it the one place that sees them all.
+  if ('format' in declared) resolveFormat({ explicit: args.format as string | undefined, isTty: true });
 }
 
 export async function execute<A extends ArgsDef>(

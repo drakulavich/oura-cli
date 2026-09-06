@@ -1,5 +1,6 @@
+// First: sets NO_COLOR before citty is evaluated, which is when it decides its usage colours.
+import './lib/color-mode.js';
 import { readFileSync } from 'fs';
-import chalk from 'chalk';
 import { defineCommand, runCommand, runMain } from 'citty';
 import type { SubCommandsDef } from 'citty';
 import { loginCommand } from './commands/login.js';
@@ -20,11 +21,6 @@ import { formatFromArgv } from './lib/format-resolve.js';
 const VERSION = (JSON.parse(
   readFileSync(new URL('../package.json', import.meta.url), 'utf-8'),
 ) as { version: string }).version;
-
-// Apply --no-color / NO_COLOR early, before any chalk usage in this process.
-if (process.argv.includes('--no-color') || process.env.NO_COLOR) {
-  chalk.level = 0;
-}
 
 // Null prototype: otherwise `oura-cli constructor` resolves to Object.prototype.constructor and exits 0 silently.
 const subCommands: SubCommandsDef = Object.assign(Object.create(null) as SubCommandsDef, {
