@@ -315,9 +315,11 @@ describe('formatImportSummary', () => {
     }
   });
 
-  it('lays out one cell per line when the terminal is too narrow for two', () => {
+  it('lays out one cell per line when the terminal is too narrow for two, without padding it out', () => {
     const rows = formatImportSummary(wide, 30).split('\n').slice(1);
     expect(rows).toHaveLength(17); // one per registry collection
+    expect(rows).toContain('    hr 12172 (+8004)');
+    for (const row of rows) expect(row.length).toBeLessThanOrEqual(30);
   });
 
   it('starts every column at the same offset', () => {

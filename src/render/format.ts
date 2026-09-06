@@ -73,14 +73,19 @@ const SUMMARY_GAP = 2;
 const SUMMARY_MAX_COLUMNS = 4;
 
 /**
- * Lay equal-width cells out in as many columns as `width` holds, at most four.
- * Cells are never split: below ~74 columns the old fixed separator wrapped a count
- * onto the next line, so `hr 70 (+0)` read as `hr 7` / `0 (+0)`.
+ * Lay cells out in as many columns as `width` holds, at most four. Cells are never split:
+ * below ~74 columns the old fixed separator wrapped a count onto the next line, so
+ * `hr 70 (+0)` read as `hr 7` / `0 (+0)`.
+ *
+ * `padded` cells all share a width so the columns line up; `bare` cells carry the same text
+ * unpadded. In a single column there is nothing to line up with, so the bare cells are used
+ * and a narrow terminal gets the shortest line the content allows.
  */
-function grid(cells: string[], width: number): string[] {
-  const cellWidth = cells[0]?.length ?? 0;
+function grid(padded: string[], bare: string[], width: number): string[] {
+  const cellWidth = padded[0]?.length ?? 0;
   const fits = Math.floor((width - SUMMARY_INDENT + SUMMARY_GAP) / (cellWidth + SUMMARY_GAP));
   const columns = Math.max(1, Math.min(SUMMARY_MAX_COLUMNS, fits));
+  const cells = columns === 1 ? bare : padded;
   const rows: string[] = [];
   for (let i = 0; i < cells.length; i += columns) {
     rows.push(' '.repeat(SUMMARY_INDENT) + cells.slice(i, i + columns).join(' '.repeat(SUMMARY_GAP)).trimEnd());
@@ -99,7 +104,9 @@ export function formatImportSummary(result: ImportResult, width = terminalWidth(
   const fetchedW = Math.max(...counts.map(c => c.fetched.length));
   const cells = counts.map(c => `${c.name.padEnd(nameW)} ${c.fetched.padStart(fetchedW)} (+${c.added})`);
   const cellW = Math.max(...cells.map(c => c.length));
-  return [`  Fetched ${result.startDate} → ${result.endDate}, rows fetched (+new):`, ...grid(cells.map(c => c.padEnd(cellW)), width)].join('\n');
+  const bare = counts.map(c => `${c.name} ${c.fetched} (+${c.added})`);
+  const head = `  Fetched ${result.startDate} → ${result.endDate}, rows fetched (+new):`;
+  return [head, ...grid(cells.map(c => c.padEnd(cellW)), bare, width)].join('\n');
 }
 
 export function formatWeekTable(days: DaySummary[], format: OutputFormat, emptyHint?: string): string {
