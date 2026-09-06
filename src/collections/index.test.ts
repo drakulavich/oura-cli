@@ -112,6 +112,11 @@ describe('rangeQueries', () => {
     });
   });
 
+  it('re-walks days behind the watermark only where Oura backfills them', () => {
+    const lookback = Object.fromEntries(COLLECTIONS.filter(c => c.syncLookbackDays).map(c => [c.name, c.syncLookbackDays]));
+    expect(lookback).toEqual({ hr: 14 }); // #68: workout samples arrive up to 11 days late
+  });
+
   it('gives every snapshot collection a primary-key column, which the sync replace path keys on', () => {
     for (const c of COLLECTIONS.filter(c => c.rangeParams === 'none')) {
       expect(c.columns.some(col => col.pk)).toBe(true);

@@ -43,6 +43,14 @@ export interface Collection<Row> {
   /** Longest range (in days) the endpoint accepts per request; longer ranges are split. heartrate: 30. */
   maxRangeDays?: number;
   /**
+   * Days behind the stored watermark an incremental `sync` re-requests. The default 0 (one day of
+   * overlap, since the watermark day itself is re-fetched) is right for the daily summaries, which
+   * Oura revises for a day or two and which are stored with INSERT OR REPLACE. `heartrate` needs
+   * more: Oura keeps appending `source='workout'` samples to days already behind the watermark,
+   * and those days are never revisited again.
+   */
+  syncLookbackDays?: number;
+  /**
    * Days to add to `start_date` and `end_date` so the request covers exactly the local days asked
    * for. The daily endpoints treat both bounds inclusively; `sleep` returns a record with day D only
    * when start_date < D <= end_date ([-1, 0]); `workout`, `vO2_max`, `rest_mode_period` and `enhanced_tag`
