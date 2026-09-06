@@ -6,6 +6,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- `report` decided whether a day's activity was complete from the newest heart-rate sample, but Oura publishes heart-rate days after the daily summaries: right after a ring sync the report called three fully synced days "still accumulating". A day now counts as complete once a later day has its own activity record; heart-rate plays no part. `lastUpload` stays in the JSON as information and the note no longer quotes it. (#57)
+
 ## [0.5.2] - 2026-09-06
 
 ### Fixed

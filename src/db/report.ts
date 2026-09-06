@@ -1,5 +1,5 @@
 import type { Database } from './open.js';
-import { daysBack, localDateToUtcRange, shiftDay } from '../lib/time.js';
+import { daysBack, shiftDay } from '../lib/time.js';
 
 export interface ReportData {
   period: 'week' | 'month';
@@ -13,19 +13,20 @@ export interface ReportData {
     activity: number | null;
     steps: number | null;
     /**
-     * Activity totals for this day are still accumulating (see `completeThrough`). Normally only the newest
-     * day with activity; several when activity rows exist past the ring's last known upload.
+     * This day's activity totals are still accumulating: it has an activity record and no later day has one
+     * yet (see `completeThrough`). At most one day in the window — today after a sync, or the last day the
+     * ring uploaded before it went quiet.
      */
     partial: boolean;
   }[];
   /**
-   * Last day of the window whose activity totals are final: the day is over in the user's timezone and the
-   * ring has uploaded past its end. Activity/steps averages, the high-activity pattern and the steps
+   * Last day of the window whose activity totals are final: a later day already has an activity record,
+   * so Oura has moved on from it. Activity/steps averages, the high-activity pattern and the steps
    * recommendation stop here; sleep and readiness are never partial and use the whole window.
    * Null when no day in the window is complete yet.
    */
   completeThrough: string | null;
-  /** Newest heart-rate sample in the cache (ISO 8601 UTC) — the ring's last upload as far as the cache knows. */
+  /** Newest heart-rate sample in the cache (ISO 8601 UTC). Informational; heart-rate publishing can lag the daily summaries by days. */
   lastUpload: string | null;
   averages: {
     label: string;
@@ -66,7 +67,7 @@ function dayLabel(dateStr: string): string {
   return `${day} ${dd}/${mm}`;
 }
 
-export function getReport(db: Database, days: number, today: string, tz = 'UTC'): ReportData {
+export function getReport(db: Database, days: number, today: string): ReportData {
   const period: 'week' | 'month' = days <= 7 ? 'week' : 'month';
   const weekEnd = today;
   const weekStart = shiftDay(today, -(days - 1));
@@ -74,13 +75,18 @@ export function getReport(db: Database, days: number, today: string, tz = 'UTC')
   const prevWeekStart = shiftDay(today, -(days * 2 - 1));
   const windowDays = daysBack(today, days);
 
-  // Activity accumulates all day, so a day's totals are final only once the day is over locally *and* the
-  // ring has uploaded past its end; the newest heart-rate sample is the cache's view of that upload. Without
-  // any sample the calendar alone decides. Sleep and readiness scores exist only once the night is over,
-  // so they are never partial and are not cut here.
+  // Activity accumulates all day (Oura's daily_activity record grows until the next day starts), so a day's
+  // totals are final once a later day has its own record: that is the ring's own evidence that it moved on.
+  // The newest day with data — today, or the last day before the ring stopped uploading — is therefore
+  // partial. Heart-rate samples are deliberately not used: their publishing lags the summaries by days.
+  // Sleep and readiness scores exist only once the night is over, so they are never partial and not cut.
   const lastUpload = (db.query('SELECT MAX(timestamp) AS t FROM heartrate').get() as { t: string | null }).t;
-  const isComplete = (d: string): boolean =>
-    d < today && (lastUpload === null || Date.parse(localDateToUtcRange(d, tz)[1]) <= Date.parse(lastUpload));
+  // Deliberately unbounded: a record past the window still proves Oura moved on from the days inside it.
+  const newestActivityDay = (db.query('SELECT MAX(day) AS d FROM daily_activity').get() as { d: string | null }).d;
+  // `d < today` is kept on purpose: a record dated after today (a ring with a wrong clock, a hand-made
+  // import) must not close today out; the cost is a false "partial" only when the ring's own timezone has
+  // already rolled into tomorrow while the report timezone has not.
+  const isComplete = (d: string): boolean => d < today && newestActivityDay !== null && newestActivityDay > d;
   const completeThrough = [...windowDays].reverse().find(isComplete) ?? null;
   const activityEnd = completeThrough ?? shiftDay(weekStart, -1); // BETWEEN with start > end selects nothing
 
