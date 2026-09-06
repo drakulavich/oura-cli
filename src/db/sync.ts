@@ -56,13 +56,14 @@ export async function importDaily(
   // Snapshot collections (rangeParams 'none') have no day column and are fetched whole every run.
   const plan = COLLECTIONS.map(c => {
     const last = c.rangeParams === 'none' ? null : lastDay(db, c.table);
-    const from = window.from ?? last ?? backfillStart;
     // A watermark past the end of the window inverts the range, and an inverted range fetches
     // nothing at all — silently. That happens whenever the resolved timezone is west of the one
     // the cache was built in (a travelling laptop, OURA_TZ, --tz), and permanently for a
     // collection whose day can be in the future (a tag dated next year). Clamp instead: the
-    // end day is always requested, so the run is a re-fetch rather than a no-op.
-    return { c, last, start: from > end ? end : from };
+    // end day is always requested, so the run is a re-fetch rather than a no-op. An explicit
+    // --from is never clamped — `resolveWindow` rejects one that is past the end of the window.
+    const resumeFrom = last === null || last <= end ? last ?? backfillStart : end;
+    return { c, last, start: window.from ?? resumeFrom };
   });
   const ranged = plan.filter(p => p.c.rangeParams !== 'none');
   const isFirstSync = ranged.every(p => p.last === null);
