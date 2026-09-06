@@ -24,9 +24,10 @@ describe('registry DDL vs shipped migrations', () => {
     }
   });
 
-  it('registers all nine collections', () => {
-    expect(COLLECTIONS.map(c => c.name).sort()).toEqual(
-      ['activity', 'cv-age', 'hr', 'readiness', 'sleep', 'sleep-periods', 'spo2', 'stress', 'workout'],
-    );
+  it('registers all seventeen collections', () => {
+    expect(COLLECTIONS.map(c => c.name).sort()).toEqual([
+      'activity', 'battery', 'cv-age', 'hr', 'readiness', 'resilience', 'rest-mode', 'ring', 'session',
+      'sleep', 'sleep-periods', 'sleep-time', 'spo2', 'stress', 'tags', 'vo2max', 'workout',
+    ]);
   });
 });

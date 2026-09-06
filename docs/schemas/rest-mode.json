@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/drakulavich/oura-cli/blob/main/docs/schemas/rest-mode.json",
+  "title": "oura-cli fetch rest-mode output",
+  "description": "Rest mode periods; `day` is the period start day, episodes are kept as JSON",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": true,
+    "required": [
+      "id",
+      "start_day"
+    ],
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Oura record id"
+      },
+      "start_day": {
+        "type": "string",
+        "format": "date",
+        "description": "First day of the period (YYYY-MM-DD)"
+      }
+    }
+  }
+}

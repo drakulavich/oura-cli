@@ -1,5 +1,6 @@
 import { OuraClient } from '../api/client.js';
 import { byName, fetchCollection, names } from '../collections/index.js';
+import type { AnyCollection } from '../collections/types.js';
 import { CliError } from '../lib/errors.js';
 import { shiftDay } from '../lib/time.js';
 import { assertCalendarDate, assertPositiveInt } from '../lib/validate.js';
@@ -26,10 +27,17 @@ export function resolveRange(opts: { day?: string; from?: string; to?: string; d
   return { start: opts.today, end: opts.today };
 }
 
+/** A snapshot collection (`rangeParams: 'none'`) takes no range flags; silently ignoring them would be #50 again. */
+export function assertRangeAllowed(c: AnyCollection, opts: { day?: string; from?: string; to?: string; days?: string }): void {
+  if (c.rangeParams === 'none' && [opts.day, opts.from, opts.to, opts.days].some(v => v !== undefined)) {
+    throw new CliError('BAD_ARGS', `"${c.name}" is a snapshot, not a day range; it takes no --day, --from/--to or --days.`);
+  }
+}
+
 export const fetchCommand = dataCommand({
   meta: { name: 'fetch', description: 'Fetch raw records for one Oura collection straight from the API (JSON).' },
   args: {
-    collection: { type: 'positional', required: true, description: `Collection: ${names().join(' | ')}` },
+    collection: { type: 'positional', required: true, description: `Collection: ${names().join(' | ')} (ring is a snapshot and takes no range flags)` },
     day:  { type: 'string', description: 'Single day (YYYY-MM-DD). Default: today.' },
     from: { type: 'string', description: 'Range start (YYYY-MM-DD); requires --to' },
     to:   { type: 'string', description: 'Range end (YYYY-MM-DD); requires --from' },
@@ -40,10 +48,12 @@ export const fetchCommand = dataCommand({
     // Validate arguments before touching the token so BAD_ARGS wins over TOKEN_MISSING.
     const c = byName(args.collection);
     if (!c) throw new CliError('BAD_ARGS', `Unknown collection "${args.collection}".`, `Valid collections: ${names().join(', ')}`);
-    const { start, end } = resolveRange({
+    const opts = {
       day: args.day as string | undefined, from: args.from as string | undefined,
-      to: args.to as string | undefined, days: args.days as string | undefined, today: ctx.today,
-    });
+      to: args.to as string | undefined, days: args.days as string | undefined,
+    };
+    assertRangeAllowed(c, opts);
+    const { start, end } = resolveRange({ ...opts, today: ctx.today });
     const client = new OuraClient(args.token ? { token: args.token as string } : {});
     const data = await fetchCollection(client, c, start, end, ctx.tz);
     return { json: data, text: () => JSON.stringify(data, null, 2) };

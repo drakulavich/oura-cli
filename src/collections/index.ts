@@ -10,12 +10,21 @@ import { stress } from './stress.js';
 import { workout } from './workout.js';
 import { sleepPeriods } from './sleep-periods.js';
 import { cvAge } from './cv-age.js';
+import { resilience } from './resilience.js';
+import { vo2max } from './vo2max.js';
+import { sleepTime } from './sleep-time.js';
+import { session } from './session.js';
+import { restMode } from './rest-mode.js';
+import { tags } from './tags.js';
+import { ring } from './ring.js';
+import { battery } from './battery.js';
 
 export type { AnyCollection, Collection, Column, SqlValue } from './types.js';
 
 /** Order is the sync order and the order tables appear in `db stats`. */
 export const COLLECTIONS: readonly AnyCollection[] = [
   sleep, readiness, activity, hr, spo2, stress, workout, sleepPeriods, cvAge,
+  resilience, vo2max, sleepTime, session, restMode, tags, ring, battery,
 ];
 
 export function names(): string[] {
@@ -88,6 +97,7 @@ function datetimeQueries(start: string, end: string, tz: string, maxDays: number
  * endpoint allows (`maxRangeDays`). Empty when the range is inverted.
  */
 export function rangeQueries(c: AnyCollection, start: string, end: string, tz: string): Array<Record<string, string>> {
+  if (c.rangeParams === 'none') return [{}]; // a snapshot endpoint: one request, whatever the range
   if (start > end) return [];
   return c.rangeParams === 'date'
     ? dateQueries(start, end, c.maxRangeDays, c.dayRangeOffset ?? [0, 0])

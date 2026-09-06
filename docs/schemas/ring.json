@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/drakulavich/oura-cli/blob/main/docs/schemas/ring.json",
+  "title": "oura-cli fetch ring output",
+  "description": "Ring hardware, colour, size, firmware and set-up time; a snapshot list, not a day range",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": true,
+    "required": [
+      "id"
+    ],
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Oura ring id"
+      }
+    }
+  }
+}

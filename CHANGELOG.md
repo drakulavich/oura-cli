@@ -9,6 +9,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 - `report` decided whether a day's activity was complete from the newest heart-rate sample, but Oura publishes heart-rate days after the daily summaries: right after a ring sync the report called three fully synced days "still accumulating". A day now counts as complete once a later day has its own activity record; heart-rate plays no part. `lastUpload` stays in the JSON as information and the note no longer quotes it. (#57)
 
+### Added
+- Eight collections from the Oura OpenAPI spec (1.37), each available through `fetch <name>`, stored by `sync`, listed in `describe`/`manifest`, counted by `db stats`, with a JSON Schema under `docs/schemas/`: `resilience` (daily_resilience), `vo2max` (vO2_max — its table has existed since 0.1 and is finally populated), `sleep-time` (sleep_time), `session` (session), `rest-mode` (rest_mode_period), `tags` (enhanced_tag; the legacy `tag` endpoint is not offered), `ring` (ring_configuration) and `battery` (ring_battery_level, a timestamp-keyed timeseries fetched in pieces of at most 30 days like `hr`). Schema migration 3 creates the seven new tables. (#44)
+- Collection registry: `rangeParams: 'none'` for snapshot endpoints that take no range. `fetch` rejects `--day`/`--from`/`--to`/`--days` for them with `BAD_ARGS` instead of ignoring the flags, and `sync` replaces the table with each response (a ring removed from the account disappears locally too) instead of keeping a watermark — also under `--from/--to`, since a snapshot has no history to backfill.
+
+### Changed
+- The `sync` text summary lists every registry collection by its `fetch` name (`sleep 28 (+0)   readiness …`), four per line, instead of a hand-written list of nine tables.
+
 ## [0.5.2] - 2026-09-06
 
 ### Fixed

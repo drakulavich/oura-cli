@@ -272,8 +272,8 @@ describe('runSync', () => {
       expect(text).toContain('Fetched 2026-05-17 → 2026-06-15, rows fetched (+new):');
       expect(text).toMatch(/sleep 1 \(\+1\)/);
       // workouts and heartrate have no fixture rows and must still show as 0.
-      expect(text).toMatch(/workouts 0 \(\+0\)/);
-      expect(text).toMatch(/heart rate 0 \(\+0\)/);
+      expect(text).toMatch(/workout 0 \(\+0\)/);
+      expect(text).toMatch(/hr 0 \(\+0\)/);
     });
 
     it('ends with exactly formatDaySummary(today, "table")', async () => {

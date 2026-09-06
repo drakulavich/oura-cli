@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import type { DaySummary, TrendRow, DbStats } from '../db/queries.js';
+import { COLLECTIONS } from '../collections/index.js';
 import type { ImportResult } from '../db/sync.js';
 import type { OutputFormat } from '../lib/format-resolve.js';
 
@@ -63,12 +64,10 @@ export function formatDaySummary(summary: DaySummary, format: OutputFormat, empt
 
 export function formatImportSummary(result: ImportResult): string {
   // "fetched (+new)": re-fetched rows are replaced or ignored, only +new tells whether anything arrived.
-  const n = (table: string) => `${result.fetched[table] ?? 0} (+${result.added[table] ?? 0})`;
-  return [
-    `  Fetched ${result.startDate} → ${result.endDate}, rows fetched (+new):`,
-    `    sleep ${n('daily_sleep')}   readiness ${n('daily_readiness')}   activity ${n('daily_activity')}   sleep periods ${n('sleep_model')}`,
-    `    spo2 ${n('daily_spo2')}   stress ${n('daily_stress')}   workouts ${n('workouts')}   heart rate ${n('heartrate')}   cardiovascular age ${n('cardiovascular_age')}`,
-  ].join('\n');
+  const cells = COLLECTIONS.map(c => `${c.name} ${result.fetched[c.table] ?? 0} (+${result.added[c.table] ?? 0})`);
+  const rows: string[] = [];
+  for (let i = 0; i < cells.length; i += 4) rows.push('    ' + cells.slice(i, i + 4).join('   '));
+  return [`  Fetched ${result.startDate} → ${result.endDate}, rows fetched (+new):`, ...rows].join('\n');
 }
 
 export function formatWeekTable(days: DaySummary[], format: OutputFormat, emptyHint?: string): string {

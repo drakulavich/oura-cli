@@ -35,16 +35,18 @@ export interface Collection<Row> {
   conflict: 'replace' | 'ignore';
   /**
    * Query parameters the endpoint takes for a day range: `start_date`/`end_date` (YYYY-MM-DD),
-   * or `start_datetime`/`end_datetime` (ISO 8601) — the heartrate timeseries uses the latter.
+   * `start_datetime`/`end_datetime` (ISO 8601 — the heartrate and battery timeseries), or `none`
+   * for a snapshot endpoint such as ring_configuration that takes no range at all and is fetched
+   * whole every time (`fetch` rejects range flags for it; `sync` keeps no watermark).
    */
-  rangeParams: 'date' | 'datetime';
+  rangeParams: 'date' | 'datetime' | 'none';
   /** Longest range (in days) the endpoint accepts per request; longer ranges are split. heartrate: 30. */
   maxRangeDays?: number;
   /**
    * Days to add to `start_date` and `end_date` so the request covers exactly the local days asked
    * for. The daily endpoints treat both bounds inclusively; `sleep` returns a record with day D only
-   * when start_date < D <= end_date ([-1, 0]); `workout` only when start_date <= D < end_date ([0, 1]).
-   * Verified live against the API on 2026-09-05.
+   * when start_date < D <= end_date ([-1, 0]); `workout`, `vO2_max`, `rest_mode_period` and `enhanced_tag`
+   * only when start_date <= D < end_date ([0, 1]). Verified live against the API on 2026-09-05/06.
    */
   dayRangeOffset?: readonly [start: number, end: number];
   identity: readonly IdentityField[];
