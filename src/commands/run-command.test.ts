@@ -158,6 +158,19 @@ describe('execute', () => {
     }
   });
 
+  it('refuses an empty --db with BAD_ARGS / exit 1 instead of opening the home cache', async () => {
+    // #76: `--db ""` — what a wrapper produces from an unset variable — used to fall through
+    // to ~/.oura-cli/oura.db and migrate it.
+    const def: DataCommandDef<{}> = { meta: { name: 'x' }, needs: { db: true }, run: () => ({ json: 1, text: () => '1' }) };
+    const { io, out, err, exits } = fakeIo(false);
+    await execute(def, { ...baseArgs, db: '' }, io);
+    expect(out).toEqual([]);
+    const e = JSON.parse(err[0]!).error;
+    expect(e.code).toBe('BAD_ARGS');
+    expect(e.message).toContain('--db');
+    expect(exits).toEqual([1]);
+  });
+
   describe('undeclared arguments', () => {
     const def: DataCommandDef<{ day: { type: 'string' }; name: { type: 'positional'; required: false } }> = {
       meta: { name: 'x' },
