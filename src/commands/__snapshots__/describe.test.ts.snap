@@ -275,6 +275,7 @@ exports[`buildOpenclawManifest matches the snapshot 1`] = `
   "healthcheck": {
     "command": "healthcheck",
     "expects": {
+      "error": "string, present only when ok is false",
       "latencyMs": "number",
       "ok": "boolean",
       "version": "string",

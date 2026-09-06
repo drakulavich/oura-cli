@@ -62,7 +62,7 @@ export class OuraClient {
       const redacted = redactSecrets(rawBody);
       const body = redacted.length > 200 ? redacted.slice(0, 200) + '… (truncated)' : redacted;
       if (response.status === 401 || response.status === 403) {
-        throw new CliError('TOKEN_INVALID', `Oura API ${response.status}: ${body}`);
+        throw new CliError('TOKEN_INVALID', `Oura API ${response.status}: ${body}`, 'Run `oura-cli login` with a fresh Personal Access Token, or check OURA_TOKEN.');
       }
       throw new CliError('API_ERROR', `Oura API ${response.status}: ${body}`);
     }

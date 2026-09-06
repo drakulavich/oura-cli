@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import { defineCommand } from 'citty';
-import { buildManifest } from './describe.js';
+import { describeCommand, buildManifest } from './describe.js';
 import { buildOpenclawManifest } from './manifest.js';
 import { names } from '../collections/index.js';
 import { fetchCommand } from './fetch.js';
@@ -76,5 +76,13 @@ describe('buildOpenclawManifest', () => {
   });
   it('matches the snapshot', () => {
     expect(o).toMatchSnapshot();
+  });
+});
+
+describe('schema discovery', () => {
+  it('links the manifest schema from the describe entry itself, so an agent can validate what it just read', () => {
+    const describe = describeCommand('0.0.0', () => ({}));
+    const manifest = buildManifest('0.0.0', { describe });
+    expect(manifest.commands.find(c => c.name === 'describe')?.outputSchema).toBe('docs/schemas/describe.json');
   });
 });

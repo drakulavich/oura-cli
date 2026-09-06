@@ -38,7 +38,7 @@ export interface Manifest {
   commands: ManifestCommand[];
 }
 
-const OUTPUT_SCHEMAS: Record<string, string> = { doctor: 'docs/schemas/doctor.json' };
+const OUTPUT_SCHEMAS: Record<string, string> = { doctor: 'docs/schemas/doctor.json', describe: 'docs/schemas/describe.json' };
 const ENUM_ARGS: Record<string, Record<string, string[]>> = {
   fetch: { collection: names() },
   report: { period: ['week', 'month'] },
