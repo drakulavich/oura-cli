@@ -142,6 +142,19 @@ describe('a global flag between a command and its subcommand', () => {
   });
 });
 
+describe('a global flag whose value is missing swallows the next flag', () => {
+  it('reads `--token --format json` as a token, the way citty parses it', async () => {
+    // Documented, not fixed: mri gives the value slot to the next token whatever it looks like,
+    // so `--token` with no value takes `--format` and leaves `json` as the command. Changing this
+    // would mean second-guessing which values are "really" flags.
+    const { stderr, code } = await run('db', '--token', '--format', 'json', 'today');
+    const e = envelope(stderr);
+    expect(e.code).toBe('BAD_ARGS');
+    expect(e.message).toContain('json');
+    expect(code).toBe(1);
+  });
+});
+
 describe('--format validation across every command', () => {
   // #81: the enum lives in the format resolver, which the JSON-only commands never reach, so
   // `--format xml` exited 0 for describe, manifest and healthcheck and 1 everywhere else.
@@ -158,6 +171,15 @@ describe('--format validation across every command', () => {
     expect(e.code).toBe('BAD_ARGS');
     expect(e.message).toContain('xml');
     expect(code).toBe(1);
+  });
+
+  it('reports the same error for a bad format whichever path validates it', async () => {
+    // execute() resolves the format before checking flag names; the JSON-only commands call
+    // assertKnownArgs directly. Both now name the format first.
+    const viaRunner = envelope((await run('db', 'today', '--format', 'xml', '--bogus', '1')).stderr);
+    const viaAssert = envelope((await run('describe', '--format', 'xml', '--bogus', '1')).stderr);
+    expect(viaRunner.message).toBe(viaAssert.message);
+    expect(viaRunner.message).toContain('xml');
   });
 
   it('still accepts json and table where they are meaningful', async () => {

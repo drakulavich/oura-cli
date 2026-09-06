@@ -25,6 +25,11 @@ describe('shouldDisableColor', () => {
     expect(shouldDisableColor([], { FORCE_COLOR: '1' }, false)).toBe(false);
   });
 
+  it.each([['0'], ['false'], ['']])('treats FORCE_COLOR=%j as off, the way chalk does', value => {
+    // Otherwise chalk goes plain while citty keeps its escapes, and one screen has both.
+    expect(shouldDisableColor([], { FORCE_COLOR: value }, false)).toBe(true);
+  });
+
   it('lets an explicit --no-color win over FORCE_COLOR', () => {
     expect(shouldDisableColor(['--no-color'], { FORCE_COLOR: '1' }, false)).toBe(true);
   });
