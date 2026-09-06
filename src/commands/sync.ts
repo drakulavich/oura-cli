@@ -6,11 +6,15 @@ import { CliError } from '../lib/errors.js';
 import { assertCalendarDate } from '../lib/validate.js';
 import { dataCommand, type Ctx, type Output } from './run-command.js';
 
-export function resolveWindow(opts: { from?: string; to?: string }): SyncWindow {
+export function resolveWindow(opts: { from?: string; to?: string }, today: string): SyncWindow {
   if (opts.to !== undefined && opts.from === undefined) throw new CliError('BAD_ARGS', '--to requires --from.');
   const from = opts.from === undefined ? undefined : assertCalendarDate(opts.from, '--from');
   const to = opts.to === undefined ? undefined : assertCalendarDate(opts.to, '--to');
   if (from !== undefined && to !== undefined && from > to) throw new CliError('BAD_ARGS', `--from (${from}) must not be after --to (${to}).`);
+  // Without --to the window ends today. An explicit --from past it is a mistake worth naming:
+  // the sync would otherwise be clamped to today and quietly fetch a window nobody asked for.
+  const end = to ?? today;
+  if (from !== undefined && from > end) throw new CliError('BAD_ARGS', `--from (${from}) is after the end of the window (${end}).`);
   return { from, to };
 }
 
@@ -32,5 +36,5 @@ export const syncCommand = dataCommand({
     to:   { type: 'string', description: 'End of the explicit window (YYYY-MM-DD, default: today); requires --from' },
   },
   needs: { db: true, client: true },
-  run: (ctx, args) => runSync(ctx, resolveWindow({ from: args.from as string | undefined, to: args.to as string | undefined })),
+  run: (ctx, args) => runSync(ctx, resolveWindow({ from: args.from as string | undefined, to: args.to as string | undefined }, ctx.today)),
 });

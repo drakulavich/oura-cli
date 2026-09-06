@@ -318,19 +318,23 @@ describe('runSync', () => {
 
 describe('resolveWindow', () => {
   it('returns an empty window when no flags are given', () => {
-    expect(resolveWindow({})).toEqual({ from: undefined, to: undefined });
+    expect(resolveWindow({}, '2026-08-10')).toEqual({ from: undefined, to: undefined });
+  });
+  it('accepts a --from as late as today', () => {
+    expect(resolveWindow({ from: '2026-08-10' }, '2026-08-10')).toEqual({ from: '2026-08-10', to: undefined });
   });
   it('accepts --from alone and --from with --to', () => {
-    expect(resolveWindow({ from: '2026-08-01' })).toEqual({ from: '2026-08-01', to: undefined });
-    expect(resolveWindow({ from: '2026-08-01', to: '2026-08-07' })).toEqual({ from: '2026-08-01', to: '2026-08-07' });
+    expect(resolveWindow({ from: '2026-08-01' }, '2026-08-10')).toEqual({ from: '2026-08-01', to: undefined });
+    expect(resolveWindow({ from: '2026-08-01', to: '2026-08-07' }, '2026-08-10')).toEqual({ from: '2026-08-01', to: '2026-08-07' });
   });
   it.each([
     [{ to: '2026-08-07' }],
     [{ from: '2026-08-07', to: '2026-08-01' }],
     [{ from: '2026-02-30' }],
+    [{ from: '2026-08-11' }], // after today: the clamp would otherwise sync a window nobody asked for
   ])('rejects %j with BAD_ARGS', opts => {
     let err: unknown;
-    try { resolveWindow(opts); } catch (e) { err = e; }
+    try { resolveWindow(opts, '2026-08-10'); } catch (e) { err = e; }
     expect(err).toBeInstanceOf(CliError);
     expect((err as CliError).code).toBe('BAD_ARGS');
   });
