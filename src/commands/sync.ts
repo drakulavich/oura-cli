@@ -14,7 +14,10 @@ export function resolveWindow(opts: { from?: string; to?: string }, today: strin
   // Without --to the window ends today. An explicit --from past it is a mistake worth naming:
   // the sync would otherwise be clamped to today and quietly fetch a window nobody asked for.
   const end = to ?? today;
-  if (from !== undefined && from > end) throw new CliError('BAD_ARGS', `--from (${from}) is after the end of the window (${end}).`);
+  if (from !== undefined && from > end) {
+    throw new CliError('BAD_ARGS', `--from (${from}) is after the end of the window (${end}).`,
+      'Pass --to as well to sync a window that ends in the future.');
+  }
   return { from, to };
 }
 

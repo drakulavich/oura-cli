@@ -210,29 +210,43 @@ describe('Import', () => {
       expect(result.startDate).toBe('2026-05-17'); // the earliest window across collections
     });
 
-    it('clamps a watermark later than the window end so the end day is still fetched', async () => {
-      // #69: --tz west of the cache's zone (or a day-stamped row in the future) put MAX(day)
-      // after today, the range inverted, and the collection silently fetched nothing.
+    it('ignores a stored day past the end of the window and resumes from the day before it', async () => {
+      // #69: --tz west of the cache's zone put MAX(day) after today, the range inverted, and
+      // `rangeQueries` answers an inverted range with no queries at all — a silent no-op.
       const db = new Database(':memory:');
       ensureSchema(db);
-      db.query("INSERT INTO daily_sleep (id, day) VALUES ('s', '2026-06-16')").run();
+      db.query("INSERT INTO daily_sleep (id, day) VALUES ('s', '2026-06-14')").run();
+      db.query("INSERT INTO daily_sleep (id, day) VALUES ('tomorrow', '2026-06-16')").run();
       const calls: Array<[OuraEndpoint, Record<string, string>]> = [];
       await importDaily(db, recordingClient(calls), { today: '2026-06-15', tz: 'UTC' });
       db.close();
 
-      expect(queriesFor(calls, 'daily_sleep')).toEqual([{ start_date: '2026-06-15', end_date: '2026-06-15' }]);
+      expect(queriesFor(calls, 'daily_sleep')).toEqual([{ start_date: '2026-06-14', end_date: '2026-06-15' }]);
     });
 
-    it('clamps a far-future watermark, so one tag dated next year does not freeze the collection', async () => {
+    it('keeps fetching the days behind a tag dated in the future, which Oura allows', async () => {
       const db = new Database(':memory:');
       ensureSchema(db);
-      db.query("INSERT INTO enhanced_tags (id, day) VALUES ('t', '2027-01-01')").run();
+      db.query("INSERT INTO enhanced_tags (id, day) VALUES ('real', '2026-06-08')").run();
+      db.query("INSERT INTO enhanced_tags (id, day) VALUES ('future', '2027-01-01')").run();
       const calls: Array<[OuraEndpoint, Record<string, string>]> = [];
       await importDaily(db, recordingClient(calls), { today: '2026-06-15', tz: 'UTC' });
       db.close();
 
+      // Resumes from the real tag, not from the future one: the six days between must not be skipped.
       // enhanced_tag excludes end_date, hence the [0, 1] offset on the end bound.
-      expect(queriesFor(calls, 'enhanced_tag')).toEqual([{ start_date: '2026-06-15', end_date: '2026-06-16' }]);
+      expect(queriesFor(calls, 'enhanced_tag')).toEqual([{ start_date: '2026-06-08', end_date: '2026-06-16' }]);
+    });
+
+    it('backfills a collection that holds nothing but future days, instead of asking for one day', async () => {
+      const db = new Database(':memory:');
+      ensureSchema(db);
+      db.query("INSERT INTO enhanced_tags (id, day) VALUES ('future', '2027-01-01')").run();
+      const calls: Array<[OuraEndpoint, Record<string, string>]> = [];
+      await importDaily(db, recordingClient(calls), { today: '2026-06-15', tz: 'UTC' });
+      db.close();
+
+      expect(queriesFor(calls, 'enhanced_tag')).toEqual([{ start_date: '2026-05-17', end_date: '2026-06-16' }]);
     });
 
     it('an explicit window replaces every watermark', async () => {
