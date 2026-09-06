@@ -249,6 +249,22 @@ describe('Import', () => {
       expect(queriesFor(calls, 'enhanced_tag')).toEqual([{ start_date: '2026-05-17', end_date: '2026-06-16' }]);
     });
 
+    it('re-walks the days behind the heartrate watermark, since Oura backfills workout samples late', async () => {
+      // #68: an incremental sync overlapped by one day, so samples Oura added to older days
+      // were never fetched — 8,004 of them over 9 days on the account this was found on.
+      const db = new Database(':memory:');
+      ensureSchema(db);
+      db.query("INSERT INTO heartrate (timestamp, bpm, source, day) VALUES ('2026-06-14T10:00:00+00:00', 60, 'awake', '2026-06-14')").run();
+      db.query("INSERT INTO daily_sleep (id, day) VALUES ('s', '2026-06-14')").run();
+      const calls: Array<[OuraEndpoint, Record<string, string>]> = [];
+      await importDaily(db, recordingClient(calls), { today: '2026-06-15', tz: 'UTC' });
+      db.close();
+
+      expect(queriesFor(calls, 'heartrate')[0]!.start_datetime).toBe('2026-05-31T00:00:00.000Z'); // 14 days back
+      // the daily summaries keep their one-day overlap: Oura revises those, it does not append to them.
+      expect(queriesFor(calls, 'daily_sleep')).toEqual([{ start_date: '2026-06-14', end_date: '2026-06-15' }]);
+    });
+
     it('an explicit window replaces every watermark', async () => {
       const db = new Database(':memory:');
       ensureSchema(db);

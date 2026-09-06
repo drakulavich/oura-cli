@@ -54,7 +54,7 @@ oura-cli sync     # first sync fetches the last 30 days; later syncs resume from
 oura-cli report   # weekly digest in the terminal
 ```
 
-Subsequent `oura-cli sync` re-fetches each collection from its own last stored day (Oura revises recent days, so the overlap is deliberate) and reports rows fetched (+new). `oura-cli sync --from 2026-08-01 [--to 2026-08-07]` re-fetches an explicit window for every collection instead — for example after an interrupted sync. `oura-cli db today` / `oura-cli db week` read the local cache instantly, no API call.
+Subsequent `oura-cli sync` re-fetches each collection from its own last stored day (Oura revises recent days, so the overlap is deliberate) and reports rows fetched (+new). Heart rate goes back two weeks each time, because Oura publishes workout samples days after the day they belong to. `oura-cli sync --from 2026-08-01 [--to 2026-08-07]` re-fetches an explicit window for every collection instead — for example after an interrupted sync. `oura-cli db today` / `oura-cli db week` read the local cache instantly, no API call.
 
 ### If something looks wrong
 

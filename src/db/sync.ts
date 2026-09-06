@@ -64,7 +64,11 @@ export async function importDaily(
   // Snapshot collections (rangeParams 'none') have no day column and are fetched whole every run.
   const plan = COLLECTIONS.map(c => {
     const last = c.rangeParams === 'none' ? null : lastDay(db, c.table, end);
-    return { c, last, start: window.from ?? last ?? backfillStart };
+    // The watermark day is re-fetched, plus whatever the collection asks for behind it: Oura
+    // backfills some collections days late, and a day left behind the watermark is never
+    // revisited. An explicit --from replaces the whole calculation.
+    const resumeFrom = last === null ? backfillStart : shiftDay(last, -(c.syncLookbackDays ?? 0));
+    return { c, last, start: window.from ?? resumeFrom };
   });
   const ranged = plan.filter(p => p.c.rangeParams !== 'none');
   const isFirstSync = ranged.every(p => p.last === null);
