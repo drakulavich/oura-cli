@@ -1,6 +1,5 @@
 import chalk from 'chalk';
 import type { ReportData } from '../db/report.js';
-import { formatLocal } from '../lib/time.js';
 import type { OutputFormat } from '../lib/format-resolve.js';
 
 function colorizeScore(n: number): (s: string) => string {
@@ -75,18 +74,15 @@ function bucketDaysIntoWeeks(days: ReportData['days']): WeekBucket[] {
 }
 
 /** One line explaining the `*` mark: which day is still accumulating and how far the activity averages go. */
-function partialDayNote(data: ReportData, tz: string): string | null {
-  const partial = data.days.filter(d => d.partial);
-  if (partial.length === 0) return null;
-  const newest = partial[partial.length - 1]!;
-  const newestLabel = newest.day === data.weekEnd ? 'today' : newest.dayLabel;
-  const which = partial.length === 1 ? `${newestLabel} is` : `${newestLabel} and ${partial.length - 1} earlier day${partial.length > 2 ? 's' : ''} are`;
-  const synced = data.lastUpload ? `ring last synced ${formatLocal(data.lastUpload, tz)}` : 'ring sync time unknown';
+function partialDayNote(data: ReportData): string | null {
+  const partial = data.days.find(d => d.partial); // the rule yields at most one
+  if (!partial) return null;
+  const which = partial.day === data.weekEnd ? 'today' : partial.dayLabel;
   const covers = data.completeThrough ? `through ${data.completeThrough}` : 'no complete day yet';
-  return `  * ${which} still accumulating (${synced}); activity averages cover ${covers}.`;
+  return `  * ${which} is still accumulating; activity averages cover ${covers}.`;
 }
 
-export function formatReport(data: ReportData, format: OutputFormat, period: 'week' | 'month', tz = 'UTC'): string {
+export function formatReport(data: ReportData, format: OutputFormat, period: 'week' | 'month'): string {
   if (format === 'json') return JSON.stringify(data, null, 2);
 
   const lines: string[] = [];
@@ -99,7 +95,7 @@ export function formatReport(data: ReportData, format: OutputFormat, period: 'we
     lines.push(chalk.bold('  Oura Monthly Report'));
   }
   lines.push(chalk.gray(`  ${data.weekStart} — ${data.weekEnd}`));
-  const note = partialDayNote(data, tz);
+  const note = partialDayNote(data);
   if (note) lines.push(chalk.yellow(note));
   lines.push('');
 
