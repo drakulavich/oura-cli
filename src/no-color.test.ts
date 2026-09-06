@@ -22,6 +22,12 @@ describe('--no-color / NO_COLOR', () => {
 
   // #80: citty colours its usage output itself and reads NO_COLOR when its module is evaluated,
   // so --no-color used to leave the help screen coloured while NO_COLOR=1 cleaned it.
+  //
+  // These cases assert the *absence* of colour, which holds everywhere. The FORCE_COLOR side —
+  // that we do not disable colour when the user asked for it — is pinned in
+  // src/lib/color-mode.test.ts instead: whether a renderer then actually emits escapes depends on
+  // the environment (GitHub Actions suppresses them regardless), so asserting it here fails in CI
+  // while passing locally. Test the decision we make, not the renderer's.
   it('emits no ANSI escapes in help output with --no-color', async () => {
     const out = await run(['--help', '--no-color'], { NO_COLOR: undefined });
     expect(out).toContain('oura-cli');
