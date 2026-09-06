@@ -8,13 +8,19 @@ export interface ResolveFormatArgs {
   isTty: boolean;
 }
 
+/**
+ * Reject a `--format` value that is neither shape. Split out of `resolveFormat` because the
+ * JSON-only commands (`describe`, `manifest`, `healthcheck`) never resolve a format — they always
+ * print JSON — but must still refuse an unknown one instead of exiting 0 (#81).
+ */
+export function assertValidFormat(explicit: string | undefined): asserts explicit is OutputFormat | undefined {
+  if (explicit === undefined || explicit === 'table' || explicit === 'json') return;
+  throw new CliError('BAD_ARGS', `Unknown --format value: "${explicit}". Use "table" or "json".`);
+}
+
 export function resolveFormat({ explicit, isTty }: ResolveFormatArgs): OutputFormat {
-  if (explicit === undefined) return isTty ? 'table' : 'json';
-  if (explicit === 'table' || explicit === 'json') return explicit;
-  throw new CliError(
-    'BAD_ARGS',
-    `Unknown --format value: "${explicit}". Use "table" or "json".`,
-  );
+  assertValidFormat(explicit);
+  return explicit ?? (isTty ? 'table' : 'json');
 }
 
 /**

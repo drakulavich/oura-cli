@@ -10,8 +10,13 @@
 /** Just the variables that matter, so `process.env` and a test literal both fit. */
 export type ColorEnv = Readonly<Record<string, string | undefined>>;
 
+/** chalk reads `FORCE_COLOR=0` and `FORCE_COLOR=false` as "off"; anything else asks for colour. */
+function forcesColor(value: string | undefined): boolean {
+  return value !== undefined && value !== '' && value !== '0' && value !== 'false';
+}
+
 /** True when colour must be off: the user said so, or output is piped and nothing forces it. */
 export function shouldDisableColor(argv: readonly string[], env: ColorEnv, isTty: boolean): boolean {
   if (argv.includes('--no-color') || env.NO_COLOR) return true;
-  return !isTty && !env.FORCE_COLOR;
+  return !isTty && !forcesColor(env.FORCE_COLOR);
 }

@@ -68,7 +68,7 @@ CI runs type-check → tests → build → `npm audit` (high+). Only the first t
 
 ## Environment
 
-`OURA_TOKEN` (or `OURA_TOKEN_PATH`) authenticates; `OURA_DB_PATH` overrides the `~/.oura-cli/oura.db` cache; `OURA_TZ` sets the timezone used for day boundaries; `NO_COLOR` (or `--no-color`) disables ANSI, and is applied in `src/index.ts` before any chalk call.
+`OURA_TOKEN` (or `OURA_TOKEN_PATH`) authenticates; `OURA_DB_PATH` overrides the `~/.oura-cli/oura.db` cache; `OURA_TZ` sets the timezone used for day boundaries; `NO_COLOR` (or `--no-color`) disables ANSI. The rule lives in `src/lib/color-mode.ts` and is applied by `src/lib/apply-color-mode.ts`, which **must stay the first import in `src/index.ts`**: citty decides whether to colour its help output when its module is evaluated, so a later assignment is too late (#80).
 
 ## Repo Notes
 
