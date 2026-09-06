@@ -4,7 +4,7 @@ import { OuraClient } from '../api/client.js';
 import { resolveToken } from '../api/token.js';
 import { CliError, exitCodeFor } from '../lib/errors.js';
 import { formatDoctorTable } from '../render/doctor-table.js';
-import { dataCommand } from './run-command.js';
+import { dataCommand, type Ctx, type Output } from './run-command.js';
 import type { CheckStatus, DoctorCheck, DoctorResult, DoctorDeps } from '../render/doctor-types.js';
 
 export type { CheckId, CheckStatus, DoctorCheck, DoctorResult, DoctorDeps, TokenResolution } from '../render/doctor-types.js';
@@ -99,26 +99,35 @@ export function exitCodeForChecks(checks: DoctorCheck[]): number {
   return exitCodeFor(new CliError('DB_ERROR', fail.detail));
 }
 
+export async function runDoctor(ctx: Ctx, args: { db?: string; token?: string; offline?: boolean }): Promise<Output> {
+  // Resolved before the checks run: a malformed --db is an argument error, and reporting it as
+  // `database: fail` would hide a typo behind a health finding and exit 4 instead of 1.
+  const dbPath = getDbPath(args.db);
+  const deps: DoctorDeps = {
+    resolveToken: () => resolveToken(args.token),
+    openDb: () => {
+      const db = openDatabase(args.db);
+      ensureSchema(db);
+      return { db, path: dbPath };
+    },
+    createClient: (token: string) => new OuraClient({ token }),
+    offline: args.offline === true,
+    today: ctx.today,
+  };
+  const result = await runChecks(deps);
+  return {
+    json: result,
+    text: () => formatDoctorTable(result),
+    exitCode: exitCodeForChecks(result.checks),
+  };
+}
+
 export const doctorCommand = dataCommand({
   meta: { name: 'doctor', description: 'Diagnose token, database, and sync health, and suggest the next step.' },
   args: { offline: { type: 'boolean', default: false, description: 'Skip the live Oura API token-validation call' } },
-  async run(ctx, args) {
-    const deps: DoctorDeps = {
-      resolveToken: () => resolveToken(args.token as string | undefined),
-      openDb: () => {
-        const db = openDatabase(args.db as string | undefined);
-        ensureSchema(db);
-        return { db, path: getDbPath(args.db as string | undefined) };
-      },
-      createClient: (token: string) => new OuraClient({ token }),
-      offline: args.offline === true,
-      today: ctx.today,
-    };
-    const result = await runChecks(deps);
-    return {
-      json: result,
-      text: () => formatDoctorTable(result),
-      exitCode: exitCodeForChecks(result.checks),
-    };
-  },
+  run: (ctx, args) => runDoctor(ctx, {
+    db: args.db as string | undefined,
+    token: args.token as string | undefined,
+    offline: args.offline === true,
+  }),
 });

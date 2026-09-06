@@ -7,6 +7,7 @@ import {
   type DoctorDeps, type DoctorCheck,
 } from './doctor.js';
 import { formatDoctorTable } from '../render/doctor-table.js';
+import { runDoctor } from './doctor.js';
 
 function makeDeps(overrides: Partial<DoctorDeps> = {}): DoctorDeps {
   const db = new Database(':memory:');
@@ -231,5 +232,18 @@ describe('formatDoctorTable', () => {
     };
 
     expect(formatDoctorTable(result)).toContain('everything looks healthy');
+  });
+});
+
+describe('doctor argument handling', () => {
+  it('reports an empty --db as BAD_ARGS instead of a database health failure', async () => {
+    // The check list catches anything openDb throws into `database: fail`, which exits 4 (or 2
+    // when the token check already failed). A typo in a flag must read as a typo, and exit 1.
+    let err: unknown;
+    try {
+      await runDoctor({ format: 'json', tz: 'UTC', today: '2026-06-15' }, { db: '', offline: true });
+    } catch (e) { err = e; }
+    expect(err).toBeInstanceOf(CliError);
+    expect((err as CliError).code).toBe('BAD_ARGS');
   });
 });
