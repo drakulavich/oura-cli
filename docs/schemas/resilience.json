@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/drakulavich/oura-cli/blob/main/docs/schemas/resilience.json",
+  "title": "oura-cli fetch resilience output",
+  "description": "Daily resilience level with its sleep-recovery, daytime-recovery and stress contributors",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": true,
+    "required": [
+      "id",
+      "day"
+    ],
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Oura record id"
+      },
+      "day": {
+        "type": "string",
+        "format": "date",
+        "description": "Date the record applies to (YYYY-MM-DD)"
+      }
+    }
+  }
+}

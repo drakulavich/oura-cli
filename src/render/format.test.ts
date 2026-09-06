@@ -264,9 +264,10 @@ describe('formatImportSummary', () => {
     };
     const out = formatImportSummary(result);
     expect(out).toContain('sleep 5 (+2)');
-    expect(out).toContain('workouts 0 (+0)');
-    expect(out).toContain('heart rate 0 (+0)');
-    expect(out).toContain('cardiovascular age 0 (+0)');
+    expect(out).toContain('workout 0 (+0)');
+    expect(out).toContain('hr 0 (+0)');
+    expect(out).toContain('cv-age 0 (+0)');
+    expect(out).toContain('battery 0 (+0)'); // every registry collection is listed
     expect(out).not.toContain('undefined');
   });
 });

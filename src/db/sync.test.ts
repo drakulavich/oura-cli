@@ -126,6 +126,8 @@ describe('Import', () => {
       expect(result.fetched).toEqual({
         daily_sleep: 1, daily_readiness: 0, daily_activity: 0, heartrate: 1, daily_spo2: 0,
         daily_stress: 0, workouts: 0, sleep_model: 0, cardiovascular_age: 1,
+        daily_resilience: 0, vo2max: 0, sleep_time: 0, sessions: 0, rest_mode_periods: 0, enhanced_tags: 0,
+        ring_configuration: 0, ring_battery_level: 0,
       });
       expect(result.added).toEqual(result.fetched);
       expect(db.query('SELECT day FROM heartrate').get()).toEqual({ day: '2026-06-15' });
@@ -158,6 +160,39 @@ describe('Import', () => {
         { start_datetime: '2026-05-16T22:00:00.000Z', end_datetime: '2026-06-15T21:59:59.999Z' },
       ]);
       expect(calls.some(([, q]) => 'start_date' in q && 'start_datetime' in q)).toBe(false);
+      // ring_configuration is a snapshot: one request, no range parameters at all.
+      expect(queriesFor(calls, 'ring_configuration')).toEqual([{}]);
+    });
+
+    it('fetches a snapshot collection whole on every run and leaves isFirstSync to the ranged ones', async () => {
+      const db = new Database(':memory:');
+      ensureSchema(db);
+      db.query("INSERT INTO ring_configuration (id) VALUES ('ring-1')").run();
+      const calls: Array<[OuraEndpoint, Record<string, string>]> = [];
+      const result = await importDaily(db, recordingClient(calls), { today: '2026-06-15', tz: 'UTC' });
+      db.close();
+
+      expect(result.isFirstSync).toBe(true); // every ranged table is empty; the ring row does not count
+      expect(queriesFor(calls, 'ring_configuration')).toEqual([{}]);
+    });
+
+    it('replaces a snapshot table with the response: removed rings go, new ones count as new', async () => {
+      const db = new Database(':memory:');
+      ensureSchema(db);
+      db.query("INSERT INTO ring_configuration (id) VALUES ('old-ring')").run();
+      db.query("INSERT INTO ring_configuration (id) VALUES ('kept-ring')").run();
+      const client = {
+        fetch: async (endpoint: OuraEndpoint) => endpoint === 'ring_configuration'
+          ? [{ id: 'kept-ring', color: 'silver' }, { id: 'new-ring', color: 'black' }] : [],
+      } as unknown as OuraClient;
+
+      const result = await importDaily(db, client, { today: '2026-06-15', tz: 'UTC' });
+      const ids = (db.query('SELECT id FROM ring_configuration ORDER BY id').all() as { id: string }[]).map(r => r.id);
+      db.close();
+
+      expect(ids).toEqual(['kept-ring', 'new-ring']);
+      expect(result.fetched.ring_configuration).toBe(2);
+      expect(result.added.ring_configuration).toBe(1);
     });
 
     it('every collection resumes from its own last stored day, so an empty table is backfilled while others stay incremental', async () => {

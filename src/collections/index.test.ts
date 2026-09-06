@@ -102,9 +102,27 @@ describe('rangeQueries', () => {
     expect(rangeQueries(byName('sleep')!, '2026-06-02', '2026-06-01', 'UTC')).toEqual([]);
   });
 
+  it('declares the live-verified date-bound offsets (a missing offset makes `fetch --day` return nothing)', () => {
+    const offsets = Object.fromEntries(COLLECTIONS.map(c => [c.name, c.dayRangeOffset ?? [0, 0]]));
+    expect(offsets).toEqual({
+      sleep: [0, 0], readiness: [0, 0], activity: [0, 0], hr: [0, 0], spo2: [0, 0], stress: [0, 0],
+      workout: [0, 1], 'sleep-periods': [-1, 0], 'cv-age': [0, 0],
+      resilience: [0, 0], vo2max: [0, 1], 'sleep-time': [0, 0], session: [0, 1], 'rest-mode': [0, 1], tags: [0, 1],
+      ring: [0, 0], battery: [0, 0],
+    });
+  });
+
+  it('gives every snapshot collection a primary-key column, which the sync replace path keys on', () => {
+    for (const c of COLLECTIONS.filter(c => c.rangeParams === 'none')) {
+      expect(c.columns.some(col => col.pk)).toBe(true);
+    }
+  });
+
   it('every registered collection declares valid range parameters', () => {
     for (const c of COLLECTIONS) {
-      expect(c.rangeParams).toBe(c.endpoint === 'heartrate' ? 'datetime' : 'date');
+      const expected = c.endpoint === 'heartrate' || c.endpoint === 'ring_battery_level' ? 'datetime'
+        : c.endpoint === 'ring_configuration' ? 'none' : 'date';
+      expect(c.rangeParams).toBe(expected);
       if (c.maxRangeDays !== undefined) expect(Number.isInteger(c.maxRangeDays) && c.maxRangeDays > 0).toBe(true);
       if (c.dayRangeOffset) expect(c.dayRangeOffset.every(o => Number.isInteger(o) && Math.abs(o) <= 1)).toBe(true);
     }

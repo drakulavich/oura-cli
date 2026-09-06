@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/drakulavich/oura-cli/blob/main/docs/schemas/tags.json",
+  "title": "oura-cli fetch tags output",
+  "description": "Tags the user added in the app; `day` is the tag start day",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": true,
+    "required": [
+      "id",
+      "start_day"
+    ],
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Oura record id"
+      },
+      "start_day": {
+        "type": "string",
+        "format": "date",
+        "description": "Day the tag starts on (YYYY-MM-DD)"
+      }
+    }
+  }
+}

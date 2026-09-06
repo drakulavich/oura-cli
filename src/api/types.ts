@@ -112,4 +112,85 @@ export type OuraEndpoint =
   | 'daily_stress'
   | 'daily_cardiovascular_age'
   | 'workout'
-  | 'sleep';
+  | 'sleep'
+  | 'daily_resilience'
+  | 'vO2_max'
+  | 'sleep_time'
+  | 'session'
+  | 'rest_mode_period'
+  | 'enhanced_tag'
+  | 'ring_configuration'
+  | 'ring_battery_level';
+
+// Shapes below follow openapi-1.37; every field the spec does not mark required is nullable (#23).
+
+export interface OuraResilienceDay {
+  id: string;
+  day: string;
+  level: string | null;
+  contributors: { sleep_recovery: number | null; daytime_recovery: number | null; stress: number | null } | null;
+}
+
+export interface OuraVo2Max {
+  id: string;
+  day: string;
+  timestamp: string;
+  vo2_max: number | null;
+}
+
+export interface OuraSleepTime {
+  id: string;
+  day: string;
+  optimal_bedtime: { day_tz: number | null; start_offset: number | null; end_offset: number | null } | null;
+  recommendation: string | null;
+  status: string | null;
+}
+
+export interface OuraSession {
+  id: string;
+  day: string;
+  start_datetime: string;
+  end_datetime: string;
+  type: string | null;
+  mood: string | null;
+  heart_rate: unknown;
+  heart_rate_variability: unknown;
+  motion_count: unknown;
+}
+
+export interface OuraRestModePeriod {
+  id: string;
+  start_day: string;
+  end_day: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  episodes: unknown[] | null;
+}
+
+export interface OuraEnhancedTag {
+  id: string;
+  start_day: string;
+  end_day: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  tag_type_code: string | null;
+  comment: string | null;
+  custom_name: string | null;
+}
+
+export interface OuraRingConfiguration {
+  id: string;
+  color: string | null;
+  design: string | null;
+  firmware_version: string | null;
+  hardware_type: string | null;
+  set_up_at: string | null;
+  size: number | null;
+}
+
+export interface OuraRingBatteryLevel {
+  timestamp: string; // timestamp_unix in the spec is the same instant and is not kept
+  level: number | null;
+  charging: boolean | null;
+  in_charger: boolean | null;
+}

@@ -53,12 +53,14 @@ export async function importDaily(
   // Each collection resumes from its own last stored day. A run that stops half-way therefore
   // leaves the untouched tables to be picked up next time, instead of hiding them behind a
   // watermark that only the first few tables advanced.
+  // Snapshot collections (rangeParams 'none') have no day column and are fetched whole every run.
   const plan = COLLECTIONS.map(c => {
-    const last = lastDay(db, c.table);
+    const last = c.rangeParams === 'none' ? null : lastDay(db, c.table);
     return { c, last, start: window.from ?? last ?? backfillStart };
   });
-  const isFirstSync = plan.every(p => p.last === null);
-  const startDate = plan.map(p => p.start).sort()[0]!;
+  const ranged = plan.filter(p => p.c.rangeParams !== 'none');
+  const isFirstSync = ranged.every(p => p.last === null);
+  const startDate = ranged.map(p => p.start).sort()[0]!;
 
   _log(isFirstSync && window.from === undefined
     ? `First sync — backfilling the last ${BACKFILL_DAYS} days: ${startDate} → ${end}`
@@ -68,8 +70,24 @@ export async function importDaily(
   const added: Record<string, number> = {};
   for (const { c, start } of plan) {
     const rows = await fetchCollection(client, c, start, end, tz);
-    const before = rowCount(db, c.table);
     const stmt = db.query(insertSql(c));
+    if (c.rangeParams === 'none') {
+      // A snapshot is the whole truth: rows that disappeared upstream (a ring removed from the account)
+      // disappear here too, and "new" means an id the table did not hold before.
+      const pk = c.columns.find(col => col.pk)?.name;
+      if (!pk) throw new Error(`Snapshot collection ${c.name} must declare a primary-key column (enforced by the registry tests).`);
+      const ids = () => new Set((db.query(`SELECT ${pk} AS id FROM ${c.table}`).all() as { id: string }[]).map(r => r.id));
+      const known = ids();
+      db.transaction((rs: unknown[]) => {
+        db.exec(`DELETE FROM ${c.table}`);
+        for (const r of rs) stmt.run(...rowValues(c, r));
+      })(rows);
+      fetched[c.table] = rows.length;
+      added[c.table] = [...ids()].filter(id => !known.has(id)).length;
+      _log(rows.length > 0 ? `  + ${c.table}: ${rows.length} fetched, ${added[c.table]} new` : `  + ${c.table}: 0 fetched, table cleared`);
+      continue;
+    }
+    const before = rowCount(db, c.table);
     db.transaction((rs: unknown[]) => { for (const r of rs) stmt.run(...rowValues(c, r)); })(rows);
     fetched[c.table] = rows.length;
     added[c.table] = rowCount(db, c.table) - before;

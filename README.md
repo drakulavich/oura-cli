@@ -116,7 +116,9 @@ oura-cli fetch workout --from 2026-05-01 --to 2026-05-31
 oura-cli fetch sleep-periods --day 2026-06-01 | jq '.[] | {day, type, average_hrv}'
 ```
 
-Collections: `sleep readiness activity hr spo2 stress workout sleep-periods cv-age`.
+Collections: `sleep readiness activity hr spo2 stress workout sleep-periods cv-age resilience vo2max sleep-time session rest-mode tags ring battery`.
+
+`ring` is a snapshot of your ring's hardware, not a day range, so it takes no `--day`/`--from`/`--days`. `battery` is a timeseries like `hr`: keyed by timestamp, fetched in pieces of at most 30 days.
 
 ### Piping to other tools
 
@@ -162,6 +164,14 @@ This tool reads your personal health data — handle the token with care.
 | Workouts   | Oura V2 `workout`                   | `workouts`            |
 | Sleep model      | Oura V2 `sleep`               | `sleep_model`         |
 | Cardiovascular age | Oura V2 `cardiovascular_age` | `cardiovascular_age`  |
+| Resilience | Oura V2 `daily_resilience`          | `daily_resilience`    |
+| VO₂ max    | Oura V2 `vO2_max`                   | `vo2max`              |
+| Sleep time | Oura V2 `sleep_time`                | `sleep_time`          |
+| Sessions   | Oura V2 `session`                   | `sessions`            |
+| Rest mode  | Oura V2 `rest_mode_period`          | `rest_mode_periods`   |
+| Tags       | Oura V2 `enhanced_tag`              | `enhanced_tags`       |
+| Ring       | Oura V2 `ring_configuration`        | `ring_configuration`  |
+| Battery    | Oura V2 `ring_battery_level`        | `ring_battery_level`  |
 
 Runtime: [Bun](https://bun.sh). Storage: built-in `bun:sqlite`. CLI parsing: [citty](https://github.com/unjs/citty). Output styling: [chalk](https://github.com/chalk/chalk). One ~110 kB `dist/index.js`, no native deps.
 
@@ -175,7 +185,7 @@ If you're driving the CLI from a script or LLM harness:
 - Errors emit a stable JSON envelope on stderr: `{"error":{"code":"…","message":"…","hint":"…"}}`.
 - Documented exit codes: `0` success, `1` user error, `2` auth, `3` API, `4` storage.
 - JSON Schemas under [`docs/schemas/`](docs/schemas/) cover `fetch <collection>`, `doctor` and the `describe` manifest itself, semver-stable; `describe` names the schema next to each command. Per-collection schemas pin the identity fields (`id`, `day`, `timestamp`) and allow the rest of the Oura record through unchanged, so new upstream fields never break validation. The local-data commands (`sync`, `db *`, `report`) have no schema files yet; their shapes are versioned through the CHANGELOG.
-- Two contract quirks, kept for compatibility: `report --period month` returns its window as `weekStart`/`weekEnd`, and `heartrate.day` in the cache is the date written in Oura's timestamp (UTC in practice) while every `--day`/`--tz` argument is local.
+- Two contract quirks, kept for compatibility: `report --period month` returns its window as `weekStart`/`weekEnd`, and `heartrate.day` (likewise `ring_battery_level.day`) in the cache is the date written in Oura's timestamp (UTC in practice) while every `--day`/`--tz` argument is local.
 
 Plays cleanly with [OpenClaw](https://github.com/openclaw/openclaw) — `oura-cli manifest` returns the tool-registry shape. A first-party `oura-mcp` companion is on the roadmap.
 

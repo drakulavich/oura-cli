@@ -73,13 +73,15 @@ describe('getStats', () => {
     expect(sleepTable?.rows).toBe(2);
   });
 
-  it('reports one row-count entry per registry collection and none for vo2max', () => {
+  it('reports one row-count entry per registry collection, in registry order', () => {
     const db = new Database(':memory:');
     ensureSchema(db);
     const stats = getStats(db, '2026-06-15');
     expect(stats.tables.map(t => t.table)).toEqual([
       'daily_sleep', 'daily_readiness', 'daily_activity', 'heartrate', 'daily_spo2',
       'daily_stress', 'workouts', 'sleep_model', 'cardiovascular_age',
+      'daily_resilience', 'vo2max', 'sleep_time', 'sessions', 'rest_mode_periods', 'enhanced_tags',
+      'ring_configuration', 'ring_battery_level',
     ]);
   });
 });
