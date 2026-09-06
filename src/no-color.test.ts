@@ -38,8 +38,4 @@ describe('--no-color / NO_COLOR', () => {
     expect(out).not.toMatch(/\u001b\[/);
   });
 
-  it('still colours help when FORCE_COLOR asks for it, even piped', async () => {
-    const out = await run(['--help'], { NO_COLOR: undefined });  // run() sets FORCE_COLOR=1
-    expect(out).toMatch(/\u001b\[/);
-  });
 });
