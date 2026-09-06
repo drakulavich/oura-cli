@@ -173,6 +173,15 @@ describe('--format validation across every command', () => {
     expect(code).toBe(1);
   });
 
+  it('rejects an unknown --format for login too, in its own text envelope', async () => {
+    // login is the one interactive command: CLAUDE.md keeps it on text errors, so it never
+    // produces the JSON envelope the cases above assert. The rejection itself is the same.
+    const { stdout, stderr, code } = await run('login', '--format', 'xml');
+    expect(stdout).toBe('');
+    expect(stderr).toContain('Unknown --format value: "xml"');
+    expect(code).toBe(1);
+  });
+
   it('reports the same error for a bad format whichever path validates it', async () => {
     // execute() resolves the format before checking flag names; the JSON-only commands call
     // assertKnownArgs directly. Both now name the format first.

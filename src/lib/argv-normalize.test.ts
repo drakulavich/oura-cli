@@ -74,6 +74,23 @@ describe('normalizeArgv with a flag between a command and its subcommand', () =>
       .toEqual(['bun', 's', 'fetch', 'sleep', '--day', '2026-09-01']);
   });
 
+  it.each([
+    [['bun', 's', 'db', '--db', 'db', 'today'], ['bun', 's', 'db', 'today', '--db', 'db']],
+    [['bun', 's', 'db', '--tz', 'sync', 'today'], ['bun', 's', 'db', 'today', '--tz', 'sync']],
+  ])('keeps a value that spells a command name in the value slot: %j', (argv, expected) => {
+    expect(normalizeArgv(argv)).toEqual(expected);
+  });
+
+  it('keeps repeated flags in order, so the last one still wins downstream', () => {
+    expect(normalizeArgv(['bun', 's', 'db', '--format', 'json', 'today', '--format', 'table']))
+      .toEqual(['bun', 's', 'db', 'today', '--format', 'json', '--format', 'table']);
+  });
+
+  it('hoists from between the commands and still leaves `--` last', () => {
+    expect(normalizeArgv(['bun', 's', 'db', '--format', 'json', 'today', '--', '--db', 'x']))
+      .toEqual(['bun', 's', 'db', 'today', '--format', 'json', '--', '--db', 'x']);
+  });
+
   it('does not touch a global flag name that appears after `--`', () => {
     expect(normalizeArgv(['bun', 's', 'db', 'today', '--', '--format', 'json']))
       .toEqual(['bun', 's', 'db', 'today', '--', '--format', 'json']);
