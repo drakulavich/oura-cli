@@ -138,6 +138,9 @@ oura-cli db trends 90 > trends.json
 | Database path    | `--db`      | `OURA_DB_PATH`     | `~/.oura-cli/oura.db`       |
 | Timezone         | `--tz`      | `OURA_TZ`          | system timezone, else `UTC` |
 | Output format    | `--format`  |                    | auto-detect (TTY → table)   |
+| Colour           | `--no-color`| `NO_COLOR`         | on for a terminal, off when piped |
+
+These are global: they may appear anywhere on the command line, before the command, between a command and its subcommand, or at the end. `oura-cli --format json db today`, `oura-cli db --format json today` and `oura-cli db today --format json` are the same command.
 
 ## Security
 
