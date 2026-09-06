@@ -110,6 +110,7 @@ describe('getDbPath', () => {
     expect(err).toBeInstanceOf(CliError);
     expect((err as CliError).code).toBe('BAD_ARGS');
     expect((err as CliError).message).toContain('--db');
+    expect((err as CliError).hint).toContain('remove --db');
   });
 
   it('rejects a blank --db the same way as an empty one', () => {

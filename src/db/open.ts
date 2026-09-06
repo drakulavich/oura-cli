@@ -28,13 +28,15 @@ export interface Migration {
   sql: string;
 }
 
-const DEFAULT_DB_DISPLAY = '~/.oura-cli/oura.db';
-
-/** A path the user supplied but left blank is a mistake, not "use the default" — see below. */
+/**
+ * A path the user supplied but left blank is a mistake, not "use the default": a wrapper
+ * building `--db "$VAR"` from an unset variable would otherwise silently target — and migrate,
+ * and under `sync` write to — the user's real cache instead of the sandbox it meant to use.
+ */
 function requirePath(value: string, source: string): string {
-  // A wrapper building `--db "$VAR"` from an unset variable would otherwise silently
-  // target (and migrate) the user's real cache instead of the sandbox it meant to use.
-  if (value.trim() === '') throw new CliError('BAD_ARGS', `${source} is empty`, `Pass a file path, or omit ${source} to use ${DEFAULT_DB_DISPLAY}.`);
+  if (value.trim() === '') {
+    throw new CliError('BAD_ARGS', `${source} has no path`, `Pass a path to a SQLite file, or remove ${source} to fall back to the default database.`);
+  }
   return value;
 }
 
