@@ -8,6 +8,9 @@ export const hr = defineCollection<OuraHeartRate>({
   // Oura publishes workout heart rate days late, behind the watermark: a probe on a live account
   // found 8,004 samples missing over 9 days that an incremental sync would never have fetched.
   // Two weeks covers what was observed; the rows are deduped by the (timestamp, source) index.
+  // The cost is pages, not range pieces: at ~1,150 samples a day and 1,000 rows a page this is
+  // roughly 17 requests per sync instead of 2, well inside Oura's limits but visible in the
+  // `hr` fetched count, which now reads five figures on every run.
   syncLookbackDays: 14,
   identity: [{ field: 'timestamp', format: 'date-time', description: 'ISO 8601 timestamp of the sample' }],
   columns: [
