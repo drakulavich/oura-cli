@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import { ensureSchema } from './open.js';
-import { getDaySummary, getStats } from './queries.js';
+import { getDaySummary, getStats, getTrends } from './queries.js';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { unlinkSync } from 'fs';
@@ -43,6 +43,25 @@ describe('getDaySummary', () => {
 
       expect(summary.sleep_score).toBeNull();
     });
+  });
+});
+
+describe('getTrends', () => {
+  it('covers exactly N calendar days ending today, not N + 1', () => {
+    const own = new Database(':memory:'); // keep the shared fixture's row counts intact for getStats
+    ensureSchema(own);
+    for (let d = 1; d <= 5; d++) {
+      own.query('INSERT INTO daily_sleep VALUES (?,?,?,?,?)').run(`t${d}`, `2026-04-0${d}`, 60 + d, '{}', '');
+    }
+    own.query('INSERT INTO daily_sleep VALUES (?,?,?,?,?)').run('future', '2026-04-06', 99, '{}', ''); // must stay out
+    const sleepScore = (n: number) => getTrends(own, n, '2026-04-05').find(t => t.label === 'Sleep Score');
+    const three = sleepScore(3);
+    const one = sleepScore(1);
+    own.close();
+    expect(three?.count).toBe(3);
+    expect(three?.min).toBe(63); // 2026-04-03 is in, 2026-04-02 is out
+    expect(three?.max).toBe(65); // 2026-04-06 is out
+    expect(one?.count).toBe(1);  // the degenerate window is today alone
   });
 });
 

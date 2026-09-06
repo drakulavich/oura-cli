@@ -57,7 +57,8 @@ export interface TrendRow {
 }
 
 export function getTrends(db: Database, days: number, today: string): TrendRow[] {
-  const start = shiftDay(today, -days);
+  // `days` calendar days ending today, both bounds inclusive: 7 → today and the six before it.
+  const start = shiftDay(today, -(days - 1));
   const results: TrendRow[] = [];
 
   const metrics: [string, string, string][] = [
