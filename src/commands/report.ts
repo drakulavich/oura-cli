@@ -12,7 +12,7 @@ export const reportCommand = dataCommand({
     if (period !== 'week' && period !== 'month') {
       throw new CliError('BAD_ARGS', `--period must be "week" or "month", got "${period}".`);
     }
-    const data = getReport(ctx.db!, period === 'week' ? 7 : 30, ctx.today);
-    return { json: data, text: () => formatReport(data, 'table', period) };
+    const data = getReport(ctx.db!, period === 'week' ? 7 : 30, ctx.today, ctx.tz);
+    return { json: data, text: () => formatReport(data, 'table', period, ctx.tz) };
   },
 });
