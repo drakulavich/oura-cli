@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import type { ReportData } from '../db/report.js';
 import type { OutputFormat } from '../lib/format-resolve.js';
+import { padLeft } from '../lib/pad.js';
 
 function colorizeScore(n: number): (s: string) => string {
   if (n >= 85) return chalk.green;
@@ -9,13 +10,13 @@ function colorizeScore(n: number): (s: string) => string {
 }
 
 function scoreCell(n: number | null, width: number): string {
-  if (n === null) return chalk.gray('—'.padStart(width));
-  return colorizeScore(n)(String(n).padStart(width));
+  if (n === null) return padLeft(chalk.gray('—'), width);
+  return padLeft(colorizeScore(n)(String(n)), width);
 }
 
 function stepsCell(n: number | null, width: number): string {
-  if (n === null) return chalk.gray('—'.padStart(width));
-  return n.toLocaleString().padStart(width);
+  if (n === null) return padLeft(chalk.gray('—'), width);
+  return padLeft(n.toLocaleString(), width);
 }
 
 function fmtSeconds(s: number | null): string {

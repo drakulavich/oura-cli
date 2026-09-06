@@ -7,6 +7,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Fixed
+- `db week` lost its column alignment whenever colour was on: `padStart` counted the ANSI escapes chalk had already wrapped each score in, so it padded by nothing. Piped output was correct, which is why the tests never saw it. Padding now measures visible width (`src/lib/pad.ts`), and `report` uses the same helper. (#82)
 - `report` decided whether a day's activity was complete from the newest heart-rate sample, but Oura publishes heart-rate days after the daily summaries: right after a ring sync the report called three fully synced days "still accumulating". A day now counts as complete once a later day has its own activity record; heart-rate plays no part. `lastUpload` stays in the JSON as information and the note no longer quotes it. (#57)
 
 ### Added

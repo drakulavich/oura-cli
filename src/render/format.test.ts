@@ -217,6 +217,34 @@ describe('formatWeekTable', () => {
   });
 });
 
+describe('formatWeekTable column alignment', () => {
+  // Regression for #82: padStart counted chalk's escapes, so the score columns only lined up
+  // when output was piped — which is the only shape the other tests here ever see.
+  const days = [
+    makeDay({ day: '2026-08-30', sleep_score: 7, readiness_score: 100, activity_score: 63, steps: 8472 }),
+    makeDay({ day: '2026-08-31', sleep_score: 75, readiness_score: 83, activity_score: null, steps: null }),
+  ];
+
+  it('renders the same visible layout with colour on as with colour off', () => {
+    const plain = formatWeekTable(days, 'table');
+    let coloured = '';
+    withColor(() => { coloured = formatWeekTable(days, 'table'); });
+    expect(coloured).not.toBe(plain); // the escapes are actually there
+    expect(stripAnsi(coloured)).toBe(stripAnsi(plain));
+  });
+
+  it('keeps every data row the width of the header when colour is on', () => {
+    withColor(() => {
+      const lines = formatWeekTable(days, 'table').split('\n').map(stripAnsi);
+      const header = lines.find(l => l.includes('Sleep'))!;
+      for (const day of ['2026-08-30', '2026-08-31']) {
+        const row = lines.find(l => l.includes(day))!;
+        expect(row.length).toBe(header.length);
+      }
+    });
+  });
+});
+
 describe('formatWeekTable empty state', () => {
   it('shows the empty-state message and hint when every day is empty and a hint is given', () => {
     const days = ['2026-08-24', '2026-08-25', '2026-08-26', '2026-08-27', '2026-08-28', '2026-08-29', '2026-08-30'].map(makeEmptyDay);
