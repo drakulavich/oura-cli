@@ -16,8 +16,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Collection registry: `rangeParams: 'none'` for snapshot endpoints that take no range. `fetch` rejects `--day`/`--from`/`--to`/`--days` for them with `BAD_ARGS` instead of ignoring the flags, and `sync` replaces the table with each response (a ring removed from the account disappears locally too) instead of keeping a watermark — also under `--from/--to`, since a snapshot has no history to backfill.
 
 ### Changed
-- The `sync` text summary lists every registry collection by its `fetch` name (`sleep 28 (+2)  readiness 0 (+0)`), in a fixed-width grid whose column count follows the terminal width (up to four, one below ~30 columns), instead of a hand-written list of nine tables. Cells no longer break across lines on a narrow terminal, and the counts line up. (#83)
-- `sync` prints a progress line for every collection, including those that returned nothing (`  + enhanced_tags: 0 fetched`). A silent collection used to be indistinguishable from a failed one while the summary listed it anyway. (#83)
+- The `sync` text summary lists every registry collection by its `fetch` name (`sleep 28 (+2)  readiness 0 (+0)`), in a fixed-width grid whose column count follows the terminal width (up to four, and a single unpadded cell per line once two no longer fit — around 46 columns, sooner when a count is wide), instead of a hand-written list of nine tables. Cells no longer break across lines on a narrow terminal, and the counts line up. (#83)
+- `sync` prints a progress line for every collection, including those that returned nothing, and names both the collection and its table (`  + tags (enhanced_tags): 0 fetched, 0 new`) so the lines and the summary can be read together. A silent collection used to be indistinguishable from a failed one while the summary listed it anyway. (#83)
 
 ## [0.5.2] - 2026-09-06
 

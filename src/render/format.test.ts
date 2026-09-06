@@ -301,6 +301,179 @@ describe('formatImportSummary', () => {
 
   // Regression for #83: cells were joined with a fixed separator and no width input, so a
   // narrow terminal wrapped mid-cell and `hr 70 (+0)` printed as `hr 7` / `0 (+0)`.
+  const oneSleepDay: ImportResult = {
+    startDate: '2026-08-07', endDate: '2026-09-06', isFirstSync: false,
+    fetched: { daily_sleep: 3 }, added: { daily_sleep: 1 },
+  };
+  const wide: ImportResult = {
+    startDate: '2026-08-07', endDate: '2026-09-06', isFirstSync: false,
+    fetched: { heartrate: 12172 }, added: { heartrate: 8004 },
+  };
+  const rowsAt = (result: ImportResult, width: number) => formatImportSummary(result, width).split('\n').slice(1);
+
+  it('lays four cells to a line on a wide terminal, two spaces apart', () => {
+    expect(rowsAt(oneSleepDay, 200)).toEqual([
+      '    sleep         3 (+1)  readiness     0 (+0)  activity      0 (+0)  hr            0 (+0)',
+      '    spo2          0 (+0)  stress        0 (+0)  workout       0 (+0)  sleep-periods 0 (+0)',
+      '    cv-age        0 (+0)  resilience    0 (+0)  vo2max        0 (+0)  sleep-time    0 (+0)',
+      '    session       0 (+0)  rest-mode     0 (+0)  tags          0 (+0)  ring          0 (+0)',
+      '    battery       0 (+0)',
+    ]);
+  });
+
+  it('drops to three cells to a line at 80 columns, keeping the names aligned', () => {
+    expect(rowsAt(oneSleepDay, 80)).toEqual([
+      '    sleep         3 (+1)  readiness     0 (+0)  activity      0 (+0)',
+      '    hr            0 (+0)  spo2          0 (+0)  stress        0 (+0)',
+      '    workout       0 (+0)  sleep-periods 0 (+0)  cv-age        0 (+0)',
+      '    resilience    0 (+0)  vo2max        0 (+0)  sleep-time    0 (+0)',
+      '    session       0 (+0)  rest-mode     0 (+0)  tags          0 (+0)',
+      '    ring          0 (+0)  battery       0 (+0)',
+    ]);
+  });
+
+  it('drops to one bare cell to a line when two no longer fit', () => {
+    const rows = rowsAt(oneSleepDay, 30);
+    expect(rows).toHaveLength(17); // one per registry collection
+    expect(rows.slice(0, 3)).toEqual(['    sleep 3 (+1)', '    readiness 0 (+0)', '    activity 0 (+0)']);
+  });
+
+  it('never breaks a cell across lines, whatever the width', () => {
+    for (const width of [20, 30, 40, 46, 60, 74, 80, 120, 200]) {
+      for (const row of rowsAt(wide, width)) {
+        expect(row).toMatch(/^ {4}[a-z0-9-]+ +\d+ \(\+\d+\)( +[a-z0-9-]+ +\d+ \(\+\d+\))*$/);
+        if (width >= 30) expect(row.length).toBeLessThanOrEqual(width);
+      }
+    }
+  });
+
+  it('lets a wide count cost a column rather than wrapping it', () => {
+    // 12172 (+8004) widens every cell, so 80 columns hold two of them instead of three.
+    expect(rowsAt(wide, 80)[0]).toBe('    sleep             0 (+0)     readiness         0 (+0)');
+  });
+
+  it('starts every column at the same offset', () => {
+    const rows = rowsAt(wide, 80);
+    const nameOffsets = (row: string) => [...row.matchAll(/[a-z][a-z0-9-]*/g)].map(m => m.index);
+    const columns = Math.max(...rows.map(r => nameOffsets(r).length));
+    const full = rows.filter(r => nameOffsets(r).length === columns);
+    expect(columns).toBe(2);
+    expect(full.length).toBeGreaterThan(1);
+    for (const row of full) expect(nameOffsets(row)).toEqual(nameOffsets(full[0]!));
+  });
+});
+
+describe('formatWeekTable', () => {
+  it('returns pretty-printed JSON when format is json', () => {
+    const days = [makeDay()];
+    expect(formatWeekTable(days, 'json')).toBe(JSON.stringify(days, null, 2));
+  });
+
+  it('renders a header and one data row per day in table format', () => {
+    const out = stripAnsi(formatWeekTable([makeDay({ day: '2026-05-07' }), makeDay({ day: '2026-05-08' })], 'table'));
+    expect(out).toContain('Last 7 Days');
+    expect(out).toContain('Day');
+    expect(out).toContain('2026-05-07');
+    expect(out).toContain('2026-05-08');
+  });
+
+  it('renders the header even for an empty day list, with no data rows', () => {
+    const out = stripAnsi(formatWeekTable([], 'table'));
+    expect(out).toContain('Last 7 Days');
+    expect(out).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+  });
+
+  it('substitutes em dashes for null steps and null stress in a row', () => {
+    const out = stripAnsi(formatWeekTable([makeDay({ steps: null, stress: null })], 'table'));
+    // both the steps and stress columns collapse to an em dash.
+    expect(out).toContain('—');
+  });
+});
+
+describe('formatWeekTable column alignment', () => {
+  // Regression for #82: padStart counted chalk's escapes, so the score columns only lined up
+  // when output was piped — which is the only shape the other tests here ever see.
+  const days = [
+    makeDay({ day: '2026-08-30', sleep_score: 7, readiness_score: 100, activity_score: 63, steps: 8472 }),
+    makeDay({ day: '2026-08-31', sleep_score: 75, readiness_score: 83, activity_score: null, steps: null }),
+  ];
+
+  it('renders the same visible layout with colour on as with colour off', () => {
+    const plain = formatWeekTable(days, 'table');
+    let coloured = '';
+    withColor(() => { coloured = formatWeekTable(days, 'table'); });
+    expect(coloured).not.toBe(plain); // the escapes are actually there
+    expect(stripAnsi(coloured)).toBe(stripAnsi(plain));
+  });
+
+  it('keeps every data row the width of the header when colour is on', () => {
+    withColor(() => {
+      const lines = formatWeekTable(days, 'table').split('\n').map(stripAnsi);
+      const header = lines.find(l => l.includes('Sleep'))!;
+      for (const day of ['2026-08-30', '2026-08-31']) {
+        const row = lines.find(l => l.includes(day))!;
+        expect(row.length).toBe(header.length);
+      }
+    });
+  });
+});
+
+describe('formatWeekTable empty state', () => {
+  it('shows the empty-state message and hint when every day is empty and a hint is given', () => {
+    const days = ['2026-08-24', '2026-08-25', '2026-08-26', '2026-08-27', '2026-08-28', '2026-08-29', '2026-08-30'].map(makeEmptyDay);
+    const out = stripAnsi(formatWeekTable(days, 'table', 'Run `oura-cli sync`, then `oura-cli db week` again.'));
+    expect(out).toContain('No Oura data for the last 7 days yet.');
+    expect(out).toContain('Run `oura-cli sync`, then `oura-cli db week` again.');
+    expect(out).not.toContain('Day');
+  });
+
+  it('renders the normal table when at least one day has data, even with a hint passed', () => {
+    const days = [makeEmptyDay('2026-08-29'), makeDay({ day: '2026-08-30' })];
+    const out = stripAnsi(formatWeekTable(days, 'table', 'Run `oura-cli sync`, then `oura-cli db week` again.'));
+    expect(out).toContain('Last 7 Days');
+    expect(out).not.toContain('No Oura data');
+  });
+
+  it('renders the normal dash table for all-empty days when no hint is passed', () => {
+    const days = ['2026-08-24', '2026-08-25', '2026-08-26', '2026-08-27', '2026-08-28', '2026-08-29', '2026-08-30'].map(makeEmptyDay);
+    const out = stripAnsi(formatWeekTable(days, 'table'));
+    expect(out).toContain('Last 7 Days');
+    expect(out).not.toContain('No Oura data');
+  });
+
+  it('renders the header-only table for an empty array, even when a hint is passed', () => {
+    const out = stripAnsi(formatWeekTable([], 'table', 'Run `oura-cli sync`, then `oura-cli db week` again.'));
+    expect(out).toContain('Last 7 Days');
+    expect(out).not.toContain('No Oura data');
+  });
+
+  it('ignores the hint in json mode and stays byte-identical to plain JSON.stringify', () => {
+    const days = ['2026-08-24', '2026-08-25'].map(makeEmptyDay);
+    const out = formatWeekTable(days, 'json', 'Run `oura-cli sync`, then `oura-cli db week` again.');
+    expect(out).toBe(JSON.stringify(days, null, 2));
+  });
+});
+
+describe('formatImportSummary', () => {
+  it('defaults a missing collection count to 0 rather than printing undefined', () => {
+    const result: ImportResult = {
+      startDate: '2026-05-16',
+      endDate: '2026-06-15',
+      isFirstSync: true,
+      fetched: { daily_sleep: 5 },
+      added: { daily_sleep: 2 },
+    };
+    const out = formatImportSummary(result, 80);
+    expect(out).toMatch(/sleep +5 \(\+2\)/);
+    expect(out).toMatch(/workout +0 \(\+0\)/);
+    expect(out).toMatch(/hr +0 \(\+0\)/);
+    expect(out).toMatch(/cv-age +0 \(\+0\)/);
+    expect(out).toMatch(/battery +0 \(\+0\)/); // every registry collection is listed
+    expect(out).not.toContain('undefined');
+  });
+
+  // Regression for #83: cells were joined with a fixed separator and no width input, so a
+  // narrow terminal wrapped mid-cell and `hr 70 (+0)` printed as `hr 7` / `0 (+0)`.
   const wide: ImportResult = {
     startDate: '2026-08-07', endDate: '2026-09-06', isFirstSync: false,
     fetched: { heartrate: 12172 }, added: { heartrate: 8004 },
