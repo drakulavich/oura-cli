@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-09-06
+
+### Fixed
+- `db trends N` covers N calendar days ending today; it used to include one day more than the heading claimed. (#52)
+- A 401/403 from the Oura API carries a hint (`oura-cli login` with a fresh token), like a missing token already did. (#54)
+
+### Changed
+- `manifest`: `healthcheck.expects` lists the `error` field that `healthcheck` emits when `ok` is false. (#54)
+- README's automation section no longer claims JSON Schemas for every output shape (they cover `fetch` and `doctor`), explains that `doctor` and `healthcheck` exit 0 with `ok: false` when the probe itself ran, and records two quirks kept for compatibility: `report --period month` returns `weekStart`/`weekEnd`, and `heartrate.day` is the date written in Oura's timestamp, UTC in practice. (#54)
+
 ## [0.5.1] - 2026-09-05
 
 Fixes from the 0.5.0 exploratory testing sessions: the seam between citty and the command runner, and the sync window.
@@ -329,6 +339,7 @@ Fixes from the 0.5.0 exploratory testing sessions: the seam between citty and th
 - Local SQLite cache at `~/.oura-cli/oura.db`.
 - Auth via `oura-cli login`, `OURA_TOKEN`, `OURA_TOKEN_PATH`, or `~/.oura-token`.
 
+[0.5.2]: https://github.com/drakulavich/oura-cli/releases/tag/v0.5.2
 [0.5.1]: https://github.com/drakulavich/oura-cli/releases/tag/v0.5.1
 [0.5.0]: https://github.com/drakulavich/oura-cli/releases/tag/v0.5.0
 [0.4.4]: https://github.com/drakulavich/oura-cli/releases/tag/v0.4.4
