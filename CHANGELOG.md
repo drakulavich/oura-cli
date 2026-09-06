@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-06
+
 ### Fixed
 - A global flag between a command and its subcommand made the CLI reject the flag's *value* as a command: `db --format json today` failed with `Unknown command "json"`, and `db --db <path> today` echoed the whole path back. Global flags are now lifted to the end of the command line wherever they appear, so the three spellings of `--format json db today` all work. Tokens after `--` are left alone. (#79)
 - `--no-color` left citty's help output coloured, because citty reads `NO_COLOR` when its module is evaluated and the variable was only set afterwards. The rule moved into `src/lib/color-mode.ts` and is applied by `src/lib/apply-color-mode.ts`, which the entry point imports first. Piped help is plain too unless `FORCE_COLOR` asks otherwise, `FORCE_COLOR=0` included, which chalk reads as off. (#80)
