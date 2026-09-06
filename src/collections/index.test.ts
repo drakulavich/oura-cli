@@ -40,6 +40,14 @@ describe('collection registry', () => {
     expect(names()).toContain('sleep');
     expect(byName('nope')).toBeUndefined();
   });
+
+  it('re-walks days behind the watermark only where Oura backfills them', () => {
+    // #68: Oura adds workout heart-rate samples to days already behind the watermark, so `hr`
+    // is the one collection that must look back. Adding another should be a deliberate edit.
+    const withLookback = COLLECTIONS.filter(c => c.syncLookbackDays !== undefined);
+    expect(withLookback.map(c => c.name)).toEqual(['hr']);
+    for (const c of withLookback) expect(Number.isInteger(c.syncLookbackDays) && c.syncLookbackDays! > 0).toBe(true);
+  });
 });
 
 describe('rangeQueries', () => {
@@ -110,11 +118,6 @@ describe('rangeQueries', () => {
       resilience: [0, 0], vo2max: [0, 1], 'sleep-time': [0, 0], session: [0, 1], 'rest-mode': [0, 1], tags: [0, 1],
       ring: [0, 0], battery: [0, 0],
     });
-  });
-
-  it('re-walks days behind the watermark only where Oura backfills them', () => {
-    const lookback = Object.fromEntries(COLLECTIONS.filter(c => c.syncLookbackDays).map(c => [c.name, c.syncLookbackDays]));
-    expect(lookback).toEqual({ hr: 14 }); // #68: workout samples arrive up to 11 days late
   });
 
   it('gives every snapshot collection a primary-key column, which the sync replace path keys on', () => {
