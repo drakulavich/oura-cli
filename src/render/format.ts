@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import { padLeft, padRight } from '../lib/pad.js';
 import type { DaySummary, TrendRow, DbStats } from '../db/queries.js';
 import { COLLECTIONS } from '../collections/index.js';
 import type { ImportResult } from '../db/sync.js';
@@ -83,9 +84,11 @@ export function formatWeekTable(days: DaySummary[], format: OutputFormat, emptyH
 
   const header = `${'Day'.padEnd(12)} ${'Sleep'.padStart(6)} ${'Ready'.padStart(6)} ${'Activity'.padStart(9)} ${'Steps'.padStart(7)} ${'Stress'.padEnd(10)}`;
   const sep = chalk.gray('─'.repeat(56));
+  // padLeft, not padStart: scoreColor returns a chalk-wrapped string whose length counts the
+  // escapes, so the built-in pads by nothing at all on a colour terminal.
   const rows = days.map(d =>
-    `${d.day.padEnd(12)} ${scoreColor(d.sleep_score).padStart(6)} ${scoreColor(d.readiness_score).padStart(6)} ` +
-    `${scoreColor(d.activity_score).padStart(9)} ${String(d.steps ?? '—').padStart(7)} ${(d.stress ?? '—').padEnd(10)}`
+    `${padRight(d.day, 12)} ${padLeft(scoreColor(d.sleep_score), 6)} ${padLeft(scoreColor(d.readiness_score), 6)} ` +
+    `${padLeft(scoreColor(d.activity_score), 9)} ${padLeft(String(d.steps ?? '—'), 7)} ${padRight(d.stress ?? '—', 10)}`
   );
   return ['\n  Last 7 Days', sep, `  ${header}`, sep, ...rows.map(r => `  ${r}`)].join('\n');
 }
