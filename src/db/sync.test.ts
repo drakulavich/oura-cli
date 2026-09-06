@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import { ensureSchema } from './open.js';
+import { COLLECTIONS } from '../collections/index.js';
 import { importDaily } from './sync.js';
 import type { OuraClient } from '../api/client.js';
 import type { OuraEndpoint } from '../api/types.js';
@@ -263,6 +264,24 @@ describe('Import', () => {
       expect(queriesFor(calls, 'heartrate')[0]!.start_datetime).toBe('2026-05-31T00:00:00.000Z'); // 14 days back
       // the daily summaries keep their one-day overlap: Oura revises those, it does not append to them.
       expect(queriesFor(calls, 'daily_sleep')).toEqual([{ start_date: '2026-06-14', end_date: '2026-06-15' }]);
+    });
+
+    it('reports the window the cache needed, not the tail heart rate re-reads', async () => {
+      // Otherwise a fully populated cache would announce a fortnight on every sync, while
+      // sixteen of seventeen collections asked for a single day.
+      const db = new Database(':memory:');
+      ensureSchema(db);
+      for (const c of COLLECTIONS.filter(c => c.rangeParams !== 'none')) {
+        const cols = c.columns.map(col => col.name);
+        const values = cols.map(name => name === 'day' ? "'2026-06-15'" : name === 'timestamp' ? "'2026-06-15T10:00:00+00:00'" : "'x'");
+        db.query(`INSERT INTO ${c.table} (${cols.join(', ')}) VALUES (${values.join(', ')})`).run();
+      }
+      const calls: Array<[OuraEndpoint, Record<string, string>]> = [];
+      const result = await importDaily(db, recordingClient(calls), { today: '2026-06-15', tz: 'UTC' });
+      db.close();
+
+      expect(result.startDate).toBe('2026-06-15');
+      expect(queriesFor(calls, 'heartrate')[0]!.start_datetime).toBe('2026-06-01T00:00:00.000Z');
     });
 
     it('an explicit window replaces every watermark', async () => {

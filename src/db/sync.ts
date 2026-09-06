@@ -7,7 +7,11 @@ import { shiftDay } from '../lib/time.js';
 export const BACKFILL_DAYS = 30;
 
 export interface ImportResult {
-  /** Earliest day requested across collections. */
+  /**
+   * Earliest day the cache needed across collections — its oldest watermark, or the backfill
+   * start. A collection that re-walks its own tail (`syncLookbackDays`, currently `hr`) requests
+   * days before this; that is a re-read of days already stored, not a wider window.
+   */
   startDate: string;
   endDate: string;
   /** Rows the API returned, per table. */
@@ -64,15 +68,19 @@ export async function importDaily(
   // Snapshot collections (rangeParams 'none') have no day column and are fetched whole every run.
   const plan = COLLECTIONS.map(c => {
     const last = c.rangeParams === 'none' ? null : lastDay(db, c.table, end);
-    // The watermark day is re-fetched, plus whatever the collection asks for behind it: Oura
-    // backfills some collections days late, and a day left behind the watermark is never
-    // revisited. An explicit --from replaces the whole calculation.
-    const resumeFrom = last === null ? backfillStart : shiftDay(last, -(c.syncLookbackDays ?? 0));
-    return { c, last, start: window.from ?? resumeFrom };
+    // Where the cache says this collection has to resume from...
+    const resume = window.from ?? last ?? backfillStart;
+    // ...and how far behind that the request actually reaches: Oura backfills some collections
+    // days late, and a day left behind the watermark is never revisited. An explicit --from
+    // replaces both.
+    const start = window.from ?? shiftDay(resume, -(last === null ? 0 : c.syncLookbackDays ?? 0));
+    return { c, last, resume, start };
   });
   const ranged = plan.filter(p => p.c.rangeParams !== 'none');
   const isFirstSync = ranged.every(p => p.last === null);
-  const startDate = ranged.map(p => p.start).sort()[0]!;
+  // Reported from `resume`, not `start`: a lookback is one collection re-reading its own tail,
+  // and quoting it here would tell a user that every sync covers a fortnight of daily summaries.
+  const startDate = ranged.map(p => p.resume).sort()[0]!;
 
   _log(isFirstSync && window.from === undefined
     ? `First sync — backfilling the last ${BACKFILL_DAYS} days: ${startDate} → ${end}`
