@@ -57,11 +57,26 @@ export function openDatabase(explicit?: string): Database {
     // Switching the journal mode takes an exclusive lock, which fails while another process
     // reads; the file is already in WAL mode after its first open, so only switch when needed.
     const mode = db.query('PRAGMA journal_mode').get() as { journal_mode: string };
-    if (mode.journal_mode !== 'wal') db.exec('PRAGMA journal_mode = WAL');
+    if (mode.journal_mode !== 'wal') enableWal(db);
     db.exec('PRAGMA foreign_keys = ON');
     return db;
   } catch (err) {
     throw dbError(`Cannot open database ${dbPath}`, err);
+  }
+}
+
+/**
+ * Switching the journal mode takes an exclusive lock. On an existing cache the file is already in
+ * WAL after its first open, so this runs once; on a brand-new file two processes can reach it
+ * together and one loses the lock (#77). Losing is not a failure — the winner set the mode this
+ * process wanted — so re-read it and only complain if it really is not WAL.
+ */
+function enableWal(db: Database): void {
+  try {
+    db.exec('PRAGMA journal_mode = WAL');
+  } catch (err) {
+    const mode = db.query('PRAGMA journal_mode').get() as { journal_mode: string };
+    if (mode.journal_mode !== 'wal') throw err;
   }
 }
 
@@ -71,14 +86,35 @@ function schemaVersion(db: Database): number {
   return row?.v ?? 0;
 }
 
+/**
+ * Bring the schema up to date, once, however many processes ask at the same time.
+ *
+ * The read of the current version and the writes that follow have to be one atomic step:
+ * unsynchronised, eight concurrent commands recorded version 3 twice and ten on a cold cache left
+ * 13 rows for 3 migrations (#77). That is harmless only while every migration is `IF NOT EXISTS`;
+ * the first `ALTER TABLE ADD COLUMN` would make the loser fail. BEGIN IMMEDIATE takes the write
+ * lock up front, and `busy_timeout` (5 s) makes the losers wait rather than fail — they then read
+ * the version the winner committed and find nothing left to do.
+ */
 export function ensureSchema(db: Database, migrations: Migration[] = MIGRATIONS): void {
   try {
-    const current = schemaVersion(db);
-    for (const m of migrations) {
-      if (m.version > current) {
-        db.exec(m.sql);
-        db.query('INSERT INTO _schema_version (version) VALUES (?)').run(m.version);
+    // Outside the transaction: CREATE TABLE IF NOT EXISTS is safe to race, and reading the
+    // version first means an up-to-date cache takes no write lock at all.
+    if (schemaVersion(db) >= (migrations.at(-1)?.version ?? 0)) return;
+
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      const current = schemaVersion(db); // re-read: another process may have migrated while we waited
+      for (const m of migrations) {
+        if (m.version > current) {
+          db.exec(m.sql);
+          db.query('INSERT INTO _schema_version (version) VALUES (?)').run(m.version);
+        }
       }
+      db.exec('COMMIT');
+    } catch (err) {
+      db.exec('ROLLBACK');
+      throw err;
     }
   } catch (err) {
     throw dbError('Schema migration failed', err);
