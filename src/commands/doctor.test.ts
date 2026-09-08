@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'bun:test';
 import { Database } from 'bun:sqlite';
+import { openSync, writeSync, closeSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { ensureSchema } from '../db/open.js';
 import { CliError } from '../lib/errors.js';
 import {
@@ -232,6 +235,55 @@ describe('formatDoctorTable', () => {
     };
 
     expect(formatDoctorTable(result)).toContain('everything looks healthy');
+  });
+});
+
+describe('database integrity', () => {
+  // #78: healthcheck's SELECT 1 and every read command exit 0 on a cache with a damaged b-tree,
+  // so nothing told the user their data was corrupt.
+  it('passes quick_check on a healthy cache', async () => {
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const result = await runChecks(makeDeps({ openDb: () => ({ db, path: ':memory:' }) }));
+    db.close();
+    const check = result.checks.find(c => c.id === 'integrity')!;
+    expect(check.status).toBe('ok');
+  });
+
+  it('fails, and names a fix, when the file is damaged', async () => {
+    const path = join(tmpdir(), `oura-doctor-corrupt-${process.pid}.db`);
+    rmSync(path, { force: true });
+    const seed = new Database(path);
+    ensureSchema(seed);
+    const insert = seed.query("INSERT INTO heartrate (timestamp, bpm, source, day) VALUES (?, 60, 'awake', '2026-01-01')");
+    for (let i = 0; i < 400; i++) {
+      const hh = String(Math.floor(i / 60)).padStart(2, '0');
+      const mm = String(i % 60).padStart(2, '0');
+      insert.run(`2026-01-0${1 + Math.floor(i / 1440)}T${hh}:${mm}:00+00:00`);
+    }
+    seed.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+    seed.close();
+    // Zero a page in the middle of the file, the way the exploratory session did.
+    const fd = openSync(path, 'r+');
+    writeSync(fd, Buffer.alloc(16384), 0, 16384, 8192);
+    closeSync(fd);
+
+    const db = new Database(path);
+    const result = await runChecks(makeDeps({ openDb: () => ({ db, path }) }));
+    db.close();
+    rmSync(path, { force: true });
+
+    const check = result.checks.find(c => c.id === 'integrity')!;
+    expect(check.status).toBe('fail');
+    expect(check.fix).toContain('sync');
+    expect(result.ok).toBe(false);
+  });
+
+  it('reports integrity as failed when the database could not be opened at all', async () => {
+    const result = await runChecks(makeDeps({ openDb: () => { throw new Error('nope'); } }));
+    const check = result.checks.find(c => c.id === 'integrity')!;
+    expect(check.status).toBe('fail');
+    expect(check.detail).toContain('database unavailable');
   });
 });
 

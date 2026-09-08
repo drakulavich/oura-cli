@@ -13,7 +13,7 @@
         "required": ["id", "status", "detail"],
         "additionalProperties": false,
         "properties": {
-          "id":     { "type": "string", "enum": ["token", "token-valid", "database", "data"] },
+          "id":     { "type": "string", "enum": ["token", "token-valid", "database", "integrity", "data"] },
           "status": { "type": "string", "enum": ["ok", "warn", "fail", "skip"] },
           "detail": { "type": "string" },
           "fix":    { "type": "string" }

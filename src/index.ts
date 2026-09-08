@@ -70,7 +70,7 @@ if (isVersionRequest(rawArgs)) {
   // positional) get the same envelope and exit code as errors raised inside a command,
   // instead of citty's coloured usage dump on stdout.
   runCommand(main, { rawArgs }).catch((raw: unknown) => {
-    const err = fromCittyError(raw, REMOVED_COMMANDS);
+    const err = fromCittyError(raw, REMOVED_COMMANDS, rawArgs);
     emitError(err, formatFromArgv(rawArgs, process.stdout.isTTY === true));
     process.exit(exitCodeFor(err));
   });

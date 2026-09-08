@@ -3,6 +3,7 @@ import { writeFileSync, rmSync } from 'fs';
 import { resolve } from 'path';
 import { tmpdir } from 'os';
 import { resolveToken } from './token.js';
+import { CliError } from '../lib/errors.js';
 
 const file = resolve(tmpdir(), `oura-token-${process.pid}`);
 const saved = { OURA_TOKEN: process.env.OURA_TOKEN, OURA_TOKEN_PATH: process.env.OURA_TOKEN_PATH };
@@ -28,5 +29,30 @@ describe('resolveToken', () => {
   });
   it('returns null with the attempted path when nothing is available', () => {
     expect(resolveToken(undefined, file)).toEqual({ token: null, source: file });
+  });
+
+  // #92: the same shape as #76. A blank value fell through to the token file, so a wrapper
+  // expanding an unset variable authenticated as whoever that file holds.
+  it.each([[''], ['   ']])('rejects a blank --token (%j) instead of using the token file', value => {
+    writeFileSync(file, 'file-tok\n');
+    let err: unknown;
+    try { resolveToken(value, file); } catch (e) { err = e; }
+    expect(err).toBeInstanceOf(CliError);
+    expect((err as CliError).code).toBe('BAD_ARGS');
+    expect((err as CliError).message).toContain('--token');
+  });
+
+  it('rejects an empty OURA_TOKEN rather than ignoring it', () => {
+    process.env.OURA_TOKEN = '';
+    let err: unknown;
+    try { resolveToken(undefined, file); } catch (e) { err = e; }
+    expect(err).toBeInstanceOf(CliError);
+    expect((err as CliError).message).toContain('OURA_TOKEN');
+  });
+
+  it('never puts the value itself in the error', () => {
+    let err: unknown;
+    try { resolveToken('   ', file); } catch (e) { err = e; }
+    expect(`${(err as CliError).message} ${(err as CliError).hint}`).not.toMatch(/ {3}/);
   });
 });

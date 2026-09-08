@@ -6,7 +6,7 @@ import { assertKnownArgs } from './run-command.js';
 
 export function healthcheckCommand(version: string) {
   return defineCommand({
-    meta: { name: 'healthcheck', description: 'Quick local DB health probe (JSON: {ok, version, latencyMs}, plus error when ok is false).' },
+    meta: { name: 'healthcheck', description: 'Fast liveness probe: opens the local database and runs one query (JSON: {ok, version, latencyMs}, plus error when ok is false). It proves the file opens, not that its contents are intact — `doctor` checks that.' },
     args: { ...commonArgs },
     run({ args }) {
       assertKnownArgs(commonArgs as ArgsDef, args as Record<string, unknown>);

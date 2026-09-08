@@ -3,17 +3,26 @@ import { resolve, dirname } from 'path';
 import { homedir } from 'os';
 import { chmodSync, existsSync, mkdirSync } from 'fs';
 import { CliError } from '../lib/errors.js';
+import { requireValue } from '../lib/require-value.js';
 import { MIGRATIONS } from './migrations.js';
 
 export const DB_HINT = 'Check the path in --db / OURA_DB_PATH and that the file is a SQLite database oura-cli created.';
 const BUSY_HINT = 'Another oura-cli process is using this database; wait for it to finish and retry.';
+const PERMISSION_HINT = 'Check that you can write both the file and the directory holding it — SQLite creates -wal and -shm files alongside the database.';
 /** How long a statement waits for a lock held by another process before failing with SQLITE_BUSY. */
 const BUSY_TIMEOUT_MS = 5000;
 
+function hintFor(detail: string): string {
+  if (/database is locked|SQLITE_BUSY/i.test(detail)) return BUSY_HINT;
+  // SQLite reports a directory it cannot write as a read-only *database*, which sends the user
+  // looking at a file that is fine: WAL and SHM are new files created next to it.
+  if (/readonly database|read-only|EACCES|permission denied|unable to open database file/i.test(detail)) return PERMISSION_HINT;
+  return DB_HINT;
+}
+
 function dbError(what: string, err: unknown): CliError {
   const detail = err instanceof Error ? err.message : String(err);
-  const hint = /database is locked|SQLITE_BUSY/i.test(detail) ? BUSY_HINT : DB_HINT;
-  return new CliError('DB_ERROR', `${what}: ${detail}`, hint);
+  return new CliError('DB_ERROR', `${what}: ${detail}`, hintFor(detail));
 }
 
 /** The DB_ERROR for a SQLite failure raised by a query (corrupt file, missing table, lock), or undefined for anything else. */
@@ -28,22 +37,10 @@ export interface Migration {
   sql: string;
 }
 
-/**
- * A path the user supplied but left blank is a mistake, not "use the default": a wrapper
- * building `--db "$VAR"` from an unset variable would otherwise silently target — and migrate,
- * and under `sync` write to — the user's real cache instead of the sandbox it meant to use.
- */
-function requirePath(value: string, source: string): string {
-  if (value.trim() === '') {
-    throw new CliError('BAD_ARGS', `${source} has no path`, `Pass a path to a SQLite file, or remove ${source} to fall back to the default database.`);
-  }
-  return value;
-}
-
 export function getDbPath(explicit?: string): string {
-  if (explicit !== undefined) return requirePath(explicit, '--db');
+  if (explicit !== undefined) return requireValue(explicit, '--db', 'the default database');
   const fromEnv = process.env.OURA_DB_PATH;
-  if (fromEnv !== undefined) return requirePath(fromEnv, 'OURA_DB_PATH');
+  if (fromEnv !== undefined) return requireValue(fromEnv, 'OURA_DB_PATH', 'the default database');
   return resolve(homedir(), '.oura-cli', 'oura.db');
 }
 

@@ -1,3 +1,5 @@
+import { requireValue } from './require-value.js';
+
 export function nowUtc(): string {
   return new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 }
@@ -52,7 +54,10 @@ export function localDateToUtcRange(localDate: string, timezone: string): [strin
 }
 
 export function resolveDefaultTimezone(): string {
-  if (process.env.OURA_TZ) return process.env.OURA_TZ;
+  // Blank means the user meant to set a zone and did not; silently using the system zone would
+  // shift every day boundary without saying so (#92).
+  const fromEnv = process.env.OURA_TZ;
+  if (fromEnv !== undefined) return requireValue(fromEnv, 'OURA_TZ', 'the system timezone');
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
   } catch {
