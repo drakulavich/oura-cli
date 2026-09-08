@@ -2,6 +2,7 @@ import type { Database } from './open.js';
 import type { OuraClient } from '../api/client.js';
 import { COLLECTIONS, fetchCollection, insertSql, rowValues } from '../collections/index.js';
 import { shiftDay } from '../lib/time.js';
+import { planWindow, applyWindowPlan, type WindowPlan } from './reconcile.js';
 
 /** Days (inclusive) a collection's first sync covers. */
 export const BACKFILL_DAYS = 30;
@@ -17,11 +18,16 @@ export interface ImportResult {
   /** Rows the API returned, per table. */
   fetched: Record<string, number>;
   /**
-   * Net growth of each table: days (or heartrate samples) it did not hold before this run.
-   * A re-fetched row that replaces or is ignored by the one already stored — including a
-   * recomputed day that arrives under a new id — counts as fetched, not as new.
+   * Rows in the response whose identity the table did not already hold, per table. A re-fetched
+   * row counts as fetched, not as new — including a day recomputed under a new id, which replaces
+   * the row it supersedes rather than joining it.
    */
   added: Record<string, number>;
+  /**
+   * Rows deleted per table because the API no longer has them: a heart-rate sample Oura
+   * reclassified, a workout re-issued under a new id. Only tables that lost rows appear.
+   */
+  removed: Record<string, number>;
   /** True when every table was empty before this run. */
   isFirstSync: boolean;
 }
@@ -48,10 +54,6 @@ export interface SyncWindow {
  */
 function lastDay(db: Database, table: string, end: string): string | null {
   return (db.query(`SELECT MAX(day) AS d FROM ${table} WHERE day <= ?`).get(end) as { d: string | null }).d;
-}
-
-function rowCount(db: Database, table: string): number {
-  return (db.query(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n;
 }
 
 export async function importDaily(
@@ -88,6 +90,7 @@ export async function importDaily(
 
   const fetched: Record<string, number> = {};
   const added: Record<string, number> = {};
+  const removed: Record<string, number> = {};
   for (const { c, start } of plan) {
     const rows = await fetchCollection(client, c, start, end, tz);
     const stmt = db.query(insertSql(c));
@@ -107,17 +110,27 @@ export async function importDaily(
       _log(`  + ${c.name} (${c.table}): ${rows.length} fetched, ${added[c.table]} new${rows.length === 0 ? ', table cleared' : ''}`);
       continue;
     }
-    const before = rowCount(db, c.table);
-    db.transaction((rs: unknown[]) => { for (const r of rs) stmt.run(...rowValues(c, r)); })(rows);
+    // Insert and reconcile in one transaction: the window ends up holding exactly what the API
+    // returned for it, and a failure part-way leaves it as it was.
+    let window_: WindowPlan = { added: 0, stale: [] };
+    let gone = 0;
+    db.transaction((rs: unknown[]) => {
+      window_ = planWindow(db, c, rs);
+      for (const r of rs) stmt.run(...rowValues(c, r));
+      gone = applyWindowPlan(db, c, window_);
+    })(rows);
     fetched[c.table] = rows.length;
-    added[c.table] = rowCount(db, c.table) - before;
+    added[c.table] = window_.added;
+    if (gone > 0) removed[c.table] = gone;
     // Every collection gets a line, including the ones that returned nothing: a silent collection
     // was indistinguishable from a failed one, while the summary listed it anyway. Both names are
     // printed because the summary and `fetch` speak in collection names while `db stats` and the
     // schema speak in table names.
-    _log(`  + ${c.name} (${c.table}): ${rows.length} fetched, ${added[c.table]} new`);
+    const tail = gone > 0 ? `, ${gone} stale removed` : '';
+    const refused = window_.refused === undefined ? '' : `, ${window_.refused} rows the response dropped were kept (it looks truncated)`;
+    _log(`  + ${c.name} (${c.table}): ${rows.length} fetched, ${added[c.table]} new${tail}${refused}`);
   }
 
   _log('Import complete.');
-  return { startDate, endDate: end, fetched, added, isFirstSync };
+  return { startDate, endDate: end, fetched, added, removed, isFirstSync };
 }

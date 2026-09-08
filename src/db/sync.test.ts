@@ -284,6 +284,53 @@ describe('Import', () => {
       expect(queriesFor(calls, 'heartrate')[0]!.start_datetime).toBe('2026-06-01T00:00:00.000Z');
     });
 
+    it('removes a sample the API reclassified instead of keeping both rows', async () => {
+      // #91: the unique index is (timestamp, source), so awake → workout used to leave two rows
+      // for one instant, and nothing could repair it afterwards.
+      const db = new Database(':memory:');
+      ensureSchema(db);
+      db.query("INSERT INTO heartrate (timestamp, bpm, source, day) VALUES ('2026-06-15T10:00:00+00:00', 70, 'awake', '2026-06-15')").run();
+      const client = {
+        fetch: async (endpoint: OuraEndpoint) => endpoint === 'heartrate'
+          ? [{ timestamp: '2026-06-15T10:00:00+00:00', bpm: 70, source: 'workout' }] : [],
+      } as unknown as OuraClient;
+
+      const result = await importDaily(db, client, { today: '2026-06-15', tz: 'UTC' });
+      const rows = db.query('SELECT source FROM heartrate').all() as Array<{ source: string }>;
+      db.close();
+
+      expect(rows.map(r => r.source)).toEqual(['workout']);
+      expect(result.removed.heartrate).toBe(1);
+      expect(result.added.heartrate).toBe(1);
+    });
+
+    it('drops a workout the API re-issued under a new id, so the day is not counted twice', async () => {
+      // #71: id is the primary key and day is not unique for workouts, sleep periods, sessions,
+      // rest-mode periods and tags, so both rows survived and report averaged the day twice.
+      const db = new Database(':memory:');
+      ensureSchema(db);
+      db.query("INSERT INTO workouts (id, day, activity) VALUES ('old', '2026-06-15', 'walking')").run();
+      const client = {
+        fetch: async (endpoint: OuraEndpoint) => endpoint === 'workout'
+          ? [{ id: 'new', day: '2026-06-15', activity: 'walking', intensity: 'easy', start_datetime: null, end_datetime: null, calories: null, distance: null, label: null, source: 'manual' }] : [],
+      } as unknown as OuraClient;
+
+      const result = await importDaily(db, client, { today: '2026-06-15', tz: 'UTC' });
+      const ids = (db.query('SELECT id FROM workouts').all() as Array<{ id: string }>).map(r => r.id);
+      db.close();
+
+      expect(ids).toEqual(['new']);
+      expect(result.removed.workouts).toBe(1);
+    });
+
+    it('reports no removals for a plain incremental run', async () => {
+      const db = new Database(':memory:');
+      ensureSchema(db);
+      const result = await importDaily(db, recordingClient([]), { today: '2026-06-15', tz: 'UTC' });
+      db.close();
+      expect(result.removed).toEqual({});
+    });
+
     it('an explicit window replaces every watermark', async () => {
       const db = new Database(':memory:');
       ensureSchema(db);

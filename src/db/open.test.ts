@@ -197,7 +197,8 @@ describe('concurrent migrations', () => {
       { stdout: 'pipe', stderr: 'pipe' },
     ));
     const codes = await Promise.all(procs.map(p => p.exited));
-    expect(codes).toEqual([0, 0, 0, 0]);
+    const errs = await Promise.all(procs.map(async p => (await new Response(p.stderr).text()).trim()));
+    expect({ codes, errs: errs.filter(e => e.length > 0) }).toEqual({ codes: [0, 0, 0, 0], errs: [] });
 
     const db = new Database(path);
     const rows = db.query('SELECT version, COUNT(*) AS n FROM _schema_version GROUP BY version').all() as Array<{ version: number; n: number }>;

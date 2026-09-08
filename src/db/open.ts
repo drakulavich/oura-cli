@@ -11,6 +11,9 @@ const BUSY_HINT = 'Another oura-cli process is using this database; wait for it 
 const PERMISSION_HINT = 'Check that you can write both the file and the directory holding it — SQLite creates -wal and -shm files alongside the database.';
 /** How long a statement waits for a lock held by another process before failing with SQLITE_BUSY. */
 const BUSY_TIMEOUT_MS = 5000;
+/** Retries for the exclusive lock the WAL switch needs; SQLITE_BUSY there ignores busy_timeout. */
+const WAL_SWITCH_ATTEMPTS = 20;
+const WAL_SWITCH_WAIT_MS = 25;
 
 function hintFor(detail: string): string {
   if (/database is locked|SQLITE_BUSY/i.test(detail)) return BUSY_HINT;
@@ -56,8 +59,7 @@ export function openDatabase(explicit?: string): Database {
     db.exec(`PRAGMA busy_timeout = ${BUSY_TIMEOUT_MS}`);
     // Switching the journal mode takes an exclusive lock, which fails while another process
     // reads; the file is already in WAL mode after its first open, so only switch when needed.
-    const mode = db.query('PRAGMA journal_mode').get() as { journal_mode: string };
-    if (mode.journal_mode !== 'wal') enableWal(db);
+    if (journalMode(db) !== 'wal') enableWal(db);
     db.exec('PRAGMA foreign_keys = ON');
     return db;
   } catch (err) {
@@ -65,18 +67,29 @@ export function openDatabase(explicit?: string): Database {
   }
 }
 
+function journalMode(db: Database): string {
+  return (db.query('PRAGMA journal_mode').get() as { journal_mode: string }).journal_mode;
+}
+
 /**
- * Switching the journal mode takes an exclusive lock. On an existing cache the file is already in
- * WAL after its first open, so this runs once; on a brand-new file two processes can reach it
- * together and one loses the lock (#77). Losing is not a failure — the winner set the mode this
- * process wanted — so re-read it and only complain if it really is not WAL.
+ * Switching the journal mode takes an exclusive lock, and SQLite answers SQLITE_BUSY immediately
+ * rather than waiting out `busy_timeout`. On an existing cache this never runs — the file is
+ * already WAL after its first open — but two processes creating the same file race for it, and
+ * before this the loser failed at open with DB_ERROR (#77).
+ *
+ * Losing is not a failure: what this process wants is for the file to be in WAL, whoever set it.
+ * So retry briefly, and stop as soon as the mode reads back as WAL.
  */
 function enableWal(db: Database): void {
-  try {
-    db.exec('PRAGMA journal_mode = WAL');
-  } catch (err) {
-    const mode = db.query('PRAGMA journal_mode').get() as { journal_mode: string };
-    if (mode.journal_mode !== 'wal') throw err;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      db.exec('PRAGMA journal_mode = WAL');
+      return;
+    } catch (err) {
+      if (journalMode(db) === 'wal') return; // the other process got there first
+      if (attempt >= WAL_SWITCH_ATTEMPTS) throw err;
+      Bun.sleepSync(WAL_SWITCH_WAIT_MS);
+    }
   }
 }
 
