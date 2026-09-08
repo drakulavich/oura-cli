@@ -1,4 +1,5 @@
 import { CliError } from './errors.js';
+import { GLOBAL_FLAGS_WITH_VALUE } from './argv-normalize.js';
 
 const ANSI = /\u001b\[[0-9;]*m/g;
 
@@ -14,13 +15,62 @@ const ANSI = /\u001b\[[0-9;]*m/g;
  * with the name in cyan). The end-to-end cases in src/index.test.ts run the real citty, so a
  * wording change upstream fails there, not silently here.
  */
-export function fromCittyError(err: unknown, removedCommandHints: Readonly<Record<string, string>> = {}): unknown {
+/** A name citty could plausibly have been given as a command: lower-case, no path, no secret. */
+const COMMAND_NAME = /^[a-z][a-z0-9-]*$/;
+
+function editDistanceAtMostOne(a: string, b: string): boolean {
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0, j = 0, edits = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) { i++; j++; continue; }
+    if (++edits > 1) return false;
+    if (a.length > b.length) i++;
+    else if (a.length < b.length) j++;
+    else { i++; j++; }
+  }
+  return edits + (a.length - i) + (b.length - j) <= 1;
+}
+
+/**
+ * The global flag `token` was probably meant to be: one edit away from one, or a truncation of
+ * one (`--tok` for `--token`, which is two edits but the commonest way to mistype it).
+ *
+ * Only consulted once citty has already failed, so a valid command line never reaches this and a
+ * command's own flag (`sync --to`, one edit from `--tz`) cannot be mistaken for a near miss.
+ */
+function nearestGlobalFlag(token: string): string | undefined {
+  if (!token.startsWith('--') || token.length < 4) return undefined;
+  return [...GLOBAL_FLAGS_WITH_VALUE].find(flag =>
+    flag !== token && (editDistanceAtMostOne(flag, token) || flag.startsWith(token)));
+}
+
+export function fromCittyError(
+  err: unknown,
+  removedCommandHints: Readonly<Record<string, string>> = {},
+  rawArgs: readonly string[] = [],
+): unknown {
   const code = (err as { code?: unknown } | null)?.code;
   if (typeof code !== 'string') return err;
   const message = (err instanceof Error ? err.message : String(err)).replace(ANSI, '');
   switch (code) {
     case 'E_UNKNOWN_COMMAND': {
       const name = message.replace(/^Unknown command\s*/, '').trim();
+
+      // A misspelled global flag leaves its value in the command position, so citty names the
+      // value. Blame the flag instead: with `--tok <token>` the value is the user's token, and
+      // an error message is the last place it should appear (#95).
+      const before = rawArgs[rawArgs.lastIndexOf(name) - 1];
+      const meant = before === undefined ? undefined : nearestGlobalFlag(before);
+      if (meant) {
+        return new CliError('BAD_ARGS', `Unknown flag "${before}".`, `Did you mean ${meant}? Its value was read as a command name.`);
+      }
+
+      // Anything that cannot be a command name is not quoted back either: a path, a token, a
+      // date. Naming it helps nobody and may put a secret in a log.
+      if (!COMMAND_NAME.test(name)) {
+        return new CliError('BAD_ARGS', 'Unknown command.', 'A value was read as a command name. Check the flags before it, and run `oura-cli --help` for the list of commands.');
+      }
+
       // hasOwn: a name like "constructor" must not read Object.prototype.
       const hint = Object.hasOwn(removedCommandHints, name)
         ? removedCommandHints[name]

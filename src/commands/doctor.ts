@@ -49,8 +49,30 @@ export async function runChecks(deps: DoctorDeps): Promise<DoctorResult> {
   }
 
   if (db) {
-    const last = latestDataDay(db);
-    if (!last) {
+    // `healthcheck` only proves the file opens; corruption inside a b-tree is invisible to it and
+    // to every read command until one happens to touch the damaged page (#78). quick_check walks
+    // the pages without the cross-index work of integrity_check, so it stays affordable here.
+    const damage = quickCheck(db);
+    checks.push(damage === null
+      ? { id: 'integrity', status: 'ok', detail: 'Database passes SQLite quick_check.' }
+      : { id: 'integrity', status: 'fail', detail: `Database is damaged: ${damage}`, fix: 'Delete the cache file (--db / OURA_DB_PATH) and run `oura-cli sync` to rebuild it.' });
+  } else {
+    checks.push({ id: 'integrity', status: 'fail', detail: 'Cannot check integrity — database unavailable.' });
+  }
+
+  if (db) {
+    // A damaged file answers a query with an exception; the integrity check above has already
+    // said so, and doctor must still finish rather than crash on its way to the summary.
+    let last: string | null = null;
+    let readFailed: string | undefined;
+    try {
+      last = latestDataDay(db);
+    } catch (err) {
+      readFailed = err instanceof Error ? err.message : String(err);
+    }
+    if (readFailed !== undefined) {
+      checks.push({ id: 'data', status: 'fail', detail: `Cannot read the cache: ${readFailed}`, fix: 'Delete the cache file (--db / OURA_DB_PATH) and run `oura-cli sync` to rebuild it.' });
+    } else if (!last) {
       checks.push({ id: 'data', status: 'warn', detail: 'No data in the local cache yet.', fix: 'oura-cli sync' });
     } else {
       const ageDays = Math.round(
@@ -79,6 +101,18 @@ export async function runChecks(deps: DoctorDeps): Promise<DoctorResult> {
   return { ok, checks, nextStep };
 }
 
+/** The first problem `PRAGMA quick_check` reports, or null when the file is intact. */
+function quickCheck(db: Database): string | null {
+  try {
+    const rows = db.query('PRAGMA quick_check(1)').all() as Array<Record<string, string>>;
+    const first = rows[0] === undefined ? 'ok' : Object.values(rows[0])[0] ?? 'ok';
+    return first === 'ok' ? null : first;
+  } catch (err) {
+    // A file too damaged to answer the pragma is exactly what this check is for.
+    return err instanceof Error ? err.message : String(err);
+  }
+}
+
 const DATA_TABLES = ['daily_sleep', 'daily_readiness', 'daily_activity'] as const;
 
 function latestDataDay(db: Database): string | null {
@@ -94,8 +128,8 @@ export function exitCodeForChecks(checks: DoctorCheck[]): number {
   const fail = checks.find(c => c.status === 'fail');
   if (!fail) return 0;
   if (fail.id === 'token' || fail.id === 'token-valid') return exitCodeFor(new CliError('TOKEN_MISSING', fail.detail));
-  // 'data' only ever fails when 'database' already failed (and sorts first
-  // in `checks`), so this line is reached only for id === 'database'.
+  // Everything else is about the database: 'database' itself, 'integrity', and 'data', which only
+  // fails when 'database' already did — and 'database' sorts first, so it is the one reported.
   return exitCodeFor(new CliError('DB_ERROR', fail.detail));
 }
 

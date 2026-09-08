@@ -1,4 +1,5 @@
-import { describe, it, expect, setSystemTime } from 'bun:test';
+import { describe, it, expect, afterEach, setSystemTime } from 'bun:test';
+import { CliError } from './errors.js';
 import {
   isCalendarDate,
   nowUtc,
@@ -71,8 +72,28 @@ describe('localDateToUtcRange', () => {
 });
 
 describe('resolveDefaultTimezone', () => {
+  const savedTz = process.env.OURA_TZ;
+  afterEach(() => { if (savedTz === undefined) delete process.env.OURA_TZ; else process.env.OURA_TZ = savedTz; });
+
   it('returns a non-empty IANA timezone identifier', () => {
+    delete process.env.OURA_TZ;
     expect(resolveDefaultTimezone()).toMatch(/^[A-Z][A-Za-z_+\-0-9/]+$/);
+  });
+
+  it('uses OURA_TZ when it names a zone', () => {
+    process.env.OURA_TZ = 'Asia/Dubai';
+    expect(resolveDefaultTimezone()).toBe('Asia/Dubai');
+  });
+
+  // #92: an empty value used to fall through to the system zone, shifting every day boundary
+  // without saying so.
+  it('rejects an empty OURA_TZ instead of falling back to the system zone', () => {
+    process.env.OURA_TZ = '';
+    let err: unknown;
+    try { resolveDefaultTimezone(); } catch (e) { err = e; }
+    expect(err).toBeInstanceOf(CliError);
+    expect((err as CliError).code).toBe('BAD_ARGS');
+    expect((err as CliError).message).toContain('OURA_TZ');
   });
 });
 

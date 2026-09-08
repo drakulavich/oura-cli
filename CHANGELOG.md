@@ -6,6 +6,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- A misspelled global flag left its value in the command position, so the CLI reported the value as the command name — and for `--tok <token>` that put a Personal Access Token into an error message. A near miss of a known flag is now blamed on the flag (`Unknown flag "--tok". Did you mean --token?`), and a value that cannot be a command name is never quoted back. (#95)
+- An empty `--token` or `OURA_TOKEN` fell through to the token file, so a wrapper expanding an unset variable authenticated as whoever that file holds; an empty `OURA_TZ` fell through to the system zone and shifted every day boundary silently. Both are now `BAD_ARGS`, like the `--db` case fixed in 0.6.0, through one shared guard. (#92)
+- A database in a directory the user cannot write reported `attempt to write a readonly database` with a hint about the file's format. The file is fine; SQLite needs to create `-wal` and `-shm` beside it. Permission failures now get their own hint. (#78)
+- `doctor` runs SQLite's `quick_check` and reports it as a new `integrity` check, so a cache with a damaged page is named instead of passing every command until something touches the broken page. `doctor` also survives reading a corrupt cache rather than crashing part-way through its own checks, and `healthcheck`'s description now says it proves the file opens, not that its contents are intact. (#78)
+
 ## [0.6.0] - 2026-09-06
 
 ### Fixed

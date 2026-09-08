@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, afterAll } from 'bun:test';
 import { CliError } from '../lib/errors.js';
-import { mkdtempSync, writeFileSync, rmSync, statSync } from 'fs';
+import { mkdtempSync, writeFileSync, rmSync, statSync, mkdirSync, chmodSync } from 'fs';
 import { Database } from 'bun:sqlite';
 import { openDatabase, getDbPath, ensureSchema, asDbError, type Migration } from './open.js';
 import { unlinkSync } from 'fs';
@@ -152,6 +152,26 @@ describe('openDatabase errors', () => {
     expect((err as CliError).code).toBe('DB_ERROR');
     expect((err as CliError).message).toContain(junk);
     expect((err as CliError).hint).toContain('OURA_DB_PATH');
+  });
+
+  it('blames directory permissions, not the file format, when the directory is read-only', () => {
+    // #78: SQLite reports a directory it cannot write as a read-only *database*, and the generic
+    // hint sent the user to inspect a file that was fine.
+    const ro = join(dir, 'readonly');
+    mkdirSync(ro, { recursive: true });
+    const path = join(ro, 'oura.db');
+    openDatabase(path).close();
+    chmodSync(ro, 0o500);
+    let err: unknown;
+    try {
+      const db = openDatabase(path);
+      db.exec('CREATE TABLE t (x)');
+      db.close();
+    } catch (e) { err = asDbError(e) ?? e; }
+    chmodSync(ro, 0o700); // so the temp dir can be removed
+    expect(err).toBeInstanceOf(CliError);
+    expect((err as CliError).code).toBe('DB_ERROR');
+    expect((err as CliError).hint).toContain('directory');
   });
 
   it('reports an unusable path (parent is a regular file) as DB_ERROR', () => {
