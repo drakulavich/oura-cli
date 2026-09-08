@@ -184,6 +184,47 @@ describe('openDatabase errors', () => {
   });
 });
 
+describe('concurrent migrations', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'oura-migrate-'));
+  afterAll(() => { rmSync(dir, { recursive: true, force: true }); });
+
+  it('records each migration once when several processes migrate the same cold cache', async () => {
+    // #77: check-and-apply had no lock, so ten concurrent commands left 13 rows for 3 migrations.
+    // Harmless while every migration is IF NOT EXISTS; the first ALTER TABLE would fail the loser.
+    const path = join(dir, 'cold.db');
+    const procs = Array.from({ length: 4 }, () => Bun.spawn(
+      ['bun', 'run', 'src/index.ts', 'db', 'stats', '--db', path, '--format', 'json'],
+      { stdout: 'pipe', stderr: 'pipe' },
+    ));
+    const codes = await Promise.all(procs.map(p => p.exited));
+    expect(codes).toEqual([0, 0, 0, 0]);
+
+    const db = new Database(path);
+    const rows = db.query('SELECT version, COUNT(*) AS n FROM _schema_version GROUP BY version').all() as Array<{ version: number; n: number }>;
+    db.close();
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) expect(row.n).toBe(1);
+  }, 20_000);
+
+  it('waits for the process holding the write lock instead of racing it', () => {
+    const path = join(dir, 'locked.db');
+    const holder = openDatabase(path);
+    ensureSchema(holder);
+    const other = openDatabase(path);
+    other.exec('PRAGMA busy_timeout = 200'); // keep the test quick if the lock is not released
+
+    holder.exec('BEGIN IMMEDIATE');
+    try {
+      // The schema is already current, so this must not ask for a write lock at all.
+      expect(() => ensureSchema(other)).not.toThrow();
+    } finally {
+      holder.exec('ROLLBACK');
+      holder.close();
+      other.close();
+    }
+  });
+});
+
 describe('openDatabase concurrency and permissions', () => {
   const dir = mkdtempSync(join(tmpdir(), 'oura-open2-'));
   afterAll(() => { rmSync(dir, { recursive: true, force: true }); });
