@@ -69,6 +69,12 @@ describe('an unknown command that came from a mistyped flag', () => {
     expect(`${err.message} ${err.hint}`).not.toContain('SECRET-VALUE');
   });
 
+  it('does not quote back a lower-case secret either, since length gives it away', () => {
+    const secret = 'a'.repeat(32);
+    const err = fromCittyError(unknown(secret), {}, ['db', '--tokn', secret]) as CliError;
+    expect(`${err.message} ${err.hint}`).not.toContain(secret);
+  });
+
   it('does not quote back a value that cannot be a command name', () => {
     const err = fromCittyError(unknown('/home/me/private.db'), {}, ['db', '--database', '/home/me/private.db']) as CliError;
     expect(err.message).toBe('Unknown command.');

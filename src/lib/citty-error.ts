@@ -4,19 +4,11 @@ import { GLOBAL_FLAGS_WITH_VALUE } from './argv-normalize.js';
 const ANSI = /\u001b\[[0-9;]*m/g;
 
 /**
- * citty throws its own errors (with a `code`) before a command runs: unknown command,
- * missing positional, no command at all. Translate them into BAD_ARGS so they reach the
- * user through the same envelope as every other error; anything else passes through.
- *
- * `removedCommandHints` maps a command name that no longer exists to the hint to show
- * instead of the generic --help pointer (see src/index.ts).
- *
- * The unknown-command name is recovered from citty's message text ("Unknown command <name>",
- * with the name in cyan). The end-to-end cases in src/index.test.ts run the real citty, so a
- * wording change upstream fails there, not silently here.
+ * A name citty could plausibly have been given as a command: lower-case, short, no separators.
+ * The length bound is what keeps a lower-case secret out of the message; every real command name
+ * in this CLI is under a dozen characters.
  */
-/** A name citty could plausibly have been given as a command: lower-case, no path, no secret. */
-const COMMAND_NAME = /^[a-z][a-z0-9-]*$/;
+const COMMAND_NAME = /^[a-z][a-z0-9-]{0,19}$/;
 
 function editDistanceAtMostOne(a: string, b: string): boolean {
   if (Math.abs(a.length - b.length) > 1) return false;
@@ -44,6 +36,18 @@ function nearestGlobalFlag(token: string): string | undefined {
     flag !== token && (editDistanceAtMostOne(flag, token) || flag.startsWith(token)));
 }
 
+/**
+ * citty throws its own errors (with a `code`) before a command runs: unknown command,
+ * missing positional, no command at all. Translate them into BAD_ARGS so they reach the
+ * user through the same envelope as every other error; anything else passes through.
+ *
+ * `removedCommandHints` maps a command name that no longer exists to the hint to show
+ * instead of the generic --help pointer (see src/index.ts).
+ *
+ * The unknown-command name is recovered from citty's message text ("Unknown command <name>",
+ * with the name in cyan). The end-to-end cases in src/index.test.ts run the real citty, so a
+ * wording change upstream fails there, not silently here.
+ */
 export function fromCittyError(
   err: unknown,
   removedCommandHints: Readonly<Record<string, string>> = {},
