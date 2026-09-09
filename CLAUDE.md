@@ -14,9 +14,9 @@ The version is read from package.json at runtime; there is no constant to keep i
 
 ### RELEASES ARE TAG-DRIVEN AND PERMANENT
 
-Bump the version in `package.json`, add a `## [x.y.z] - YYYY-MM-DD` section to `CHANGELOG.md`, land those two through a PR — `main` is protected, so pushing to it is rejected with `GH013` — then tag the merged commit: `git tag vx.y.z && git push origin vx.y.z`. `release.yml` runs tests, publishes to npm, and creates a GitHub Release whose body is that CHANGELOG section.
+Bump the version in `package.json`, add a `## [x.y.z] - YYYY-MM-DD` section to `CHANGELOG.md`, and land those two through a PR — `main` is protected, so pushing to it is rejected with `GH013`. The rebase-merge gives the commit a new SHA, so pull before tagging (`git checkout main && git pull`), then `git tag vx.y.z && git push origin vx.y.z`: the workflow builds whatever the tag points at, and a tag on a local pre-merge commit publishes a tree that is not on `main`. `release.yml` runs tests, publishes to npm, and creates a GitHub Release whose body is that CHANGELOG section.
 
-Publishing uses **npm Trusted Publishing** (`id-token: write` + `--provenance`); there is no `NPM_TOKEN` secret, and CONTRIBUTING.md's instructions to configure one are stale. A published version is permanent and a tag is one-use: on failure, **fix forward** with a new patch version — never re-tag.
+Publishing uses **npm Trusted Publishing** (`id-token: write` + `--provenance`); there is no `NPM_TOKEN` secret to configure. A published version is permanent and a tag is one-use: on failure, **fix forward** with a new patch version — never re-tag.
 
 ### THE CLI IS `citty`, NOT COMMANDER
 
@@ -58,12 +58,13 @@ CI runs type-check → tests → build → `npm audit` (high+). Only the first t
 ## Conventions
 
 - **Tests are co-located**: `foo.test.ts` sits next to `foo.ts`. There is no `tests/` directory.
-- **Local imports carry a `.js` suffix** (`./commands/login.js`) even though the files are `.ts`; exports are named throughout.
+- **Named exports only** — there are currently no default exports anywhere in `src/`.
+- **Local imports carry a `.js` suffix** (`./commands/login.js`) even though the files are `.ts`.
 - **A new top-level command touches three files**: `src/commands/` (the implementation), `src/index.ts` (registration), and the `SUBCOMMANDS` set in `src/lib/argv-normalize.ts` — plus refreshing the describe snapshot (`bun test -u` on `src/commands/__snapshots__/describe.test.ts.snap`, then review the diff). Miss `SUBCOMMANDS` and `oura-cli --format json <cmd>` silently ignores the flag — citty does not hoist root flags onto subcommands, and that normalizer is what moves them. A new *global* flag needs `GLOBAL_FLAGS_WITH_VALUE` / `GLOBAL_FLAGS_BOOLEAN` in the same file.
 - **A new Oura endpoint**: see the "Adding a collection" recipe in `docs/ARCHITECTURE.md`. Treat every API field as nullable unless proven otherwise — #23 had to retype `day_summary`, `label` and `type` after the upstream spec drifted.
 - **Schema migrations are append-only.** `ensureSchema` applies only entries with `version > current`, so editing an already-shipped migration is a no-op on existing databases. Add a new version entry instead.
 - A helper → `src/lib/`. Avoid bucket files.
-- **A PR carries one theme**, with a test for any behaviour change and a `CHANGELOG.md` bullet under `## [Unreleased]`. Small fixes that share a layer travel together — the argument parser, the error surface — while a refactor and a behaviour change do not.
+- **One change per PR**, with a test for any behaviour change and a `CHANGELOG.md` bullet under `## [Unreleased]`.
 
 ## Environment
 
