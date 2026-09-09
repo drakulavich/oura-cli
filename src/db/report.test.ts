@@ -332,14 +332,18 @@ describe('getReport partial days', () => {
     expect(report.days.find(d => d.day === day(3))!.partial).toBe(false);
     expect(report.days.find(d => d.day === day(2))!.partial).toBe(false); // no data, not partial
     expect(report.days.find(d => d.day === day(1))!.partial).toBe(true);
-    expect(report.completeThrough).toBe(day(2)); // the gap day is over and later data exists, so it counts as complete
+    // day(2) is over, but it holds no activity record — naming it would promise an average that
+    // covers a day with nothing in it, so the newest day with data wins (#74).
+    expect(report.completeThrough).toBe(day(3));
   });
 
   it('omits the activity average and steps recommendation when the only activity data is today\'s', () => {
     insertActivity(day(0), 70, 100);
 
     const report = getReport(db, 7, TODAY);
-    expect(report.completeThrough).toBe(day(1)); // yesterday is over, it just has no rows
+    // Only today has a record and today is not over, so no day in the window is both complete and
+    // present. Previously this named yesterday, which had no rows at all (#74).
+    expect(report.completeThrough).toBeNull();
     expect(report.averages.find(a => a.label === 'Steps')).toBeUndefined();
     expect(report.recommendations).toEqual([]);
   });
@@ -359,7 +363,8 @@ describe('getReport partial days', () => {
 
     const report = getReport(db, 7, TODAY);
     expect(report.days.find(d => d.day === day(0))!.partial).toBe(true);
-    expect(report.completeThrough).toBe(day(1));
+    // Same as above: the only records in the window are today's and tomorrow's, neither complete.
+    expect(report.completeThrough).toBeNull();
   });
 
   it('never marks a day partial for sleep alone, and reports no complete day without any activity', () => {

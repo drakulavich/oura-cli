@@ -377,7 +377,7 @@ describe('runSync', () => {
       installFetch(todayFixture());
       const { out, db } = await runSyncFor('table');
 
-      const summary = getDaySummary(db, TODAY);
+      const summary = getDaySummary(db, TODAY, TODAY);
       db.close();
 
       expect(out.text().endsWith(formatDaySummary(summary, 'table'))).toBe(true);
