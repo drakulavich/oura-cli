@@ -55,12 +55,13 @@ Releases are tag-driven now (per audit #15):
 
 1. Bump the version in `package.json` (the CLI reads it at runtime).
 2. Add a `## [x.y.z] - YYYY-MM-DD` section to `CHANGELOG.md`.
-3. Commit, open a PR and merge it (`main` is protected), then tag the merged commit: `git tag vx.y.z && git push origin vx.y.z`.
-4. The `release.yml` workflow runs tests, publishes to npm (with provenance), and creates a GitHub Release whose body is the matching CHANGELOG section.
+3. Commit and open a PR; `main` is protected, so it cannot be pushed to directly.
+4. Once it merges, `git checkout main && git pull` — the rebase-merge changed the SHA — then `git tag vx.y.z && git push origin vx.y.z`.
+5. The `release.yml` workflow runs tests, publishes to npm (with provenance), and creates a GitHub Release whose body is the matching CHANGELOG section.
 
 If the workflow fails, fix forward — the published version is permanent. Do not re-use a tag.
 
-The `NPM_TOKEN` secret must be configured in GitHub repo settings (Settings → Secrets and variables → Actions). Generate at https://www.npmjs.com/settings/[user]/tokens with type "Automation" and publish scope.
+Publishing uses npm Trusted Publishing (`id-token: write` plus `--provenance`), so there is no `NPM_TOKEN` secret to configure — the trust relationship lives in the npm package settings, not in GitHub Actions secrets.
 
 ## Reporting bugs
 
