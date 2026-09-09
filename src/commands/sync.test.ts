@@ -3,7 +3,8 @@ import { Database } from 'bun:sqlite';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { unlinkSync } from 'fs';
-import { runSync, resolveWindow } from './sync.js';
+import { runSync, resolveWindow, syncCommand } from './sync.js';
+import { buildManifest } from './describe.js';
 import { CliError } from '../lib/errors.js';
 import { ensureSchema } from '../db/open.js';
 import { getDaySummary } from '../db/queries.js';
@@ -104,6 +105,15 @@ afterEach(() => {
   setSystemTime();
   globalThis.fetch = realFetch;
   removeDb(TEST_DB);
+});
+
+describe('the declared arguments', () => {
+  // assertKnownArgs rejects any flag a command did not declare, so an undeclared --prune would be
+  // BAD_ARGS at runtime with the plumbing behind it working perfectly.
+  it('declares --prune as a boolean, so the runner accepts it', () => {
+    const sync = buildManifest('0.0.0', { sync: syncCommand }).commands[0]!;
+    expect(sync.args.find(a => a.name === '--prune')).toMatchObject({ type: 'boolean', required: false });
+  });
 });
 
 describe('runSync', () => {

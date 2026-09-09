@@ -32,8 +32,9 @@ export interface ImportResult {
    * Rows per table that the API did not return but that were kept anyway, because dropping them
    * would have taken most of what one request described — the shape of a truncated response.
    * A non-empty value means the cache is knowingly out of step with the API for those rows. It is
-   * the safe direction, but it is not self-healing: a genuine correction that large keeps being
-   * refused on every run (#100).
+   * the safe direction, and it is not self-healing — a genuine correction that large is refused on
+   * every run — so `sync --prune` applies them once the user has decided which shape it was.
+   * Always empty when that flag was passed.
    */
   refused: Record<string, number>;
   /** True when every table was empty before this run. */
@@ -52,6 +53,15 @@ export interface SyncWindow {
   to?: string;
 }
 
+export interface SyncOptions {
+  /**
+   * Apply removals the truncation guard would refuse (`sync --prune`). Kept apart from the window
+   * because narrowing the window is not an alternative to it: the guard measures a piece against
+   * its own returned rows, so the ratio it refuses on does not move however the range is asked for.
+   */
+  prune?: boolean;
+}
+
 /**
  * The newest stored day at or before `end`. Rows dated after the window are ignored on purpose:
  * a collection whose `day` is a day the user chose (a tag, a rest-mode period, a session) can hold
@@ -66,6 +76,7 @@ function lastDay(db: Database, table: string, end: string): string | null {
 
 export async function importDaily(
   db: Database, client: OuraClient, clock: SyncClock, log?: (msg: string) => void, window: SyncWindow = {},
+  options: SyncOptions = {},
 ): Promise<ImportResult> {
   const { today, tz } = clock;
   const _log = log ?? (() => {});
@@ -95,6 +106,9 @@ export async function importDaily(
   _log(isFirstSync && window.from === undefined
     ? `First sync — backfilling the last ${BACKFILL_DAYS} days: ${startDate} → ${end}`
     : `Syncing ${startDate} → ${end}`);
+  // Say it before the collection lines rather than after: the run that bypasses the guard should be
+  // recognisable as such in the output someone kept, not only by the removals it went on to make.
+  if (options.prune) _log('--prune: applying removals even where a response looks truncated');
 
   const fetched: Record<string, number> = {};
   const added: Record<string, number> = {};
@@ -126,7 +140,7 @@ export async function importDaily(
     // snapshot first fails with SQLITE_BUSY_SNAPSHOT — which busy_timeout does not retry — when
     // another sync commits in between.
     const { windowPlan, gone } = db.transaction((ps: unknown[][]) => {
-      const windowPlan: WindowPlan = planWindow(db, c, ps);
+      const windowPlan: WindowPlan = planWindow(db, c, ps, { prune: options.prune });
       for (const piece of ps) for (const r of piece) stmt.run(...rowValues(c, r));
       return { windowPlan, gone: applyWindowPlan(db, c, windowPlan) };
     }).immediate(pieces);
@@ -139,11 +153,11 @@ export async function importDaily(
     // printed because the summary and `fetch` speak in collection names while `db stats` and the
     // schema speak in table names.
     const tail = gone > 0 ? `, ${gone} stale removed` : '';
-    // Deliberately not a diagnosis: the guard cannot tell a truncated response from a genuine
-    // large correction, and it must not send the user after a fix that would not work for the
-    // second. Keeping the rows is the safe direction, so say plainly what was kept and why.
+    // Still not a diagnosis — the guard cannot tell a truncated response from a genuine large
+    // correction, and only the user can. But there is now something to do about it either way, and
+    // naming it here is the only place the situation is visible.
     const kept = windowPlan.refused > 0
-      ? `, ${windowPlan.refused} rows kept that the API did not return — too many to drop on one response, so they stay`
+      ? `, ${windowPlan.refused} rows kept that the API did not return — too many to drop on one response; re-run with --prune to apply them`
       : '';
     _log(`  + ${c.name} (${c.table}): ${rows.length} fetched, ${added[c.table]} new${tail}${kept}`);
   }

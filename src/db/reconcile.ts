@@ -47,6 +47,11 @@ export function identityColumns(c: AnyCollection): readonly string[] {
  * must not either. Both conditions have to hold: the removal takes the majority of *that piece's*
  * scope, and it is more than a handful of rows. Judged per piece rather than per collection,
  * because a share of a month-wide window says nothing about one bad day inside it.
+ *
+ * The shapes are indistinguishable from here, so a genuine correction that large is refused on
+ * every run and no narrower window escapes it — the scope is the returned rows' own bounds, so the
+ * ratio is the same however the range is asked for (#100). `prune` is the way through: not a
+ * better guess, but the user answering the question the guard cannot.
  */
 const MAX_REMOVED_SHARE = 0.5;
 const ALWAYS_SAFE_TO_REMOVE = 5;
@@ -67,6 +72,15 @@ export interface WindowPlan {
   refused: number;
 }
 
+export interface PlanOptions {
+  /**
+   * Apply removals the truncation guard would refuse. Per run and never stored: the guard is right
+   * about the case it was built for, and this is the user vouching for one response it cannot
+   * judge. With it set, `refused` is always 0 — nothing was held back to report.
+   */
+  prune?: boolean;
+}
+
 function emptyPlan(): WindowPlan {
   return { added: 0, stale: [], refused: 0 };
 }
@@ -80,7 +94,9 @@ function keyOf(values: readonly unknown[]): string {
  * `pieces` holds one array per request the range needed — see `fetchCollectionByPiece`.
  * Call before inserting; `applyWindowPlan` performs the deletes afterwards.
  */
-export function planWindow(db: Database, c: AnyCollection, pieces: readonly (readonly unknown[])[]): WindowPlan {
+export function planWindow(
+  db: Database, c: AnyCollection, pieces: readonly (readonly unknown[])[], options: PlanOptions = {},
+): WindowPlan {
   const identity = identityColumns(c);
   if (identity.length === 0) return emptyPlan();
 
@@ -121,7 +137,8 @@ export function planWindow(db: Database, c: AnyCollection, pieces: readonly (rea
     }
 
     plan.added += [...new Set(piece.map(keyFor))].filter(key => !storedKeys.has(key)).length;
-    if (stale.length > ALWAYS_SAFE_TO_REMOVE && stale.length > stored.length * MAX_REMOVED_SHARE) {
+    const looksTruncated = stale.length > ALWAYS_SAFE_TO_REMOVE && stale.length > stored.length * MAX_REMOVED_SHARE;
+    if (looksTruncated && !options.prune) {
       plan.refused += stale.length;
     } else {
       plan.stale.push(...stale);

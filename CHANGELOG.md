@@ -6,6 +6,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- `sync --prune` applies removals the truncation guard refuses. The guard keeps rows when a response drops most of what one request described, which is right for a rate-limited or partial page and wrong for a genuine large correction — and it cannot tell them apart, so a genuine one was refused on every run with no way through. Narrowing the window did not help: the scope is the returned rows' own bounds, so the ratio never moved, and `sync --from D --to D` refused identically. The flag is the user's answer to the question the guard cannot ask, per run and never stored; the run announces itself in the output, and the refusal message now names it. A piece that returns nothing still removes nothing, flag or not. (#100)
+
 ### Fixed
 - `sync` kept both rows when Oura reclassified a heart-rate sample (`awake` → `workout` shares the timestamp, and the unique index is `(timestamp, source)`), and no command could repair it. A re-fetched window is now reconciled against the response: rows the API no longer has are removed, inside the same transaction as the inserts. Verified on a copy of a real cache, where it removed exactly the five stale samples the exploratory session had found. (#91)
 - The same for the five tables whose `day` is not unique (`sleep_model`, `workouts`, `sessions`, `rest_mode_periods`, `enhanced_tags`): a record re-issued under a new id used to leave both rows, so `report` averaged one night twice. The scope of a removal always comes from the response and from one request at a time — a range wider than the endpoint allows is fetched in pieces, and a piece that answers with nothing describes nothing, so its days keep their rows. A piece whose answer would drop most of what is stored for it is treated as truncated: the removal is refused and reported. (#71)

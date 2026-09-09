@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import { ensureSchema } from './open.js';
-import { planWindow, applyWindowPlan, identityColumns } from './reconcile.js';
+import { planWindow, applyWindowPlan, identityColumns, type PlanOptions } from './reconcile.js';
 import { byName, insertSql, rowValues, type AnyCollection } from '../collections/index.js';
 
 const hr = byName('hr')!;
@@ -15,16 +15,16 @@ function seeded(): Database {
 }
 
 /** What `sync` does for one collection: plan, insert, delete — all in one transaction. */
-function syncPieces(db: Database, c: AnyCollection, pieces: unknown[][]): { added: number; removed: number; refused: number } {
+function syncPieces(db: Database, c: AnyCollection, pieces: unknown[][], options: PlanOptions = {}): { added: number; removed: number; refused: number } {
   const stmt = db.query(insertSql(c));
-  const plan = planWindow(db, c, pieces);
+  const plan = planWindow(db, c, pieces, options);
   for (const row of pieces.flat()) stmt.run(...rowValues(c, row));
   return { added: plan.added, removed: applyWindowPlan(db, c, plan), refused: plan.refused };
 }
 
 /** The common case: a range small enough to need one request. */
-function syncWindow(db: Database, c: AnyCollection, rows: unknown[]): { added: number; removed: number; refused: number } {
-  return syncPieces(db, c, [rows]);
+function syncWindow(db: Database, c: AnyCollection, rows: unknown[], options: PlanOptions = {}): { added: number; removed: number; refused: number } {
+  return syncPieces(db, c, [rows], options);
 }
 
 const sample = (minute: number, source: string) => ({
@@ -208,6 +208,55 @@ describe('a response that looks truncated', () => {
     expect(result.removed).toBe(0);
     expect(result.refused).toBe(8);
     expect(count).toBe(10);
+  });
+
+  it('applies the refused removals when the caller passes prune (#100)', () => {
+    // The probe from #100: a sparsely-worn day where Oura legitimately drops 12 of 20 samples.
+    // Without the flag this is refused on every run, and no narrower window escapes it — the scope
+    // is the returned rows' own bounds, so the ratio never moves.
+    const db = seeded();
+    const twenty = Array.from({ length: 20 }, (_, m) => sample(m, 'awake'));
+    syncWindow(db, hr, twenty);
+    const kept = [0, 3, 6, 9, 12, 15, 18, 19].map(m => sample(m, 'awake'));
+
+    expect(syncWindow(db, hr, kept)).toEqual({ added: 0, removed: 0, refused: 12 });
+
+    const result = syncWindow(db, hr, kept, { prune: true });
+
+    const rows = (db.query('SELECT COUNT(*) AS n FROM heartrate').get() as { n: number }).n;
+    db.close();
+    expect(result).toEqual({ added: 0, removed: 12, refused: 0 });
+    expect(rows).toBe(8);
+  });
+
+  it('still deletes nothing on an empty response, prune or not', () => {
+    // The flag lifts the truncation guard, not the rule that a piece describing nothing vouches for
+    // nothing. Otherwise one 200-with-[] during an outage would empty the table on a --prune run,
+    // which is the worst case the guard exists for.
+    const db = seeded();
+    syncWindow(db, hr, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(m => sample(m, 'awake')));
+
+    const result = syncWindow(db, hr, [], { prune: true });
+
+    const rows = (db.query('SELECT COUNT(*) AS n FROM heartrate').get() as { n: number }).n;
+    db.close();
+    expect(result).toEqual({ added: 0, removed: 0, refused: 0 });
+    expect(rows).toBe(10);
+  });
+
+  it('leaves rows outside the returned scope alone under prune', () => {
+    // A pruning run is still scoped by what the API answered: a day the response never covered
+    // keeps its samples.
+    const db = seeded();
+    syncWindow(db, hr, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(m => sample(m, 'awake')));
+    const elsewhere = { timestamp: '2026-08-01T10:00:00+00:00', bpm: 61, source: 'awake' };
+    syncWindow(db, hr, [elsewhere]);
+
+    syncWindow(db, hr, [sample(0, 'awake'), sample(9, 'awake')], { prune: true });
+
+    const days = (db.query("SELECT COUNT(*) AS n FROM heartrate WHERE timestamp LIKE '2026-08-01%'").get() as { n: number }).n;
+    db.close();
+    expect(days).toBe(1);
   });
 
   it('deletes nothing at all when the API returns an empty window', () => {
