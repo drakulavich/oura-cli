@@ -14,7 +14,7 @@ The version is read from package.json at runtime; there is no constant to keep i
 
 ### RELEASES ARE TAG-DRIVEN AND PERMANENT
 
-Bump the version in `package.json`, add a `## [x.y.z] - YYYY-MM-DD` section to `CHANGELOG.md`, and land those two through a PR — `main` is protected, so pushing to it is rejected with `GH013`. The rebase-merge gives the commit a new SHA, so pull before tagging (`git checkout main && git pull`), then `git tag vx.y.z && git push origin vx.y.z`: the workflow builds whatever the tag points at, and a tag on a local pre-merge commit publishes a tree that is not on `main`. `release.yml` runs tests, publishes to npm, and creates a GitHub Release whose body is that CHANGELOG section.
+Bump the version in `package.json`, add a `## [x.y.z] - YYYY-MM-DD` section to `CHANGELOG.md`, and land those two through a PR — `main` is protected, so pushing to it is rejected with `GH013`. The rebase-merge gives the commit a new SHA, so tag the remote ref rather than a local branch: `git fetch origin && git tag vx.y.z origin/main && git push origin vx.y.z`. The workflow builds whatever the tag points at, so a tag on local history — a pre-merge commit, or a `main` that has drifted ahead — publishes a tree that was never on `main`. `release.yml` runs tests, publishes to npm, and creates a GitHub Release whose body is that CHANGELOG section.
 
 Publishing uses **npm Trusted Publishing** (`id-token: write` + `--provenance`); there is no `NPM_TOKEN` secret to configure. A published version is permanent and a tag is one-use: on failure, **fix forward** with a new patch version — never re-tag.
 
