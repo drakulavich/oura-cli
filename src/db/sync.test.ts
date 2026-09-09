@@ -372,14 +372,53 @@ describe('Import', () => {
 
       const lines: string[] = [];
       const pruning = await importDaily(
-        db, client, { today: '2026-06-15', tz: 'UTC' }, m => lines.push(m), {}, { prune: true });
+        db, client, { today: '2026-06-15', tz: 'UTC' }, m => lines.push(m), {}, { prune: 'all' });
       const rows = (db.query('SELECT COUNT(*) AS n FROM heartrate').get() as { n: number }).n;
       db.close();
 
       expect(pruning.removed.heartrate).toBe(12);
       expect(pruning.refused).toEqual({});
+      // Reported apart from `removed`, so a bypass is never mistaken for ordinary reconciliation.
+      expect(pruning.pruned).toEqual({ heartrate: 12 });
       expect(rows).toBe(8);
-      expect(lines).toContain('--prune: applying removals even where a response looks truncated');
+      expect(lines.find(l => l.startsWith('--prune:'))).toContain('every collection');
+      expect(lines.find(l => l.includes('heartrate'))).toContain('12 past the truncation guard');
+    });
+
+    it('a scoped --prune leaves every other collection behind the guard (#103 review)', async () => {
+      // The blast radius: consent is given after reading one collection's refusal. A run-wide flag
+      // would also delete a genuinely truncated response for a collection the user never judged,
+      // and behind --from that loss never comes back.
+      const db = new Database(':memory:');
+      ensureSchema(db);
+      const stamps = Array.from({ length: 20 }, (_, m) =>
+        `2026-06-15T10:${String(m).padStart(2, '0')}:00+00:00`);
+      for (const t of stamps) db.query('INSERT INTO heartrate (timestamp, bpm, source) VALUES (?, 70, ?)').run(t, 'awake');
+      for (let i = 0; i < 12; i++) {
+        db.query("INSERT INTO workouts (id, day, activity) VALUES (?, '2026-06-15', 'run')").run(`w${i}`);
+      }
+      const keptHr = [0, 3, 6, 9, 12, 15, 18, 19].map(m => stamps[m]!);
+      const client = {
+        fetch: async (endpoint: OuraEndpoint) => {
+          if (endpoint === 'heartrate') return keptHr.map(timestamp => ({ timestamp, bpm: 70, source: 'awake' }));
+          // workouts answers short, the way a truncated page does
+          if (endpoint === 'workout') return [0, 1, 2].map(i => ({ id: `w${i}`, day: '2026-06-15', activity: 'run' }));
+          return [];
+        },
+      } as unknown as OuraClient;
+
+      const result = await importDaily(
+        db, client, { today: '2026-06-15', tz: 'UTC' }, undefined, {}, { prune: ['hr'] });
+      const workoutsLeft = (db.query('SELECT COUNT(*) AS n FROM workouts').get() as { n: number }).n;
+      const hrLeft = (db.query('SELECT COUNT(*) AS n FROM heartrate').get() as { n: number }).n;
+      db.close();
+
+      expect(hrLeft).toBe(8);
+      expect(result.pruned).toEqual({ heartrate: 12 });
+      // workouts kept its rows and still says so, because nobody vouched for its response
+      expect(workoutsLeft).toBe(12);
+      expect(result.refused.workouts).toBe(9);
+      expect(result.removed.workouts).toBeUndefined();
     });
 
     it('names the flag when it keeps rows back, so the situation is not a dead end', async () => {
@@ -397,7 +436,7 @@ describe('Import', () => {
       await importDaily(db, client, { today: '2026-06-15', tz: 'UTC' }, m => lines.push(m));
       db.close();
 
-      expect(lines.find(l => l.includes('rows kept'))).toContain('re-run with --prune');
+      expect(lines.find(l => l.includes('rows kept'))).toContain('re-run with --prune=hr');
     });
 
     it('says nothing about prune on a run that did not pass it', async () => {

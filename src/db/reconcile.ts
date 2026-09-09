@@ -70,19 +70,25 @@ export interface WindowPlan {
   stale: SqlValue[][];
   /** Rows a piece dropped that were kept anyway, because that piece's answer looked truncated. */
   refused: number;
+  /**
+   * Rows in `stale` that only got there because `prune` was set — the guard would have refused
+   * them. Counted so a pruning run can name what it went past instead of reporting it as ordinary
+   * reconciliation; always 0 without the flag, when those rows land in `refused` instead.
+   */
+  bypassed: number;
 }
 
 export interface PlanOptions {
   /**
    * Apply removals the truncation guard would refuse. Per run and never stored: the guard is right
    * about the case it was built for, and this is the user vouching for one response it cannot
-   * judge. With it set, `refused` is always 0 — nothing was held back to report.
+   * judge. With it set, `refused` is always 0 and `bypassed` carries the same rows instead.
    */
   prune?: boolean;
 }
 
 function emptyPlan(): WindowPlan {
-  return { added: 0, stale: [], refused: 0 };
+  return { added: 0, stale: [], refused: 0, bypassed: 0 };
 }
 
 function keyOf(values: readonly unknown[]): string {
@@ -141,6 +147,7 @@ export function planWindow(
     if (looksTruncated && !options.prune) {
       plan.refused += stale.length;
     } else {
+      if (looksTruncated) plan.bypassed += stale.length;
       plan.stale.push(...stale);
     }
   }
