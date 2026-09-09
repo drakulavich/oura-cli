@@ -23,7 +23,7 @@ Runtime: [Bun](https://bun.sh/) >= 1.0. No Node.js fallback yet.
 ## Style
 
 - TypeScript strict mode is on; `bun test` and `bunx tsc --noEmit` should pass. `tsc` is the TypeScript 7 compiler from the `typescript` package.
-- Prefer named exports. No default exports outside of `src/index.ts`.
+- Named exports only. There are no default exports anywhere in `src/`.
 - Errors that reach the CLI surface should be `CliError` instances with a documented `ErrorCode`.
 - Output: JSON for agent/pipe contexts, table/text for TTY. Both modes are mandatory for new user-facing commands.
 
@@ -56,7 +56,7 @@ Releases are tag-driven now (per audit #15):
 1. Bump the version in `package.json` (the CLI reads it at runtime).
 2. Add a `## [x.y.z] - YYYY-MM-DD` section to `CHANGELOG.md`.
 3. Commit and open a PR; `main` is protected, so it cannot be pushed to directly.
-4. Once it merges, `git checkout main && git pull` — the rebase-merge changed the SHA — then `git tag vx.y.z && git push origin vx.y.z`.
+4. Once it merges, tag the remote ref — the rebase-merge changed the SHA, and only `origin/main` is certain to be the merged commit: `git fetch origin && git tag vx.y.z origin/main && git push origin vx.y.z`.
 5. The `release.yml` workflow runs tests, publishes to npm (with provenance), and creates a GitHub Release whose body is the matching CHANGELOG section.
 
 If the workflow fails, fix forward — the published version is permanent. Do not re-use a tag.
