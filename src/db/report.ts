@@ -1,4 +1,5 @@
 import type { Database } from './open.js';
+import { dayCompleteness } from './day-complete.js';
 import { daysBack, shiftDay } from '../lib/time.js';
 
 export interface ReportData {
@@ -75,19 +76,14 @@ export function getReport(db: Database, days: number, today: string): ReportData
   const prevWeekStart = shiftDay(today, -(days * 2 - 1));
   const windowDays = daysBack(today, days);
 
-  // Activity accumulates all day (Oura's daily_activity record grows until the next day starts), so a day's
-  // totals are final once a later day has its own record: that is the ring's own evidence that it moved on.
-  // The newest day with data — today, or the last day before the ring stopped uploading — is therefore
-  // partial. Heart-rate samples are deliberately not used: their publishing lags the summaries by days.
-  // Sleep and readiness scores exist only once the night is over, so they are never partial and not cut.
+  // Activity accumulates all day, so its totals are only final once the day is over — and the day
+  // itself says when that is, through the slot count `sync` stores (see day-complete.ts). Heart-rate
+  // samples are deliberately not used: their publishing lags the summaries by days. Sleep and
+  // readiness scores exist only once the night is over, so they are never partial and not cut.
   const lastUpload = (db.query('SELECT MAX(timestamp) AS t FROM heartrate').get() as { t: string | null }).t;
-  // Deliberately unbounded: a record past the window still proves Oura moved on from the days inside it.
-  const newestActivityDay = (db.query('SELECT MAX(day) AS d FROM daily_activity').get() as { d: string | null }).d;
-  // `d < today` is kept on purpose: a record dated after today (a ring with a wrong clock, a hand-made
-  // import) must not close today out; the cost is a false "partial" only when the ring's own timezone has
-  // already rolled into tomorrow while the report timezone has not.
-  const isComplete = (d: string): boolean => d < today && newestActivityDay !== null && newestActivityDay > d;
-  const completeThrough = [...windowDays].reverse().find(isComplete) ?? null;
+  const complete = dayCompleteness(db, today);
+  const isComplete = complete.isComplete;
+  const completeThrough = complete.completeThrough(windowDays);
   const activityEnd = completeThrough ?? shiftDay(weekStart, -1); // BETWEEN with start > end selects nothing
 
   // Daily table

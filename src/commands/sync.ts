@@ -67,7 +67,7 @@ export async function runSync(ctx: Ctx, window: SyncWindow = {}, options: SyncOp
   const lines: string[] = [];
   const log = ctx.format === 'table' ? (m: string) => lines.push(m) : undefined;
   const importResult = await importDaily(ctx.db!, ctx.client!, { today: ctx.today, tz: ctx.tz }, log, window, options);
-  const today = getDaySummary(ctx.db!, ctx.today);
+  const today = getDaySummary(ctx.db!, ctx.today, ctx.today);
   return {
     json: { import: importResult, today },
     text: () => [...lines, formatImportSummary(importResult), formatDaySummary(today, 'table')].join('\n'),

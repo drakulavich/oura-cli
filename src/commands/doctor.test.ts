@@ -146,7 +146,7 @@ describe('doctor runChecks', () => {
     const db = new Database(':memory:');
     ensureSchema(db);
     db.query(
-      'INSERT OR REPLACE INTO daily_activity VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+      'INSERT OR REPLACE INTO daily_activity (id, day, score, active_calories, steps, equivalent_walking_distance, high_activity_time, medium_activity_time, low_activity_time, sedentary_time, total_calories, target_calories, contributors, timestamp) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
     ).run('a1', '2026-08-30', 77, 500, 11000, 8000, 600, 1200, 3600, 40000, 2500, 2400, '{}', '2026-08-30T00:00:00Z');
 
     const result = await runChecks(makeDeps({ openDb: () => ({ db, path: ':memory:' }) }));

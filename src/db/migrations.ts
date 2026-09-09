@@ -202,4 +202,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_ring_battery_level_unique ON ring_battery_
 CREATE INDEX IF NOT EXISTS idx_ring_battery_level_day ON ring_battery_level(day);
     `,
   },
+  {
+    // Append-only: `ensureSchema` applies only entries newer than the stored version, so this cannot
+    // be folded into version 1. Existing rows keep NULL here until a sync re-fetches their day, and
+    // the completeness rule falls back to the old next-day heuristic for exactly those rows.
+    version: 4,
+    sql: `
+ALTER TABLE daily_activity ADD COLUMN class_5_min_slots INTEGER;
+    `,
+  },
 ];

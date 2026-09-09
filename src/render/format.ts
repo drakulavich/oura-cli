@@ -122,11 +122,14 @@ export function formatWeekTable(days: DaySummary[], format: OutputFormat, emptyH
   const sep = chalk.gray('─'.repeat(56));
   // padLeft, not padStart: scoreColor returns a chalk-wrapped string whose length counts the
   // escapes, so the built-in pads by nothing at all on a colour terminal.
+  // Same mark `report` uses, for the same reason: this day's activity totals are still growing, so
+  // its steps are not comparable with the rows above it (#75).
   const rows = days.map(d =>
-    `${padRight(d.day, 12)} ${padLeft(scoreColor(d.sleep_score), 6)} ${padLeft(scoreColor(d.readiness_score), 6)} ` +
+    `${padRight(d.partial ? `${d.day}*` : d.day, 12)} ${padLeft(scoreColor(d.sleep_score), 6)} ${padLeft(scoreColor(d.readiness_score), 6)} ` +
     `${padLeft(scoreColor(d.activity_score), 9)} ${padLeft(String(d.steps ?? '—'), 7)} ${padRight(d.stress ?? '—', 10)}`
   );
-  return ['\n  Last 7 Days', sep, `  ${header}`, sep, ...rows.map(r => `  ${r}`)].join('\n');
+  const note = days.some(d => d.partial) ? ['  * still accumulating; its activity totals are not final.'] : [];
+  return ['\n  Last 7 Days', sep, `  ${header}`, sep, ...rows.map(r => `  ${r}`), ...note].join('\n');
 }
 
 export function formatTrends(trends: TrendRow[], days: number, format: OutputFormat): string {

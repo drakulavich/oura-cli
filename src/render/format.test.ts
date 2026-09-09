@@ -27,6 +27,7 @@ function withColor(fn: () => void): void {
 function makeDay(overrides: Partial<DaySummary> = {}): DaySummary {
   return {
     day: '2026-05-07',
+    partial: false,
     sleep_score: 87,
     readiness_score: 74,
     activity_score: 50,
@@ -143,6 +144,7 @@ describe('formatDaySummary', () => {
 function makeEmptyDay(day: string): DaySummary {
   return {
     day,
+    partial: false,
     sleep_score: null,
     readiness_score: null,
     activity_score: null,
@@ -191,6 +193,38 @@ describe('formatDaySummary empty state', () => {
 });
 
 describe('formatWeekTable', () => {
+  it('marks a day still accumulating and explains the mark', () => {
+    // The same `*` report uses. Without it the week table showed today's part-day steps beside six
+    // whole days with nothing to say they are not comparable (#75).
+    const days = [makeDay({ day: '2026-05-06' }), makeDay({ day: '2026-05-07', partial: true })];
+
+    const out = formatWeekTable(days, 'table');
+
+    expect(out).toContain('2026-05-07*');
+    expect(out).not.toContain('2026-05-06*');
+    expect(out).toContain('* still accumulating');
+  });
+
+  it('says nothing about accumulating when no day is partial', () => {
+    expect(formatWeekTable([makeDay()], 'table')).not.toContain('still accumulating');
+  });
+
+  it('marks a day still accumulating and explains the mark', () => {
+    // The same `*` report uses. Without it the week table showed today's part-day steps beside six
+    // whole days with nothing to say they are not comparable (#75).
+    const days = [makeDay({ day: '2026-05-06' }), makeDay({ day: '2026-05-07', partial: true })];
+
+    const out = formatWeekTable(days, 'table');
+
+    expect(out).toContain('2026-05-07*');
+    expect(out).not.toContain('2026-05-06*');
+    expect(out).toContain('* still accumulating');
+  });
+
+  it('says nothing about accumulating when no day is partial', () => {
+    expect(formatWeekTable([makeDay()], 'table')).not.toContain('still accumulating');
+  });
+
   it('returns pretty-printed JSON when format is json', () => {
     const days = [makeDay()];
     expect(formatWeekTable(days, 'json')).toBe(JSON.stringify(days, null, 2));

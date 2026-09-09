@@ -2,7 +2,26 @@ import { describe, it, expect } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import { COLLECTIONS, ddl, insertSql, rowValues, names, byName, rangeQueries } from './index.js';
 
-describe('collection registry', () => {
+describe('the activity slot count', () => {
+  // The column the completeness rule reads (#74). Only the length is stored — that is all the rule
+  // needs — and a missing field must not throw at insert time, the way #106 does.
+  const activity = byName('activity')!;
+  const slotIndex = activity.columns.findIndex(c => c.name === 'class_5_min_slots');
+  const base = { id: 'a', day: '2026-06-15', contributors: {}, timestamp: '' } as never;
+
+  it('stores how many five-minute slots the day reported', () => {
+    expect(slotIndex).toBeGreaterThan(-1);
+    expect(rowValues(activity, { ...(base as object), class_5_min: 'x'.repeat(288) })[slotIndex]).toBe(288);
+    expect(rowValues(activity, { ...(base as object), class_5_min: 'x'.repeat(150) })[slotIndex]).toBe(150);
+  });
+
+  it('writes null rather than throwing when the field is absent', () => {
+    expect(rowValues(activity, { ...(base as object) })[slotIndex]).toBeNull();
+    expect(rowValues(activity, { ...(base as object), class_5_min: null })[slotIndex]).toBeNull();
+  });
+});
+
+describe('names reserved by other commands', () => {
   it('has unique names, endpoints and tables', () => {
     for (const key of ['name', 'endpoint', 'table'] as const) {
       const vals = COLLECTIONS.map(c => c[key]);

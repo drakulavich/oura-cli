@@ -1,5 +1,6 @@
 import type { Database } from './open.js';
 import { shiftDay } from '../lib/time.js';
+import { dayCompleteness } from './day-complete.js';
 import { COLLECTIONS } from '../collections/index.js';
 
 export interface DaySummary {
@@ -17,9 +18,14 @@ export interface DaySummary {
   avg_hrv: number | null;
   lowest_hr: number | null;
   efficiency: number | null;
+  /**
+   * True while the day is still accumulating: it has an activity record whose totals are not final.
+   * The same judgement `report` marks with `*`, so the two screens cannot disagree about a day (#75).
+   */
+  partial: boolean;
 }
 
-export function getDaySummary(db: Database, day: string): DaySummary {
+export function getDaySummary(db: Database, day: string, today: string): DaySummary {
   const sl = db.query('SELECT score FROM daily_sleep WHERE day=?').get(day) as { score: number | null } | undefined;
   const rd = db.query('SELECT score, temperature_deviation FROM daily_readiness WHERE day=?').get(day) as { score: number | null; temperature_deviation: number | null } | undefined;
   const ac = db.query('SELECT score, steps FROM daily_activity WHERE day=?').get(day) as { score: number | null; steps: number | null } | undefined;
@@ -32,6 +38,7 @@ export function getDaySummary(db: Database, day: string): DaySummary {
 
   return {
     day,
+    partial: ac != null && !dayCompleteness(db, today).isComplete(day),
     sleep_score: sl?.score ?? null,
     readiness_score: rd?.score ?? null,
     activity_score: ac?.score ?? null,
@@ -61,18 +68,27 @@ export function getTrends(db: Database, days: number, today: string): TrendRow[]
   const start = shiftDay(today, -(days - 1));
   const results: TrendRow[] = [];
 
-  const metrics: [string, string, string][] = [
-    ['Sleep Score', 'daily_sleep', 'score'],
-    ['Readiness', 'daily_readiness', 'score'],
-    ['Activity', 'daily_activity', 'score'],
-    ['Steps', 'daily_activity', 'steps'],
-    ['Active Cal', 'daily_activity', 'active_calories'],
+  // Activity accumulates, so a day still in progress is not an average of the same kind as the days
+  // around it — `report` has always cut it and these numbers did not, which is how the same seven
+  // days produced two different step averages (#75). Sleep and readiness are final once they exist.
+  const windowDays: string[] = [];
+  for (let d = start; d <= today; d = shiftDay(d, 1)) windowDays.push(d);
+  const activityEnd = dayCompleteness(db, today).completeThrough(windowDays)
+    ?? shiftDay(start, -1); // BETWEEN with start > end selects nothing
+
+  const metrics: [string, string, string, boolean][] = [
+    ['Sleep Score', 'daily_sleep', 'score', false],
+    ['Readiness', 'daily_readiness', 'score', false],
+    ['Activity', 'daily_activity', 'score', true],
+    ['Steps', 'daily_activity', 'steps', true],
+    ['Active Cal', 'daily_activity', 'active_calories', true],
   ];
 
-  for (const [label, table, col] of metrics) {
+  for (const [label, table, col, accumulates] of metrics) {
+    const end = accumulates ? activityEnd : today;
     const row = db.query(
       `SELECT AVG(${col}) as avg, MIN(${col}) as min, MAX(${col}) as max, COUNT(${col}) as count FROM ${table} WHERE day BETWEEN ? AND ?`
-    ).get(start, today) as { avg: number | null; min: number | null; max: number | null; count: number };
+    ).get(start, end) as { avg: number | null; min: number | null; max: number | null; count: number };
     if (row.count > 0 && row.avg !== null) {
       results.push({ label, avg: +row.avg.toFixed(0), min: row.min!, max: row.max!, count: row.count });
     }

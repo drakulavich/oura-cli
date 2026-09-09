@@ -24,5 +24,8 @@ export const activity = defineCollection<OuraActivityDay>({
     { name: 'target_calories', type: 'INTEGER', pick: r => r.target_calories },
     { name: 'contributors', type: 'TEXT', pick: r => JSON.stringify(r.contributors) },
     { name: 'timestamp', type: 'TEXT', pick: r => r.timestamp },
+    // Not the slots themselves — only how many, which is all the completeness rule needs and keeps
+    // the row small. Optional chaining because a missing field must not throw at insert time.
+    { name: 'class_5_min_slots', type: 'INTEGER', pick: r => r.class_5_min?.length ?? null },
   ],
 });

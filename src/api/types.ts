@@ -39,6 +39,12 @@ export interface OuraActivityDay {
   target_calories: number | null;
   contributors: Record<string, number | null>;
   timestamp: string;
+  /**
+   * One character per five-minute slot of the day, so a closed day has 288 and a day in progress has
+   * fewer — the only direct evidence in the API of whether a day is over. Verified live: 2026-09-07
+   * and 09-08 returned 288, 09-09 returned 150 at 12:30 local.
+   */
+  class_5_min: string | null;
 }
 
 export interface OuraHeartRate {

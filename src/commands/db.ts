@@ -14,7 +14,7 @@ export const dbCommand = defineCommand({
       meta: { name: 'today', description: "Today's summary from local database" },
       needs: { db: true },
       run(ctx) {
-        const summary = getDaySummary(ctx.db!, ctx.today);
+        const summary = getDaySummary(ctx.db!, ctx.today, ctx.today);
         return { json: summary, text: () => formatDaySummary(summary, 'table', SYNC_HINT) };
       },
     }),
@@ -25,7 +25,7 @@ export const dbCommand = defineCommand({
       needs: { db: true },
       run(ctx, args) {
         const day = assertCalendarDate(String(args.day), '<day>');
-        const summary = getDaySummary(ctx.db!, day);
+        const summary = getDaySummary(ctx.db!, day, ctx.today);
         return { json: summary, text: () => formatDaySummary(summary, 'table') };
       },
     }),
@@ -34,7 +34,7 @@ export const dbCommand = defineCommand({
       meta: { name: 'week', description: 'Last 7 days from local database' },
       needs: { db: true },
       run(ctx) {
-        const days = daysBack(ctx.today, 7).map(d => getDaySummary(ctx.db!, d));
+        const days = daysBack(ctx.today, 7).map(d => getDaySummary(ctx.db!, d, ctx.today));
         return { json: days, text: () => formatWeekTable(days, 'table', 'Run `oura-cli sync`, then `oura-cli db week` again.') };
       },
     }),

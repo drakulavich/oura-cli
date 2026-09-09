@@ -15,7 +15,7 @@ beforeAll(() => {
   ensureSchema(db);
   db.query('INSERT INTO daily_sleep VALUES (?,?,?,?,?)').run('s1', '2026-03-01', 82, '{}', '');
   db.query('INSERT INTO daily_sleep VALUES (?,?,?,?,?)').run('s2', '2026-03-02', 75, '{}', '');
-  db.query('INSERT INTO daily_activity VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(
+  db.query('INSERT INTO daily_activity (id, day, score, active_calories, steps, equivalent_walking_distance, high_activity_time, medium_activity_time, low_activity_time, sedentary_time, total_calories, target_calories, contributors, timestamp) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(
     'a1', '2026-03-01', 90, 300, 8000, 5000, 1800, 3600, 7200, 28800, 2200, 500, '{}', '');
 });
 
@@ -29,7 +29,7 @@ afterAll(() => {
 describe('getDaySummary', () => {
   describe('when data exists for the requested date', () => {
     it('returns the sleep score, activity score, and step count for that day', () => {
-      const summary = getDaySummary(db, '2026-03-01');
+      const summary = getDaySummary(db, '2026-03-01', '2026-03-05');
 
       expect(summary.sleep_score).toBe(82);
       expect(summary.activity_score).toBe(90);
@@ -39,7 +39,7 @@ describe('getDaySummary', () => {
 
   describe('when no data exists for the requested date', () => {
     it('returns null scores so callers can distinguish missing data from a zero score', () => {
-      const summary = getDaySummary(db, '2099-01-01');
+      const summary = getDaySummary(db, '2099-01-01', '2026-03-05');
 
       expect(summary.sleep_score).toBeNull();
     });

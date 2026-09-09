@@ -6,6 +6,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- Whether a day's activity totals are final is now read off the day itself. Oura's `class_5_min` carries one character per five-minute slot, so a closed day has 288 and a day in progress has however many have elapsed; `sync` stores the length in a new `daily_activity.class_5_min_slots` column and `report` reads it. The old rule inferred it instead — a day counted as complete once a *later* day had its own record — which described the ring's behaviour rather than the day, and came apart wherever the two did: a ring that stopped uploading froze its last day as "still accumulating" forever, keeping real steps out of every average; a report timezone west of the ring's discarded a day the cache had already closed; and `completeThrough` could name a day holding no activity record at all, promising an average over a day the table never printed. Rows written before the column exists keep NULL and fall back to the old rule, so an upgraded cache fills in as `sync` re-fetches each day — `sync --from` fills older days on demand. (#74)
+- `db trends` and `db week` now use that same judgement, so the three screens stop disagreeing about one week. `db trends` averaged the day in progress as though it were whole while `report` excluded it, and `db week` showed its part-day steps unmarked: the same seven days gave a 7,610 step average in one place and 6,639 in another. Activity, steps and active calories now stop at the last complete day in the window; sleep and readiness are final once they exist and still cover all of it. The week table marks the day with `*` and `DaySummary` carries `partial`, matching what `report` has always shown. (#75)
+
 ## [0.7.0] - 2026-09-09
 
 ### Added
