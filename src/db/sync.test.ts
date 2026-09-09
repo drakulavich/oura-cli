@@ -352,6 +352,63 @@ describe('Import', () => {
       expect(result.refused).toEqual({});
     });
 
+    it('applies the refused removals under prune, and says the run did (#100)', async () => {
+      // End to end through importDaily, not just planWindow: the flag has to reach the plan, and
+      // the run has to be recognisable as one that bypassed the guard.
+      const db = new Database(':memory:');
+      ensureSchema(db);
+      const stored = Array.from({ length: 20 }, (_, m) =>
+        `2026-06-15T10:${String(m).padStart(2, '0')}:00+00:00`);
+      for (const t of stored) db.query('INSERT INTO heartrate (timestamp, bpm, source) VALUES (?, 70, ?)').run(t, 'awake');
+      const kept = [0, 3, 6, 9, 12, 15, 18, 19].map(m => stored[m]!);
+      const client = {
+        fetch: async (endpoint: OuraEndpoint) => endpoint === 'heartrate'
+          ? kept.map(timestamp => ({ timestamp, bpm: 70, source: 'awake' })) : [],
+      } as unknown as OuraClient;
+
+      const refusing = await importDaily(db, client, { today: '2026-06-15', tz: 'UTC' });
+      expect(refusing.refused.heartrate).toBe(12);
+      expect(refusing.removed.heartrate).toBeUndefined();
+
+      const lines: string[] = [];
+      const pruning = await importDaily(
+        db, client, { today: '2026-06-15', tz: 'UTC' }, m => lines.push(m), {}, { prune: true });
+      const rows = (db.query('SELECT COUNT(*) AS n FROM heartrate').get() as { n: number }).n;
+      db.close();
+
+      expect(pruning.removed.heartrate).toBe(12);
+      expect(pruning.refused).toEqual({});
+      expect(rows).toBe(8);
+      expect(lines).toContain('--prune: applying removals even where a response looks truncated');
+    });
+
+    it('names the flag when it keeps rows back, so the situation is not a dead end', async () => {
+      const db = new Database(':memory:');
+      ensureSchema(db);
+      const stored = Array.from({ length: 20 }, (_, m) =>
+        `2026-06-15T10:${String(m).padStart(2, '0')}:00+00:00`);
+      for (const t of stored) db.query('INSERT INTO heartrate (timestamp, bpm, source) VALUES (?, 70, ?)').run(t, 'awake');
+      const client = {
+        fetch: async (endpoint: OuraEndpoint) => endpoint === 'heartrate'
+          ? [0, 3, 6, 9, 12, 15, 18, 19].map(m => ({ timestamp: stored[m]!, bpm: 70, source: 'awake' })) : [],
+      } as unknown as OuraClient;
+
+      const lines: string[] = [];
+      await importDaily(db, client, { today: '2026-06-15', tz: 'UTC' }, m => lines.push(m));
+      db.close();
+
+      expect(lines.find(l => l.includes('rows kept'))).toContain('re-run with --prune');
+    });
+
+    it('says nothing about prune on a run that did not pass it', async () => {
+      const db = new Database(':memory:');
+      ensureSchema(db);
+      const lines: string[] = [];
+      await importDaily(db, recordingClient([]), { today: '2026-06-15', tz: 'UTC' }, m => lines.push(m));
+      db.close();
+      expect(lines.some(l => l.includes('--prune'))).toBe(false);
+    });
+
     it('an explicit window replaces every watermark', async () => {
       const db = new Database(':memory:');
       ensureSchema(db);
