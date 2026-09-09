@@ -3,14 +3,14 @@ import { Database } from 'bun:sqlite';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { unlinkSync } from 'fs';
-import { runSync, resolveWindow, syncCommand } from './sync.js';
+import { runSync, resolveWindow, resolvePruneScope, syncCommand, syncDef } from './sync.js';
 import { buildManifest } from './describe.js';
 import { CliError } from '../lib/errors.js';
 import { ensureSchema } from '../db/open.js';
 import { getDaySummary } from '../db/queries.js';
 import { formatDaySummary } from '../render/format.js';
 import { OuraClient } from '../api/client.js';
-import type { Ctx, Output } from './run-command.js';
+import { execute, type Ctx, type Output, type RunnerIo } from './run-command.js';
 import type { ImportResult } from '../db/sync.js';
 import type { DaySummary } from '../db/queries.js';
 
@@ -110,10 +110,75 @@ afterEach(() => {
 describe('the declared arguments', () => {
   // assertKnownArgs rejects any flag a command did not declare, so an undeclared --prune would be
   // BAD_ARGS at runtime with the plumbing behind it working perfectly.
-  it('declares --prune as a boolean, so the runner accepts it', () => {
+  it('declares --prune, so the runner accepts it', () => {
     const sync = buildManifest('0.0.0', { sync: syncCommand }).commands[0]!;
-    expect(sync.args.find(a => a.name === '--prune')).toMatchObject({ type: 'boolean', required: false });
+    expect(sync.args.find(a => a.name === '--prune')).toMatchObject({ type: 'string', required: false });
   });
+});
+
+describe('the --prune flag reaching the import', () => {
+  // resolvePruneScope on its own is not enough: `run` could ignore its result entirely and every
+  // other test would still pass. Drive the real definition through the runner and read what it printed.
+  async function syncWith(args: Record<string, unknown>) {
+    installFetch(todayFixture());
+    const out: string[] = []; const err: string[] = []; const exits: number[] = [];
+    const io: RunnerIo = { stdout: s => out.push(s), stderr: s => err.push(s), exit: c => exits.push(c), isTty: false };
+    const db = new Database(TEST_DB);
+    ensureSchema(db);
+    db.close();
+    await execute(syncDef, {
+      _: [], format: 'table', token: 'test-token', db: TEST_DB, tz: 'UTC', 'no-color': true, ...args,
+    } as never, io);
+    return { out: out.join('\n'), err: err.join('\n'), exits };
+  }
+
+  it('carries the scope from the parsed args all the way into the run', async () => {
+    const { out } = await syncWith({ prune: 'hr' });
+    expect(out).toContain('--prune: applying removals even where a response looks truncated (hr)');
+  });
+
+  it('says nothing about prune when the flag is absent', async () => {
+    const { out } = await syncWith({});
+    expect(out).not.toContain('--prune');
+  });
+
+  it('reports an unknown collection as BAD_ARGS instead of syncing', async () => {
+    const { err, exits, out } = await syncWith({ prune: 'heartrate' });
+    expect(err).toContain('unknown collection: heartrate');
+    expect(exits).toEqual([1]);
+    expect(out).toBe('');
+  });
+});
+
+describe('resolvePruneScope', () => {
+  // The seam between the flag and the plan. Without a test here the whole feature could be turned
+  // off at the command layer with the suite still green.
+  it('takes --prune=all as every collection', () => {
+    expect(resolvePruneScope('all')).toBe('all');
+  });
+
+  it('refuses a bare --prune, which would otherwise swallow the next flag', () => {
+    // `sync --prune --db x.db` binds --db as the value; there is no spelling of "everything" that
+    // is safe to leave valueless, so both spellings go in the hint instead.
+    expect(() => resolvePruneScope('')).toThrow(/needs a value/);
+    expect(() => resolvePruneScope(true)).toThrow(/needs a value/);
+    expect(() => resolvePruneScope('--from')).toThrow(/needs a value/);
+  });
+
+  it('is off when the flag is absent or negated', () => {
+    expect(resolvePruneScope(undefined)).toBeUndefined();
+    expect(resolvePruneScope(false)).toBeUndefined();
+  });
+
+  it('scopes to the collections named, so consent covers only what the user read', () => {
+    expect(resolvePruneScope('hr')).toEqual(['hr']);
+    expect(resolvePruneScope('hr, workout')).toEqual(['hr', 'workout']);
+  });
+
+  it('rejects a name no collection has, rather than silently pruning nothing', () => {
+    expect(() => resolvePruneScope('heartrate')).toThrow(/unknown collection: heartrate/);
+  });
+
 });
 
 describe('runSync', () => {

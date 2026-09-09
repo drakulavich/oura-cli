@@ -37,6 +37,12 @@ export interface ImportResult {
    * Always empty when that flag was passed.
    */
   refused: Record<string, number>;
+  /**
+   * Rows per table this run removed that the guard would otherwise have refused — the effect of
+   * `--prune`, reported apart from `removed` so a bypass is never indistinguishable from ordinary
+   * reconciliation. Always empty without the flag, and empty for a collection the flag did not name.
+   */
+  pruned: Record<string, number>;
   /** True when every table was empty before this run. */
   isFirstSync: boolean;
 }
@@ -55,11 +61,18 @@ export interface SyncWindow {
 
 export interface SyncOptions {
   /**
-   * Apply removals the truncation guard would refuse (`sync --prune`). Kept apart from the window
-   * because narrowing the window is not an alternative to it: the guard measures a piece against
-   * its own returned rows, so the ratio it refuses on does not move however the range is asked for.
+   * Which collections may go past the truncation guard this run — `'all'` for a bare `--prune`,
+   * or the collection names `--prune=hr,workout` listed. Kept apart from the window because
+   * narrowing the window is not an alternative to it: the guard measures a piece against its own
+   * returned rows, so the ratio it refuses on does not move however the range is asked for.
+   *
+   * Scoped rather than a plain boolean because consent is per collection. The user reaches for this
+   * after reading one collection's refusal; a run-wide flag would also lift the guard on every
+   * other collection, and a genuinely truncated response for one of those would be deleted on the
+   * strength of a decision that was never about it. Behind `--from` that loss does not come back:
+   * the next ordinary sync starts from the watermark and never revisits the older window.
    */
-  prune?: boolean;
+  prune?: 'all' | readonly string[];
 }
 
 /**
@@ -108,12 +121,17 @@ export async function importDaily(
     : `Syncing ${startDate} → ${end}`);
   // Say it before the collection lines rather than after: the run that bypasses the guard should be
   // recognisable as such in the output someone kept, not only by the removals it went on to make.
-  if (options.prune) _log('--prune: applying removals even where a response looks truncated');
+  if (options.prune !== undefined) {
+    const scope = options.prune === 'all' ? 'every collection' : options.prune.join(', ');
+    _log(`--prune: applying removals even where a response looks truncated (${scope})`);
+  }
 
   const fetched: Record<string, number> = {};
   const added: Record<string, number> = {};
   const removed: Record<string, number> = {};
   const refused: Record<string, number> = {};
+  const pruned: Record<string, number> = {};
+  const mayPrune = (name: string) => options.prune === 'all' || (options.prune?.includes(name) ?? false);
   for (const { c, start } of plan) {
     const pieces = await fetchCollectionByPiece(client, c, start, end, tz);
     const rows = pieces.flat();
@@ -140,7 +158,7 @@ export async function importDaily(
     // snapshot first fails with SQLITE_BUSY_SNAPSHOT — which busy_timeout does not retry — when
     // another sync commits in between.
     const { windowPlan, gone } = db.transaction((ps: unknown[][]) => {
-      const windowPlan: WindowPlan = planWindow(db, c, ps, { prune: options.prune });
+      const windowPlan: WindowPlan = planWindow(db, c, ps, { prune: mayPrune(c.name) });
       for (const piece of ps) for (const r of piece) stmt.run(...rowValues(c, r));
       return { windowPlan, gone: applyWindowPlan(db, c, windowPlan) };
     }).immediate(pieces);
@@ -148,20 +166,25 @@ export async function importDaily(
     added[c.table] = windowPlan.added;
     if (gone > 0) removed[c.table] = gone;
     if (windowPlan.refused > 0) refused[c.table] = windowPlan.refused;
+    if (windowPlan.bypassed > 0) pruned[c.table] = windowPlan.bypassed;
     // Every collection gets a line, including the ones that returned nothing: a silent collection
     // was indistinguishable from a failed one, while the summary listed it anyway. Both names are
     // printed because the summary and `fetch` speak in collection names while `db stats` and the
     // schema speak in table names.
-    const tail = gone > 0 ? `, ${gone} stale removed` : '';
+    // A bypass is named on its own line's tail: "12 stale removed" alone reads like any other
+    // reconciliation, and under --from those rows do not come back on the next sync.
+    const tail = gone > 0
+      ? `, ${gone} stale removed${windowPlan.bypassed > 0 ? ` (${windowPlan.bypassed} past the truncation guard)` : ''}`
+      : '';
     // Still not a diagnosis — the guard cannot tell a truncated response from a genuine large
     // correction, and only the user can. But there is now something to do about it either way, and
     // naming it here is the only place the situation is visible.
     const kept = windowPlan.refused > 0
-      ? `, ${windowPlan.refused} rows kept that the API did not return — too many to drop on one response; re-run with --prune to apply them`
+      ? `, ${windowPlan.refused} rows kept that the API did not return — too many to drop on one response; re-run with --prune=${c.name} to apply them`
       : '';
     _log(`  + ${c.name} (${c.table}): ${rows.length} fetched, ${added[c.table]} new${tail}${kept}`);
   }
 
   _log('Import complete.');
-  return { startDate, endDate: end, fetched, added, removed, refused, isFirstSync };
+  return { startDate, endDate: end, fetched, added, removed, refused, pruned, isFirstSync };
 }
