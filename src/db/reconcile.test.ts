@@ -162,6 +162,22 @@ describe('a range fetched in several pieces', () => {
     expect(result).toEqual({ added: 1, removed: 1, refused: 0 });
   });
 
+  it('never deletes a row that some piece returned, even if another piece brackets it', () => {
+    // The pieces the range is split into are disjoint today, so this cannot happen — but the
+    // invariant should hold because of how the plan is built, not because of a property that
+    // lives in another module and could change.
+    const db = seeded();
+    syncPieces(db, hr, [[sample(0, 'awake'), sample(5, 'awake'), sample(9, 'awake')]]);
+
+    // A pathological split: the first piece's scope brackets a sample only the second returned.
+    const result = syncPieces(db, hr, [[sample(0, 'awake'), sample(9, 'awake')], [sample(5, 'awake')]]);
+
+    const kept = (db.query('SELECT timestamp FROM heartrate ORDER BY timestamp').all() as Array<{ timestamp: string }>).length;
+    db.close();
+    expect(kept).toBe(3);
+    expect(result).toEqual({ added: 0, removed: 0, refused: 0 });
+  });
+
   it('judges the truncation guard per piece, not across the whole range', () => {
     // Ten stored samples in one piece and two in another: dropping eight of the first piece is a
     // majority of that piece, even though it is a minority of everything fetched.

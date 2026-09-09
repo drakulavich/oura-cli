@@ -29,9 +29,11 @@ export interface ImportResult {
    */
   removed: Record<string, number>;
   /**
-   * Rows per table that the API did not return but that were kept anyway, because the response for
-   * that piece of the range looked truncated rather than corrected. A non-empty value means the
-   * cache is knowingly out of step with the API for those rows; a narrower window repairs them.
+   * Rows per table that the API did not return but that were kept anyway, because dropping them
+   * would have taken most of what one request described — the shape of a truncated response.
+   * A non-empty value means the cache is knowingly out of step with the API for those rows. It is
+   * the safe direction, but it is not self-healing: a genuine correction that large keeps being
+   * refused on every run (#100).
    */
   refused: Record<string, number>;
   /** True when every table was empty before this run. */
@@ -137,8 +139,11 @@ export async function importDaily(
     // printed because the summary and `fetch` speak in collection names while `db stats` and the
     // schema speak in table names.
     const tail = gone > 0 ? `, ${gone} stale removed` : '';
+    // Deliberately not a diagnosis: the guard cannot tell a truncated response from a genuine
+    // large correction, and it must not send the user after a fix that would not work for the
+    // second. Keeping the rows is the safe direction, so say plainly what was kept and why.
     const kept = windowPlan.refused > 0
-      ? `, ${windowPlan.refused} rows kept that the API did not return — that response looks truncated; re-run with a narrower --from/--to to repair them`
+      ? `, ${windowPlan.refused} rows kept that the API did not return — too many to drop on one response, so they stay`
       : '';
     _log(`  + ${c.name} (${c.table}): ${rows.length} fetched, ${added[c.table]} new${tail}${kept}`);
   }
