@@ -55,7 +55,7 @@ Releases are tag-driven now (per audit #15):
 
 1. Bump the version in `package.json` (the CLI reads it at runtime).
 2. Add a `## [x.y.z] - YYYY-MM-DD` section to `CHANGELOG.md`.
-3. Commit, then `git tag vx.y.z && git push origin main vx.y.z`.
+3. Commit, open a PR and merge it (`main` is protected), then tag the merged commit: `git tag vx.y.z && git push origin vx.y.z`.
 4. The `release.yml` workflow runs tests, publishes to npm (with provenance), and creates a GitHub Release whose body is the matching CHANGELOG section.
 
 If the workflow fails, fix forward — the published version is permanent. Do not re-use a tag.
