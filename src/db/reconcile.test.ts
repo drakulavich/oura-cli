@@ -259,6 +259,28 @@ describe('a response that looks truncated', () => {
     expect(days).toBe(1);
   });
 
+  it('keeps a row any covering piece doubted, whichever order the pieces arrive in', () => {
+    // Two pieces overlap and disagree: the wide one dropped most of its scope and looks truncated,
+    // the narrow one dropped four of ten and does not. Minutes 15-18 are stale in both. A verdict
+    // taken while walking the pieces would be settled by whichever came first, so the same two
+    // responses would delete or keep depending on order.
+    const wide = [sample(0, 'awake'), sample(19, 'awake')];                       // scope 00-19
+    const narrow = [10, 11, 12, 13, 14, 19].map(m => sample(m, 'awake'));         // scope 10-19
+
+    const outcomes = [[wide, narrow], [narrow, wide]].map(order => {
+      const db = seeded();
+      syncWindow(db, hr, Array.from({ length: 20 }, (_, m) => sample(m, 'awake')));
+      const result = syncPieces(db, hr, order);
+      const rows = (db.query('SELECT COUNT(*) AS n FROM heartrate').get() as { n: number }).n;
+      db.close();
+      return { result, rows };
+    });
+
+    expect(outcomes[0]).toEqual(outcomes[1]!);
+    expect(outcomes[0]!.result).toEqual({ added: 0, removed: 0, refused: 13, bypassed: 0 });
+    expect(outcomes[0]!.rows).toBe(20);
+  });
+
   it('counts a row once when two pieces both drop it (#103 review)', () => {
     // Pieces are disjoint by construction, but the API decides what it returns. Counting per piece
     // let one row be staged twice, printing "12 stale removed (24 past the truncation guard)" —
@@ -266,15 +288,16 @@ describe('a response that looks truncated', () => {
     const db = seeded();
     const twenty = Array.from({ length: 20 }, (_, m) => sample(m, 'awake'));
     syncWindow(db, hr, twenty);
-    const kept = [0, 3, 6, 9, 12, 15, 18, 19].map(m => sample(m, 'awake'));
+    // one row the cache does not hold yet, so arriving twice must still count as one new row
+    const kept = [0, 3, 6, 9, 12, 15, 18, 19, 25].map(m => sample(m, 'awake'));
 
     // the same answer delivered as two pieces whose returned bounds overlap
     const result = syncPieces(db, hr, [kept, kept], { prune: true });
 
     const rows = (db.query('SELECT COUNT(*) AS n FROM heartrate').get() as { n: number }).n;
     db.close();
-    expect(result).toEqual({ added: 0, removed: 12, refused: 0, bypassed: 12 });
-    expect(rows).toBe(8);
+    expect(result).toEqual({ added: 1, removed: 12, refused: 0, bypassed: 12 });
+    expect(rows).toBe(9);
   });
 
   it('deletes nothing at all when the API returns an empty window', () => {

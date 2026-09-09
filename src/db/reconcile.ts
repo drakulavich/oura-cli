@@ -118,15 +118,16 @@ export function planWindow(
   // stale because the piece whose scope it falls in happens not to be the piece that returned it.
   const wanted = new Set(pieces.flat().map(keyFor));
   const plan = emptyPlan();
-  // One row, one verdict. Overlapping pieces would otherwise stage the same delete twice and
-  // report a count larger than the removal it qualifies.
-  const decided = new Set<string>();
 
-  for (const piece of pieces) {
-    if (piece.length === 0) continue; // described nothing, so it vouches for nothing
+  // Judge every piece before deciding any row. Two pieces whose returned bounds overlap can cover
+  // the same stale row and disagree about whether their own answer looks truncated, so a verdict
+  // taken as pieces are walked would be settled by whichever came first — the same responses in a
+  // different order deleting a row instead of keeping it.
+  const judged = pieces.map(piece => {
+    if (piece.length === 0) return null; // described nothing, so it vouches for nothing
     // A null scope value would sort above every timestamp and widen the range to everything.
     const scopeValues = piece.map(row => scopePick(row)).filter(v => v !== null && v !== undefined).map(String);
-    if (scopeValues.length === 0) continue;
+    if (scopeValues.length === 0) return null;
 
     const days = [...new Set(scopeValues)];
     const [where, params] = c.rangeParams === 'datetime'
@@ -144,18 +145,41 @@ export function planWindow(
       storedKeys.add(key);
       if (!wanted.has(key)) stale.push(values);
     }
-
-    plan.added += [...new Set(piece.map(keyFor))].filter(key => !storedKeys.has(key)).length;
-    // The ratio is judged on everything this piece dropped — that is what says whether its answer
-    // looks truncated — while the counts below only take rows no earlier piece has decided.
+    // The ratio is judged on everything this piece dropped: that is what says whether its own
+    // answer looks truncated, independently of what any other piece said.
     const looksTruncated = stale.length > ALWAYS_SAFE_TO_REMOVE && stale.length > stored.length * MAX_REMOVED_SHARE;
-    const undecided = stale.filter(values => !decided.has(keyOf(values)));
-    for (const values of undecided) decided.add(keyOf(values));
-    if (looksTruncated && !options.prune) {
-      plan.refused += undecided.length;
-    } else {
-      if (looksTruncated) plan.bypassed += undecided.length;
-      plan.stale.push(...undecided);
+    const fresh = [...new Set(piece.map(keyFor))].filter(key => !storedKeys.has(key));
+    return { stale, looksTruncated, fresh };
+  });
+
+  // Protection is the safe direction, so one doubting piece is enough: a row any covering piece
+  // would have kept is kept, whichever order the pieces arrive in.
+  const doubted = new Set<string>();
+  for (const p of judged) {
+    if (p?.looksTruncated) for (const values of p.stale) doubted.add(keyOf(values));
+  }
+
+  // One row, one verdict. Overlapping pieces would otherwise stage the same delete twice and
+  // report a count larger than the removal it qualifies — and count one arriving row as two new.
+  const countedNew = new Set<string>();
+  const countedStale = new Set<string>();
+  for (const p of judged) {
+    if (p === null) continue;
+    for (const key of p.fresh) {
+      if (countedNew.has(key)) continue;
+      countedNew.add(key);
+      plan.added += 1;
+    }
+    for (const values of p.stale) {
+      const key = keyOf(values);
+      if (countedStale.has(key)) continue;
+      countedStale.add(key);
+      if (doubted.has(key) && !options.prune) {
+        plan.refused += 1;
+      } else {
+        if (doubted.has(key)) plan.bypassed += 1;
+        plan.stale.push(values);
+      }
     }
   }
 
