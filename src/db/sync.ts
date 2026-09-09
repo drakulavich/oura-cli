@@ -36,15 +36,33 @@ export interface ImportResult {
    * every run — so `sync --prune` applies them once the user has decided which shape it was.
    * Always empty when that flag was passed.
    */
-  refused: Record<string, number>;
+  refused: Record<string, RefusalRecord>;
   /**
    * Rows per table this run removed that the guard would otherwise have refused — the effect of
    * `--prune`, reported apart from `removed` so a bypass is never indistinguishable from ordinary
    * reconciliation. Always empty without the flag, and empty for a collection the flag did not name.
    */
-  pruned: Record<string, number>;
+  pruned: Record<string, RefusalRecord>;
+  /**
+   * What `--prune` was asked to cover, when it was passed at all. Recorded because the text output
+   * announces the bypass before the collection lines and the JSON otherwise could not: with nothing
+   * actually pruned the two payloads were byte-identical, so a kept log could not say whether the
+   * guard had been lifted.
+   */
+  pruneScope?: 'all' | readonly string[];
   /** True when every table was empty before this run. */
   isFirstSync: boolean;
+}
+
+/**
+ * A count plus the name `--prune` takes for it. `fetched`/`added`/`removed` stay bare counts keyed
+ * by table, as they always were; these two carry the collection name because they are the ones a
+ * reader has to act on, and nothing else in the published output maps a table back to a collection.
+ */
+export interface RefusalRecord {
+  rows: number;
+  /** The collection name, i.e. what to pass to `--prune`. */
+  collection: string;
 }
 
 export interface SyncClock {
@@ -129,8 +147,8 @@ export async function importDaily(
   const fetched: Record<string, number> = {};
   const added: Record<string, number> = {};
   const removed: Record<string, number> = {};
-  const refused: Record<string, number> = {};
-  const pruned: Record<string, number> = {};
+  const refused: Record<string, RefusalRecord> = {};
+  const pruned: Record<string, RefusalRecord> = {};
   const mayPrune = (name: string) => options.prune === 'all' || (options.prune?.includes(name) ?? false);
   for (const { c, start } of plan) {
     const pieces = await fetchCollectionByPiece(client, c, start, end, tz);
@@ -165,8 +183,8 @@ export async function importDaily(
     fetched[c.table] = rows.length;
     added[c.table] = windowPlan.added;
     if (gone > 0) removed[c.table] = gone;
-    if (windowPlan.refused > 0) refused[c.table] = windowPlan.refused;
-    if (windowPlan.bypassed > 0) pruned[c.table] = windowPlan.bypassed;
+    if (windowPlan.refused > 0) refused[c.table] = { rows: windowPlan.refused, collection: c.name };
+    if (windowPlan.bypassed > 0) pruned[c.table] = { rows: windowPlan.bypassed, collection: c.name };
     // Every collection gets a line, including the ones that returned nothing: a silent collection
     // was indistinguishable from a failed one, while the summary listed it anyway. Both names are
     // printed because the summary and `fetch` speak in collection names while `db stats` and the
@@ -186,5 +204,6 @@ export async function importDaily(
   }
 
   _log('Import complete.');
-  return { startDate, endDate: end, fetched, added, removed, refused, pruned, isFirstSync };
+  return { startDate, endDate: end, fetched, added, removed, refused, pruned, isFirstSync,
+    ...(options.prune === undefined ? {} : { pruneScope: options.prune }) };
 }

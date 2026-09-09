@@ -367,7 +367,7 @@ describe('Import', () => {
       } as unknown as OuraClient;
 
       const refusing = await importDaily(db, client, { today: '2026-06-15', tz: 'UTC' });
-      expect(refusing.refused.heartrate).toBe(12);
+      expect(refusing.refused.heartrate).toEqual({ rows: 12, collection: 'hr' });
       expect(refusing.removed.heartrate).toBeUndefined();
 
       const lines: string[] = [];
@@ -379,10 +379,27 @@ describe('Import', () => {
       expect(pruning.removed.heartrate).toBe(12);
       expect(pruning.refused).toEqual({});
       // Reported apart from `removed`, so a bypass is never mistaken for ordinary reconciliation.
-      expect(pruning.pruned).toEqual({ heartrate: 12 });
+      expect(pruning.pruned).toEqual({ heartrate: { rows: 12, collection: 'hr' } });
       expect(rows).toBe(8);
       expect(lines.find(l => l.startsWith('--prune:'))).toContain('every collection');
       expect(lines.find(l => l.includes('heartrate'))).toContain('12 past the truncation guard');
+    });
+
+    it('records the requested scope, so a kept JSON log says whether the guard was lifted', async () => {
+      // The text mode announces the bypass before the collection lines; JSON had no equivalent, and
+      // with nothing actually pruned the two payloads were byte-identical.
+      const db = new Database(':memory:');
+      ensureSchema(db);
+      const plain = await importDaily(db, recordingClient([]), { today: '2026-06-15', tz: 'UTC' });
+      const scoped = await importDaily(
+        db, recordingClient([]), { today: '2026-06-15', tz: 'UTC' }, undefined, {}, { prune: ['hr'] });
+      const everything = await importDaily(
+        db, recordingClient([]), { today: '2026-06-15', tz: 'UTC' }, undefined, {}, { prune: 'all' });
+      db.close();
+
+      expect(plain.pruneScope).toBeUndefined();
+      expect(scoped.pruneScope).toEqual(['hr']);
+      expect(everything.pruneScope).toBe('all');
     });
 
     it('a scoped --prune leaves every other collection behind the guard (#103 review)', async () => {
@@ -414,10 +431,10 @@ describe('Import', () => {
       db.close();
 
       expect(hrLeft).toBe(8);
-      expect(result.pruned).toEqual({ heartrate: 12 });
+      expect(result.pruned).toEqual({ heartrate: { rows: 12, collection: 'hr' } });
       // workouts kept its rows and still says so, because nobody vouched for its response
       expect(workoutsLeft).toBe(12);
-      expect(result.refused.workouts).toBe(9);
+      expect(result.refused.workouts).toEqual({ rows: 9, collection: 'workout' });
       expect(result.removed.workouts).toBeUndefined();
     });
 

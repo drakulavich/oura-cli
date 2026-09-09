@@ -15,15 +15,15 @@ function seeded(): Database {
 }
 
 /** What `sync` does for one collection: plan, insert, delete — all in one transaction. */
-function syncPieces(db: Database, c: AnyCollection, pieces: unknown[][], options: PlanOptions = {}): { added: number; removed: number; refused: number } {
+function syncPieces(db: Database, c: AnyCollection, pieces: unknown[][], options: PlanOptions = {}): { added: number; removed: number; refused: number; bypassed: number } {
   const stmt = db.query(insertSql(c));
   const plan = planWindow(db, c, pieces, options);
   for (const row of pieces.flat()) stmt.run(...rowValues(c, row));
-  return { added: plan.added, removed: applyWindowPlan(db, c, plan), refused: plan.refused };
+  return { added: plan.added, removed: applyWindowPlan(db, c, plan), refused: plan.refused, bypassed: plan.bypassed };
 }
 
 /** The common case: a range small enough to need one request. */
-function syncWindow(db: Database, c: AnyCollection, rows: unknown[], options: PlanOptions = {}): { added: number; removed: number; refused: number } {
+function syncWindow(db: Database, c: AnyCollection, rows: unknown[], options: PlanOptions = {}): { added: number; removed: number; refused: number; bypassed: number } {
   return syncPieces(db, c, [rows], options);
 }
 
@@ -57,7 +57,7 @@ describe('a heart-rate sample Oura reclassifies', () => {
     const rows = db.query('SELECT timestamp, source FROM heartrate ORDER BY timestamp').all() as Array<{ timestamp: string; source: string }>;
     db.close();
     expect(rows.map(r => r.source)).toEqual(['workout', 'awake', 'rest']);
-    expect(result).toEqual({ added: 1, removed: 1, refused: 0 });
+    expect(result).toEqual({ added: 1, removed: 1, refused: 0, bypassed: 0 });
   });
 
   it('does not touch samples outside the span the response covers', () => {
@@ -82,7 +82,7 @@ describe('a heart-rate sample Oura reclassifies', () => {
 
     const count = (db.query('SELECT COUNT(*) AS n FROM heartrate').get() as { n: number }).n;
     db.close();
-    expect(result).toEqual({ added: 0, removed: 0, refused: 0 });
+    expect(result).toEqual({ added: 0, removed: 0, refused: 0, bypassed: 0 });
     expect(count).toBe(2);
   });
 });
@@ -102,7 +102,7 @@ describe('a day whose records are re-issued under new ids', () => {
     const ids = (db.query('SELECT id FROM workouts ORDER BY id').all() as Array<{ id: string }>).map(r => r.id);
     db.close();
     expect(ids).toEqual(['w1', 'w3']);
-    expect(result).toEqual({ added: 1, removed: 1, refused: 0 });
+    expect(result).toEqual({ added: 1, removed: 1, refused: 0, bypassed: 0 });
   });
 
   it('leaves days the response did not mention alone', () => {
@@ -147,7 +147,7 @@ describe('a range fetched in several pieces', () => {
     const stored = (db.query('SELECT timestamp FROM heartrate ORDER BY timestamp').all() as Array<{ timestamp: string }>).length;
     db.close();
     expect(stored).toBe(6); // the middle piece described nothing, so it removed nothing
-    expect(result).toEqual({ added: 0, removed: 0, refused: 0 });
+    expect(result).toEqual({ added: 0, removed: 0, refused: 0, bypassed: 0 });
   });
 
   it('still reconciles the pieces that did answer', () => {
@@ -159,7 +159,7 @@ describe('a range fetched in several pieces', () => {
     const rows = (db.query('SELECT source FROM heartrate ORDER BY timestamp').all() as Array<{ source: string }>).map(r => r.source);
     db.close();
     expect(rows).toEqual(['workout', 'awake']);
-    expect(result).toEqual({ added: 1, removed: 1, refused: 0 });
+    expect(result).toEqual({ added: 1, removed: 1, refused: 0, bypassed: 0 });
   });
 
   it('never deletes a row that some piece returned, even if another piece brackets it', () => {
@@ -175,7 +175,7 @@ describe('a range fetched in several pieces', () => {
     const kept = (db.query('SELECT timestamp FROM heartrate ORDER BY timestamp').all() as Array<{ timestamp: string }>).length;
     db.close();
     expect(kept).toBe(3);
-    expect(result).toEqual({ added: 0, removed: 0, refused: 0 });
+    expect(result).toEqual({ added: 0, removed: 0, refused: 0, bypassed: 0 });
   });
 
   it('judges the truncation guard per piece, not across the whole range', () => {
@@ -219,13 +219,13 @@ describe('a response that looks truncated', () => {
     syncWindow(db, hr, twenty);
     const kept = [0, 3, 6, 9, 12, 15, 18, 19].map(m => sample(m, 'awake'));
 
-    expect(syncWindow(db, hr, kept)).toEqual({ added: 0, removed: 0, refused: 12 });
+    expect(syncWindow(db, hr, kept)).toEqual({ added: 0, removed: 0, refused: 12, bypassed: 0 });
 
     const result = syncWindow(db, hr, kept, { prune: true });
 
     const rows = (db.query('SELECT COUNT(*) AS n FROM heartrate').get() as { n: number }).n;
     db.close();
-    expect(result).toEqual({ added: 0, removed: 12, refused: 0 });
+    expect(result).toEqual({ added: 0, removed: 12, refused: 0, bypassed: 12 });
     expect(rows).toBe(8);
   });
 
@@ -240,7 +240,7 @@ describe('a response that looks truncated', () => {
 
     const rows = (db.query('SELECT COUNT(*) AS n FROM heartrate').get() as { n: number }).n;
     db.close();
-    expect(result).toEqual({ added: 0, removed: 0, refused: 0 });
+    expect(result).toEqual({ added: 0, removed: 0, refused: 0, bypassed: 0 });
     expect(rows).toBe(10);
   });
 
@@ -259,6 +259,24 @@ describe('a response that looks truncated', () => {
     expect(days).toBe(1);
   });
 
+  it('counts a row once when two pieces both drop it (#103 review)', () => {
+    // Pieces are disjoint by construction, but the API decides what it returns. Counting per piece
+    // let one row be staged twice, printing "12 stale removed (24 past the truncation guard)" —
+    // a parenthetical larger than the number it qualifies.
+    const db = seeded();
+    const twenty = Array.from({ length: 20 }, (_, m) => sample(m, 'awake'));
+    syncWindow(db, hr, twenty);
+    const kept = [0, 3, 6, 9, 12, 15, 18, 19].map(m => sample(m, 'awake'));
+
+    // the same answer delivered as two pieces whose returned bounds overlap
+    const result = syncPieces(db, hr, [kept, kept], { prune: true });
+
+    const rows = (db.query('SELECT COUNT(*) AS n FROM heartrate').get() as { n: number }).n;
+    db.close();
+    expect(result).toEqual({ added: 0, removed: 12, refused: 0, bypassed: 12 });
+    expect(rows).toBe(8);
+  });
+
   it('deletes nothing at all when the API returns an empty window', () => {
     const db = seeded();
     syncWindow(db, hr, [sample(0, 'awake')]);
@@ -267,7 +285,7 @@ describe('a response that looks truncated', () => {
 
     const count = (db.query('SELECT COUNT(*) AS n FROM heartrate').get() as { n: number }).n;
     db.close();
-    expect(result).toEqual({ added: 0, removed: 0, refused: 0 });
+    expect(result).toEqual({ added: 0, removed: 0, refused: 0, bypassed: 0 });
     expect(count).toBe(1);
   });
 });

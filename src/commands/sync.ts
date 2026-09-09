@@ -23,8 +23,12 @@ export function resolveWindow(opts: { from?: string; to?: string }, today: strin
   return { from, to };
 }
 
-/** The one `--prune` value that is not a collection name; no collection may claim it. */
-const PRUNE_ALL = 'all';
+/**
+ * The one `--prune` value that is not a collection name. Reserved: a collection called `all` would
+ * silently turn `--prune=all` from "that collection" into "every collection", widening a destructive
+ * flag by way of an unrelated registry addition. `collections/index.test.ts` holds the line.
+ */
+export const PRUNE_ALL = 'all';
 
 /**
  * Which collections `--prune` covers this run.
@@ -33,8 +37,10 @@ const PRUNE_ALL = 'all';
  * next: `sync --prune --db x.db` binds `--db` as the value and leaves the path as a stray
  * positional. Every "prune everything" spelling therefore has to be a value — `--prune=all` — and a
  * bare one is refused with both spellings in the hint, rather than quietly meaning something the
- * user did not write. A value starting with `-` gets the same treatment for the same reason,
- * though `assertKnownArgs` usually rejects the stray positional before this is reached.
+ * user did not write. The leading-dash check is load-bearing rather than belt-and-braces: in the
+ * space form `assertKnownArgs` does reject the stray positional first, but `sync --prune --db=x.db`
+ * leaves no positional at all — `db` is simply undefined, the default cache would be opened, and
+ * this is the only thing that stops it.
  */
 export function resolvePruneScope(value: unknown): SyncOptions['prune'] {
   if (value === undefined || value === false) return undefined;
@@ -44,13 +50,17 @@ export function resolvePruneScope(value: unknown): SyncOptions['prune'] {
     throw new CliError('BAD_ARGS', '--prune needs a value naming what to prune.',
       `Use --prune=<collection> (for example --prune=hr), a comma-separated list, or --prune=${PRUNE_ALL} for every collection.`);
   }
-  if (wanted.length === 1 && wanted[0] === PRUNE_ALL) return PRUNE_ALL;
+  if (wanted.includes(PRUNE_ALL)) {
+    if (wanted.length === 1) return PRUNE_ALL;
+    throw new CliError('BAD_ARGS', `--prune=${PRUNE_ALL} cannot be combined with collection names.`,
+      `Use --prune=${PRUNE_ALL} on its own, or list the collections you mean.`);
+  }
   const unknown = wanted.filter(n => byName(n) === undefined);
   if (unknown.length > 0) {
     throw new CliError('BAD_ARGS', `--prune: unknown collection${unknown.length > 1 ? 's' : ''}: ${unknown.join(', ')}.`,
       `Known collections: ${names().join(', ')}.`);
   }
-  return wanted;
+  return [...new Set(wanted)];
 }
 
 export async function runSync(ctx: Ctx, window: SyncWindow = {}, options: SyncOptions = {}): Promise<Output> {
@@ -67,7 +77,7 @@ export async function runSync(ctx: Ctx, window: SyncWindow = {}, options: SyncOp
 const syncArgs = {
   from:  { type: 'string', description: 'Re-fetch every collection from this day (YYYY-MM-DD) instead of from its last stored day' },
   to:    { type: 'string', description: 'End of the explicit window (YYYY-MM-DD, default: today); requires --from' },
-  prune: { type: 'string', description: 'Delete cached rows the API no longer returns even when it dropped most of a response: --prune=hr, a comma-separated list, or --prune=all — use after sync names a collection whose rows it kept' },
+  prune: { type: 'string', description: 'Apply removals sync kept back: --prune=hr, a list, or --prune=all' },
 } as const satisfies ArgsDef;
 
 /** Exported apart from the command so a test can drive the args-to-options mapping through `execute`. */
