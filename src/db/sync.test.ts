@@ -323,12 +323,33 @@ describe('Import', () => {
       expect(result.removed.workouts).toBe(1);
     });
 
+    it('does not count a daily summary re-issued under a new id as new', async () => {
+      // The table holds one row per day, so the insert replaces rather than adds; counting the
+      // recomputed day as new would report phantom data on an ordinary sync.
+      const db = new Database(':memory:');
+      ensureSchema(db);
+      db.query("INSERT INTO daily_sleep (id, day, score) VALUES ('old', '2026-06-15', 80)").run();
+      const client = {
+        fetch: async (endpoint: OuraEndpoint) => endpoint === 'daily_sleep'
+          ? [{ id: 'reissued', day: '2026-06-15', score: 81, timestamp: '2026-06-15T00:00:00+00:00', contributors: {} }] : [],
+      } as unknown as OuraClient;
+
+      const result = await importDaily(db, client, { today: '2026-06-15', tz: 'UTC' });
+      const rows = db.query('SELECT id, score FROM daily_sleep').all() as Array<{ id: string; score: number }>;
+      db.close();
+
+      expect(rows).toEqual([{ id: 'reissued', score: 81 }]);
+      expect(result.added.daily_sleep).toBe(0);
+      expect(result.removed.daily_sleep).toBeUndefined();
+    });
+
     it('reports no removals for a plain incremental run', async () => {
       const db = new Database(':memory:');
       ensureSchema(db);
       const result = await importDaily(db, recordingClient([]), { today: '2026-06-15', tz: 'UTC' });
       db.close();
       expect(result.removed).toEqual({});
+      expect(result.refused).toEqual({});
     });
 
     it('an explicit window replaces every watermark', async () => {

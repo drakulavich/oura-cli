@@ -104,13 +104,23 @@ export function rangeQueries(c: AnyCollection, start: string, end: string, tz: s
     : datetimeQueries(start, end, tz, c.maxRangeDays);
 }
 
+/**
+ * The rows for the inclusive local-day range [start, end] in `tz`, one array per request the
+ * range needed. The pieces are kept apart on purpose: each one is an independent answer about its
+ * own slice of time, and a caller reconciling the cache against the API must not let one piece's
+ * bounds vouch for a slice another piece was supposed to describe (#91).
+ */
+export async function fetchCollectionByPiece(client: OuraClient, c: AnyCollection, start: string, end: string, tz: string): Promise<unknown[][]> {
+  const pieces: unknown[][] = [];
+  for (const query of rangeQueries(c, start, end, tz)) {
+    pieces.push(await client.fetch<unknown>(c.endpoint, query));
+  }
+  return pieces;
+}
+
 /** Every row of `c` for the inclusive local-day range [start, end] in `tz`, across range pieces and pages. */
 export async function fetchCollection(client: OuraClient, c: AnyCollection, start: string, end: string, tz: string): Promise<unknown[]> {
-  const rows: unknown[] = [];
-  for (const query of rangeQueries(c, start, end, tz)) {
-    for (const row of await client.fetch<unknown>(c.endpoint, query)) rows.push(row);
-  }
-  return rows;
+  return (await fetchCollectionByPiece(client, c, start, end, tz)).flat();
 }
 
 export function jsonSchema(c: AnyCollection): Record<string, unknown> {
