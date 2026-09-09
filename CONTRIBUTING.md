@@ -56,7 +56,7 @@ Releases are tag-driven (audit issue #1, finding 15):
 1. Bump the version in `package.json` (the CLI reads it at runtime).
 2. Add a `## [x.y.z] - YYYY-MM-DD` section to `CHANGELOG.md`.
 3. Commit on a branch and open a PR; `main` is protected, so it cannot be pushed to directly.
-4. Once it merges, tag its merge commit by name — the merge gave it a new SHA, and `origin/main` stops pointing at it the moment anything else lands: `git tag vx.y.z "$(gh pr view <n> --json mergeCommit -q .mergeCommit.oid)" && git push origin vx.y.z`.
+4. Once it merges, fetch and tag the commit the merge produced — it has a new SHA, and `origin/main` stops pointing at it the moment anything else lands: `git fetch origin && git tag vx.y.z "$(gh pr view <n> -R drakulavich/oura-cli --json mergeCommit -q .mergeCommit.oid)" && git push origin vx.y.z`. Skip the fetch and the tag fails: the merge commit is not in your clone yet.
 5. The `release.yml` workflow runs tests, publishes to npm (with provenance), and creates a GitHub Release whose body is the matching CHANGELOG section.
 
 If the workflow fails, fix forward — the published version is permanent. Do not re-use a tag.
