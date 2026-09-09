@@ -123,24 +123,22 @@ export async function importDaily(
     // plan reads before the first insert writes, and a deferred transaction that takes its read
     // snapshot first fails with SQLITE_BUSY_SNAPSHOT — which busy_timeout does not retry — when
     // another sync commits in between.
-    let window_: WindowPlan = { added: 0, stale: [], refused: 0 };
-    let gone = 0;
-    db.transaction((ps: unknown[][]) => {
-      window_ = planWindow(db, c, ps);
-      for (const r of ps.flat()) stmt.run(...rowValues(c, r));
-      gone = applyWindowPlan(db, c, window_);
+    const { windowPlan, gone } = db.transaction((ps: unknown[][]) => {
+      const windowPlan: WindowPlan = planWindow(db, c, ps);
+      for (const piece of ps) for (const r of piece) stmt.run(...rowValues(c, r));
+      return { windowPlan, gone: applyWindowPlan(db, c, windowPlan) };
     }).immediate(pieces);
     fetched[c.table] = rows.length;
-    added[c.table] = window_.added;
+    added[c.table] = windowPlan.added;
     if (gone > 0) removed[c.table] = gone;
-    if (window_.refused > 0) refused[c.table] = window_.refused;
+    if (windowPlan.refused > 0) refused[c.table] = windowPlan.refused;
     // Every collection gets a line, including the ones that returned nothing: a silent collection
     // was indistinguishable from a failed one, while the summary listed it anyway. Both names are
     // printed because the summary and `fetch` speak in collection names while `db stats` and the
     // schema speak in table names.
     const tail = gone > 0 ? `, ${gone} stale removed` : '';
-    const kept = window_.refused > 0
-      ? `, ${window_.refused} rows kept that the API did not return — that response looks truncated; re-run with a narrower --from/--to to repair them`
+    const kept = windowPlan.refused > 0
+      ? `, ${windowPlan.refused} rows kept that the API did not return — that response looks truncated; re-run with a narrower --from/--to to repair them`
       : '';
     _log(`  + ${c.name} (${c.table}): ${rows.length} fetched, ${added[c.table]} new${tail}${kept}`);
   }
