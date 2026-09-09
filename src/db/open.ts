@@ -88,7 +88,7 @@ function enableWal(db: Database): void {
     } catch (err) {
       if (journalMode(db) === 'wal') return; // the other process got there first
       if (attempt >= WAL_SWITCH_ATTEMPTS) throw err;
-      Bun.sleepSync(WAL_SWITCH_WAIT_MS);
+      Bun.sleepSync(WAL_SWITCH_WAIT_MS + Math.random() * WAL_SWITCH_WAIT_MS); // jitter: losers must not wake in lockstep
     }
   }
 }
@@ -113,7 +113,7 @@ export function ensureSchema(db: Database, migrations: Migration[] = MIGRATIONS)
   try {
     // Outside the transaction: CREATE TABLE IF NOT EXISTS is safe to race, and reading the
     // version first means an up-to-date cache takes no write lock at all.
-    if (schemaVersion(db) >= (migrations.at(-1)?.version ?? 0)) return;
+    if (schemaVersion(db) >= Math.max(0, ...migrations.map(m => m.version))) return;
 
     db.exec('BEGIN IMMEDIATE');
     try {
@@ -126,7 +126,9 @@ export function ensureSchema(db: Database, migrations: Migration[] = MIGRATIONS)
       }
       db.exec('COMMIT');
     } catch (err) {
-      db.exec('ROLLBACK');
+      // SQLite rolls back by itself on SQLITE_FULL, IOERR and NOMEM; asking again then throws
+      // "cannot rollback - no transaction is active" and buries the failure the user needs.
+      try { db.exec('ROLLBACK'); } catch { /* already rolled back */ }
       throw err;
     }
   } catch (err) {

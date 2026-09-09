@@ -15,11 +15,16 @@ function seeded(): Database {
 }
 
 /** What `sync` does for one collection: plan, insert, delete — all in one transaction. */
-function syncWindow(db: Database, c: AnyCollection, rows: unknown[]): { added: number; removed: number; refused?: number } {
+function syncPieces(db: Database, c: AnyCollection, pieces: unknown[][]): { added: number; removed: number; refused: number } {
   const stmt = db.query(insertSql(c));
-  const plan = planWindow(db, c, rows);
-  for (const row of rows) stmt.run(...rowValues(c, row));
-  return { added: plan.added, removed: applyWindowPlan(db, c, plan), ...(plan.refused === undefined ? {} : { refused: plan.refused }) };
+  const plan = planWindow(db, c, pieces);
+  for (const row of pieces.flat()) stmt.run(...rowValues(c, row));
+  return { added: plan.added, removed: applyWindowPlan(db, c, plan), refused: plan.refused };
+}
+
+/** The common case: a range small enough to need one request. */
+function syncWindow(db: Database, c: AnyCollection, rows: unknown[]): { added: number; removed: number; refused: number } {
+  return syncPieces(db, c, [rows]);
 }
 
 const sample = (minute: number, source: string) => ({
@@ -27,8 +32,12 @@ const sample = (minute: number, source: string) => ({
 });
 
 describe('identityColumns', () => {
-  it('takes the primary key when there is one', () => {
+  it('takes the primary key when a table has no unique column', () => {
     expect(identityColumns(workout)).toEqual(['id']);
+  });
+
+  it('prefers the unique day, so a summary recomputed under a new id is not counted as new', () => {
+    expect(identityColumns(sleep)).toEqual(['day']);
   });
 
   it('falls back to the unique index, which is what the timeseries have', () => {
@@ -48,7 +57,7 @@ describe('a heart-rate sample Oura reclassifies', () => {
     const rows = db.query('SELECT timestamp, source FROM heartrate ORDER BY timestamp').all() as Array<{ timestamp: string; source: string }>;
     db.close();
     expect(rows.map(r => r.source)).toEqual(['workout', 'awake', 'rest']);
-    expect(result).toEqual({ added: 1, removed: 1 });
+    expect(result).toEqual({ added: 1, removed: 1, refused: 0 });
   });
 
   it('does not touch samples outside the span the response covers', () => {
@@ -73,7 +82,7 @@ describe('a heart-rate sample Oura reclassifies', () => {
 
     const count = (db.query('SELECT COUNT(*) AS n FROM heartrate').get() as { n: number }).n;
     db.close();
-    expect(result).toEqual({ added: 0, removed: 0 });
+    expect(result).toEqual({ added: 0, removed: 0, refused: 0 });
     expect(count).toBe(2);
   });
 });
@@ -93,7 +102,7 @@ describe('a day whose records are re-issued under new ids', () => {
     const ids = (db.query('SELECT id FROM workouts ORDER BY id').all() as Array<{ id: string }>).map(r => r.id);
     db.close();
     expect(ids).toEqual(['w1', 'w3']);
-    expect(result).toEqual({ added: 1, removed: 1 });
+    expect(result).toEqual({ added: 1, removed: 1, refused: 0 });
   });
 
   it('leaves days the response did not mention alone', () => {
@@ -122,6 +131,54 @@ describe('a day whose records are re-issued under new ids', () => {
   });
 });
 
+describe('a range fetched in several pieces', () => {
+  it('leaves the days of a piece that answered with nothing', () => {
+    // The data-loss path: a piece returning HTTP 200 with an empty array sits between two pieces
+    // that did return rows, so a scope taken across the whole collection bracketed its days and
+    // deleted every stored sample in them.
+    const db = seeded();
+    const early = [sample(0, 'awake'), sample(1, 'awake')];
+    const middle = [sample(4, 'awake'), sample(5, 'awake')];
+    const late = [sample(8, 'awake'), sample(9, 'awake')];
+    syncPieces(db, hr, [early, middle, late]);
+
+    const result = syncPieces(db, hr, [early, [], late]);
+
+    const stored = (db.query('SELECT timestamp FROM heartrate ORDER BY timestamp').all() as Array<{ timestamp: string }>).length;
+    db.close();
+    expect(stored).toBe(6); // the middle piece described nothing, so it removed nothing
+    expect(result).toEqual({ added: 0, removed: 0, refused: 0 });
+  });
+
+  it('still reconciles the pieces that did answer', () => {
+    const db = seeded();
+    syncPieces(db, hr, [[sample(0, 'awake')], [sample(9, 'awake')]]);
+
+    const result = syncPieces(db, hr, [[sample(0, 'workout')], []]);
+
+    const rows = (db.query('SELECT source FROM heartrate ORDER BY timestamp').all() as Array<{ source: string }>).map(r => r.source);
+    db.close();
+    expect(rows).toEqual(['workout', 'awake']);
+    expect(result).toEqual({ added: 1, removed: 1, refused: 0 });
+  });
+
+  it('judges the truncation guard per piece, not across the whole range', () => {
+    // Ten stored samples in one piece and two in another: dropping eight of the first piece is a
+    // majority of that piece, even though it is a minority of everything fetched.
+    const db = seeded();
+    const wide = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(m => sample(m, 'awake'));
+    const other = [sample(30, 'awake'), sample(31, 'awake')];
+    syncPieces(db, hr, [wide, other]);
+
+    const result = syncPieces(db, hr, [[sample(0, 'awake'), sample(9, 'awake')], other]);
+
+    const count = (db.query('SELECT COUNT(*) AS n FROM heartrate').get() as { n: number }).n;
+    db.close();
+    expect(result.refused).toBe(8);
+    expect(count).toBe(12);
+  });
+});
+
 describe('a response that looks truncated', () => {
   it('refuses to delete most of the window and says so', () => {
     // The guard that keeps a rate-limited or partial page from emptying a day's samples.
@@ -145,7 +202,7 @@ describe('a response that looks truncated', () => {
 
     const count = (db.query('SELECT COUNT(*) AS n FROM heartrate').get() as { n: number }).n;
     db.close();
-    expect(result).toEqual({ added: 0, removed: 0 });
+    expect(result).toEqual({ added: 0, removed: 0, refused: 0 });
     expect(count).toBe(1);
   });
 });

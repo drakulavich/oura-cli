@@ -193,7 +193,7 @@ describe('concurrent migrations', () => {
     // Harmless while every migration is IF NOT EXISTS; the first ALTER TABLE would fail the loser.
     const path = join(dir, 'cold.db');
     const procs = Array.from({ length: 4 }, () => Bun.spawn(
-      ['bun', 'run', 'src/index.ts', 'db', 'stats', '--db', path, '--format', 'json'],
+      ['bun', 'run', join(import.meta.dir, '..', 'index.ts'), 'db', 'stats', '--db', path, '--format', 'json'],
       { stdout: 'pipe', stderr: 'pipe' },
     ));
     const codes = await Promise.all(procs.map(p => p.exited));

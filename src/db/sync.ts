@@ -1,6 +1,6 @@
 import type { Database } from './open.js';
 import type { OuraClient } from '../api/client.js';
-import { COLLECTIONS, fetchCollection, insertSql, rowValues } from '../collections/index.js';
+import { COLLECTIONS, fetchCollectionByPiece, insertSql, rowValues } from '../collections/index.js';
 import { shiftDay } from '../lib/time.js';
 import { planWindow, applyWindowPlan, type WindowPlan } from './reconcile.js';
 
@@ -28,6 +28,12 @@ export interface ImportResult {
    * reclassified, a workout re-issued under a new id. Only tables that lost rows appear.
    */
   removed: Record<string, number>;
+  /**
+   * Rows per table that the API did not return but that were kept anyway, because the response for
+   * that piece of the range looked truncated rather than corrected. A non-empty value means the
+   * cache is knowingly out of step with the API for those rows; a narrower window repairs them.
+   */
+  refused: Record<string, number>;
   /** True when every table was empty before this run. */
   isFirstSync: boolean;
 }
@@ -91,8 +97,10 @@ export async function importDaily(
   const fetched: Record<string, number> = {};
   const added: Record<string, number> = {};
   const removed: Record<string, number> = {};
+  const refused: Record<string, number> = {};
   for (const { c, start } of plan) {
-    const rows = await fetchCollection(client, c, start, end, tz);
+    const pieces = await fetchCollectionByPiece(client, c, start, end, tz);
+    const rows = pieces.flat();
     const stmt = db.query(insertSql(c));
     if (c.rangeParams === 'none') {
       // A snapshot is the whole truth: rows that disappeared upstream (a ring removed from the account)
@@ -111,26 +119,32 @@ export async function importDaily(
       continue;
     }
     // Insert and reconcile in one transaction: the window ends up holding exactly what the API
-    // returned for it, and a failure part-way leaves it as it was.
-    let window_: WindowPlan = { added: 0, stale: [] };
+    // returned for it, and a failure part-way leaves it as it was. Immediate, not deferred: the
+    // plan reads before the first insert writes, and a deferred transaction that takes its read
+    // snapshot first fails with SQLITE_BUSY_SNAPSHOT — which busy_timeout does not retry — when
+    // another sync commits in between.
+    let window_: WindowPlan = { added: 0, stale: [], refused: 0 };
     let gone = 0;
-    db.transaction((rs: unknown[]) => {
-      window_ = planWindow(db, c, rs);
-      for (const r of rs) stmt.run(...rowValues(c, r));
+    db.transaction((ps: unknown[][]) => {
+      window_ = planWindow(db, c, ps);
+      for (const r of ps.flat()) stmt.run(...rowValues(c, r));
       gone = applyWindowPlan(db, c, window_);
-    })(rows);
+    }).immediate(pieces);
     fetched[c.table] = rows.length;
     added[c.table] = window_.added;
     if (gone > 0) removed[c.table] = gone;
+    if (window_.refused > 0) refused[c.table] = window_.refused;
     // Every collection gets a line, including the ones that returned nothing: a silent collection
     // was indistinguishable from a failed one, while the summary listed it anyway. Both names are
     // printed because the summary and `fetch` speak in collection names while `db stats` and the
     // schema speak in table names.
     const tail = gone > 0 ? `, ${gone} stale removed` : '';
-    const refused = window_.refused === undefined ? '' : `, ${window_.refused} rows the response dropped were kept (it looks truncated)`;
-    _log(`  + ${c.name} (${c.table}): ${rows.length} fetched, ${added[c.table]} new${tail}${refused}`);
+    const kept = window_.refused > 0
+      ? `, ${window_.refused} rows kept that the API did not return — that response looks truncated; re-run with a narrower --from/--to to repair them`
+      : '';
+    _log(`  + ${c.name} (${c.table}): ${rows.length} fetched, ${added[c.table]} new${tail}${kept}`);
   }
 
   _log('Import complete.');
-  return { startDate, endDate: end, fetched, added, removed, isFirstSync };
+  return { startDate, endDate: end, fetched, added, removed, refused, isFirstSync };
 }
