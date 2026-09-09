@@ -3,7 +3,8 @@ import { Database } from 'bun:sqlite';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { unlinkSync } from 'fs';
-import { runSync, resolveWindow, resolvePruneScope, syncCommand, syncDef } from './sync.js';
+import { runSync, resolveWindow, resolvePruneScope, syncCommand, syncDef, PRUNE_ALL } from './sync.js';
+import { names } from '../collections/index.js';
 import { buildManifest } from './describe.js';
 import { CliError } from '../lib/errors.js';
 import { ensureSchema } from '../db/open.js';
@@ -151,6 +152,24 @@ describe('the --prune flag reaching the import', () => {
 });
 
 describe('resolvePruneScope', () => {
+  // The sentinel shares a namespace with collection names. A collection actually called "all" would
+  // turn --prune=all from "that collection" into "every collection" — a destructive flag widened by
+  // an unrelated registry addition, and nothing else in the suite would catch it: adding such a
+  // collection properly (schema generated, snapshot refreshed, count bumped) lands green. Asserted
+  // from the constant rather than the literal so a rename cannot drift the two apart. Lives here,
+  // not in the registry's own tests, because collections must not import from commands.
+  it('reserves its sentinel against the collection registry', () => {
+    expect(names()).not.toContain(PRUNE_ALL);
+  });
+
+  it('refuses to combine the sentinel with collection names', () => {
+    expect(() => resolvePruneScope('all,hr')).toThrow(/cannot be combined/);
+  });
+
+  it('does not repeat a name given twice', () => {
+    expect(resolvePruneScope('hr,hr')).toEqual(['hr']);
+  });
+
   // The seam between the flag and the plan. Without a test here the whole feature could be turned
   // off at the command layer with the suite still green.
   it('takes --prune=all as every collection', () => {

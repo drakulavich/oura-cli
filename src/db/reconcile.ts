@@ -118,6 +118,9 @@ export function planWindow(
   // stale because the piece whose scope it falls in happens not to be the piece that returned it.
   const wanted = new Set(pieces.flat().map(keyFor));
   const plan = emptyPlan();
+  // One row, one verdict. Overlapping pieces would otherwise stage the same delete twice and
+  // report a count larger than the removal it qualifies.
+  const decided = new Set<string>();
 
   for (const piece of pieces) {
     if (piece.length === 0) continue; // described nothing, so it vouches for nothing
@@ -143,12 +146,16 @@ export function planWindow(
     }
 
     plan.added += [...new Set(piece.map(keyFor))].filter(key => !storedKeys.has(key)).length;
+    // The ratio is judged on everything this piece dropped — that is what says whether its answer
+    // looks truncated — while the counts below only take rows no earlier piece has decided.
     const looksTruncated = stale.length > ALWAYS_SAFE_TO_REMOVE && stale.length > stored.length * MAX_REMOVED_SHARE;
+    const undecided = stale.filter(values => !decided.has(keyOf(values)));
+    for (const values of undecided) decided.add(keyOf(values));
     if (looksTruncated && !options.prune) {
-      plan.refused += stale.length;
+      plan.refused += undecided.length;
     } else {
-      if (looksTruncated) plan.bypassed += stale.length;
-      plan.stale.push(...stale);
+      if (looksTruncated) plan.bypassed += undecided.length;
+      plan.stale.push(...undecided);
     }
   }
 
