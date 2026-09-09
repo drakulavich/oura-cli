@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-09
+
 ### Added
 - `sync --prune=<collections>` applies removals the truncation guard refuses. The guard keeps rows when a response drops most of what one request described, which is right for a partial or short answer and wrong for a genuine large correction — and it cannot tell them apart, so a genuine one was refused on every run with no way through. Narrowing the window did not help: the scope is the returned rows' own bounds, so the ratio never moved, and `sync --from D --to D` refused identically. The flag is the user's answer to the question the guard cannot ask, per run and never stored.
 
