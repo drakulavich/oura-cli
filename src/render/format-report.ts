@@ -42,6 +42,8 @@ const RECOMMENDATIONS: Record<string, string> = {
 
 interface WeekBucket {
   weekOf: string;
+  /** Days the bucket holds: 7, except the oldest, which takes whatever the window leaves over. */
+  days: number;
   avgSleep: number | null;
   avgReadiness: number | null;
   avgActivity: number | null;
@@ -52,9 +54,11 @@ interface WeekBucket {
 
 function bucketDaysIntoWeeks(days: ReportData['days']): WeekBucket[] {
   const buckets: WeekBucket[] = [];
-  // Group by chunks of 7 from the oldest day forward
-  for (let i = 0; i < days.length; i += 7) {
-    const chunk = days.slice(i, i + 7);
+  // Chunks of 7 anchored on the newest day, so the remainder is the oldest bucket. Chunked from the
+  // oldest day forward, a 30-day window put a 2-day stub at the bottom of the table, where its
+  // 9,315 steps beside weeks of 60,000-plus read as activity collapsing (#84).
+  for (let end = days.length; end > 0; end -= 7) {
+    const chunk = days.slice(Math.max(0, end - 7), end);
     const weekOf = chunk[0].day;
 
     const sleepVals = chunk.map(d => d.sleep).filter((v): v is number => v !== null);
@@ -64,6 +68,7 @@ function bucketDaysIntoWeeks(days: ReportData['days']): WeekBucket[] {
 
     buckets.push({
       weekOf,
+      days: chunk.length,
       avgSleep: sleepVals.length > 0 ? sleepVals.reduce((a, b) => a + b, 0) / sleepVals.length : null,
       avgReadiness: readinessVals.length > 0 ? readinessVals.reduce((a, b) => a + b, 0) / readinessVals.length : null,
       avgActivity: activityVals.length > 0 ? activityVals.reduce((a, b) => a + b, 0) / activityVals.length : null,
@@ -71,14 +76,25 @@ function bucketDaysIntoWeeks(days: ReportData['days']): WeekBucket[] {
       partial: chunk.some(d => d.partial),
     });
   }
-  return buckets;
+  return buckets.reverse();
 }
 
-/** One line explaining the `*` mark: which day is still accumulating and how far the activity averages go. */
-function partialDayNote(data: ReportData): string | null {
+/** The row label: the bucket's first day, its size when short of a week, and the accumulating mark. */
+function bucketLabel(b: WeekBucket): string {
+  const stub = b.days < 7 ? ` (${b.days} day${b.days === 1 ? '' : 's'})` : '';
+  return `${b.weekOf}${stub}${b.partial ? '*' : ''}`;
+}
+
+/**
+ * One line explaining the `*` mark: which row is still accumulating and how far the activity averages
+ * go. The monthly table has no row for a day, so there the note names the bucket that carries the mark.
+ */
+function partialDayNote(data: ReportData, period: 'week' | 'month'): string | null {
   const partial = data.days.find(d => d.partial); // the rule yields at most one
   if (!partial) return null;
-  const which = partial.day === data.weekEnd ? 'today' : partial.dayLabel;
+  const which = period === 'month'
+    ? `the week of ${bucketDaysIntoWeeks(data.days).find(b => b.partial)!.weekOf}`
+    : partial.day === data.weekEnd ? 'today' : partial.dayLabel;
   const covers = data.completeThrough ? `through ${data.completeThrough}` : 'no complete day yet';
   return `  * ${which} is still accumulating; activity averages cover ${covers}.`;
 }
@@ -96,7 +112,7 @@ export function formatReport(data: ReportData, format: OutputFormat, period: 'we
     lines.push(chalk.bold('  Oura Monthly Report'));
   }
   lines.push(chalk.gray(`  ${data.weekStart} — ${data.weekEnd}`));
-  const note = partialDayNote(data);
+  const note = partialDayNote(data, period);
   if (note) lines.push(chalk.yellow(note));
   lines.push('');
 
@@ -124,14 +140,15 @@ export function formatReport(data: ReportData, format: OutputFormat, period: 'we
     // Monthly — weekly buckets table
     const buckets = bucketDaysIntoWeeks(data.days);
     lines.push(chalk.bold('  Last 30 Days:'));
-    lines.push(chalk.gray('  ' + '─'.repeat(60)));
-    lines.push(`  ${'Week of'.padEnd(12)} ${'Sleep'.padStart(6)} ${'Ready'.padStart(6)} ${'Active'.padStart(7)} ${'Steps'.padStart(10)}`);
-    lines.push(chalk.gray('  ' + '─'.repeat(60)));
+    // 21: a labelled stub is up to 20 characters, "2026-08-13 (2 days)*".
+    lines.push(chalk.gray('  ' + '─'.repeat(69)));
+    lines.push(`  ${'Week of'.padEnd(21)} ${'Sleep'.padStart(6)} ${'Ready'.padStart(6)} ${'Active'.padStart(7)} ${'Steps'.padStart(10)}`);
+    lines.push(chalk.gray('  ' + '─'.repeat(69)));
     for (const b of buckets) {
       const avgSleepInt = b.avgSleep !== null ? Math.round(b.avgSleep) : null;
       const avgReadyInt = b.avgReadiness !== null ? Math.round(b.avgReadiness) : null;
       const avgActiveInt = b.avgActivity !== null ? Math.round(b.avgActivity) : null;
-      lines.push(`  ${(b.partial ? b.weekOf + '*' : b.weekOf).padEnd(12)} ${scoreCell(avgSleepInt, 6)} ${scoreCell(avgReadyInt, 6)} ${scoreCell(avgActiveInt, 7)} ${stepsCell(b.totalSteps, 10)}`);
+      lines.push(`  ${bucketLabel(b).padEnd(21)} ${scoreCell(avgSleepInt, 6)} ${scoreCell(avgReadyInt, 6)} ${scoreCell(avgActiveInt, 7)} ${stepsCell(b.totalSteps, 10)}`);
     }
     lines.push('');
   }
