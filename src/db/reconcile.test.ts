@@ -357,9 +357,23 @@ describe('a piece vouches only for the range its request asked for (#111)', () =
     // stretch it downwards over the three earlier days.
     const plan = planWindow(db, hr, [{ query: request('04'), rows: [{ timestamp: '', bpm: 1, source: 'awake' }, at('04', 0), at('04', 14)] }]);
     db.close();
-    // Only 10:00..10:14 of 03-04 is in scope: the 13 unreturned samples between them, nothing else.
-    expect(plan.stale.length + plan.refused).toBe(13);
-    expect(plan.stale.every(([timestamp]) => String(timestamp).startsWith('2026-03-04'))).toBe(true);
+    // Only 10:00..10:14 of 03-04 is in scope: the 13 unreturned samples between them look like a
+    // truncated answer (13 of 15), so they are refused, and nothing from the other days is touched.
+    expect(plan.refused).toBe(13);
+    expect(plan.stale).toEqual([]);
+  });
+
+  it('counts a sample sitting exactly on either bound of the request as inside it', () => {
+    // datetimeQueries starts every piece exactly at start_datetime, so a sample on the edge is the
+    // ordinary case. Off-by-one here would make such a piece vouch for nothing, and a stale row in
+    // it would never be removed again (review of #118).
+    const db = withFourDays();
+    const exact = { start_datetime: '2026-03-04T10:00:00.000Z', end_datetime: '2026-03-04T10:14:00.000Z' };
+    const plan = planWindow(db, hr, [{ query: exact, rows: [at('04', 0), at('04', 14)] }]);
+    const lower = planWindow(db, hr, [{ query: exact, rows: [at('04', 0)] }]);
+    db.close();
+    expect(plan.refused).toBe(13); // both edges in scope, the 13 between them unreturned
+    expect(lower.refused + lower.stale.length).toBe(0); // a single sample covers only itself
   });
 
   it('gives a piece whose query carries no bounds nothing to vouch for', () => {
