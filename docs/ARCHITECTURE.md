@@ -7,7 +7,7 @@
 Dependencies point strictly downward.
 
 ```
-src/index.ts      wiring: builds the citty tree, reads the version from package.json
+src/index.ts      wiring: reads the version from package.json, builds the citty tree from src/commands/registry.ts
 src/commands/     citty command definitions; the only place that writes to stdout
 src/render/       text formatters (day/week/trends/stats, report, doctor); no I/O
 src/db/           open.ts (path, WAL, migrations), migrations.ts (frozen SQL), sync.ts, queries.ts, report.ts
@@ -34,7 +34,7 @@ src/lib/          errors, time, argv-normalize, format-resolve — no domain kno
 
 ## Adding a command
 
-Create it in `src/commands/` with `dataCommand`, register it in `src/index.ts`, and add its name to `SUBCOMMANDS` in `src/lib/argv-normalize.ts` (citty does not hoist root flags onto subcommands; that normaliser does). `describe` and `manifest` are generated from the registered tree and need no edit. Update `src/commands/__snapshots__/describe.test.ts.snap` via `bun test -u` and review the diff.
+Create it in `src/commands/` with `dataCommand`, register it in `src/commands/registry.ts`, and add its name to `SUBCOMMANDS` in `src/lib/argv-normalize.ts` (citty does not hoist root flags onto subcommands; that normaliser does). `describe` and `manifest` are generated from the registered tree and need no edit. The contract test snapshots that tree and asserts it matches `SUBCOMMANDS`, so a command in one list and not the other fails `bun test`. Update `src/commands/__snapshots__/describe.test.ts.snap` via `bun test -u` and review the diff.
 
 ## Output contract
 

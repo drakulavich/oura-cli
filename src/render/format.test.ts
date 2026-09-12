@@ -552,7 +552,7 @@ describe('formatTrends', () => {
 
   it('explains an empty window and repeats the hint, like the day and week views (#85)', () => {
     const out = stripAnsi(formatTrends([], 14, 'table', 'Run sync first.'));
-    expect(out).toContain('No Oura data in the last 14 days yet.');
+    expect(out).toContain('No Oura data for the last 14 days yet.');
     expect(out).toContain('Run sync first.');
     expect(stripAnsi(formatTrends(trends, 14, 'table', 'Run sync first.'))).not.toContain('Run sync first.');
   });
@@ -589,6 +589,12 @@ describe('formatStats', () => {
     expect(out).toContain('Run sync first.');
     expect(out).not.toContain('0 rows');
     expect(stripAnsi(formatStats(empty, 'table'))).toMatch(/daily_sleep\s+0 rows/);
+    // A partly filled cache is the normal state (tags and rest-mode periods are usually empty): it
+    // must keep its table. `every` and `some` differ only here.
+    const mixed = makeStats({ tables: [{ table: 'daily_sleep', rows: 30 }, { table: 'enhanced_tags', rows: 0 }] });
+    const mixedOut = stripAnsi(formatStats(mixed, 'table', 'Run sync first.'));
+    expect(mixedOut).toMatch(/enhanced_tags\s+0 rows/);
+    expect(mixedOut).not.toContain('Run sync first.');
     expect(stripAnsi(formatStats(makeStats(), 'table', 'Run sync first.'))).not.toContain('Run sync first.');
   });
 

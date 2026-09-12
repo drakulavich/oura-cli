@@ -141,7 +141,7 @@ export function formatTrends(trends: TrendRow[], days: number, format: OutputFor
     chalk.gray('─'.repeat(50)),
   ];
   // A header over nothing read like a crash (#85); say what is missing, as the day and week views do.
-  if (emptyHint && trends.length === 0) lines.push(`  No Oura data in the last ${days} days yet.`, `  ${emptyHint}`);
+  if (emptyHint && trends.length === 0) lines.push(`  No Oura data for the last ${days} days yet.`, `  ${emptyHint}`);
   for (const t of trends) {
     lines.push(`  ${t.label.padEnd(15)} avg: ${String(t.avg).padStart(5)}  min: ${String(t.min).padStart(5)}  max: ${String(t.max).padStart(5)}  (${t.count} days)`);
   }
