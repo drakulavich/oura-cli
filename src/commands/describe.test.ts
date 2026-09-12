@@ -8,6 +8,8 @@ import { dbCommand } from './db.js';
 import { reportCommand } from './report.js';
 import { doctorCommand } from './doctor.js';
 import { commonArgs } from './common.js';
+import { buildRegistry } from './registry.js';
+import { SUBCOMMANDS } from '../lib/argv-normalize.js';
 
 // `login` mirrors the real command: it declares its own `token`/`path` args
 // (not `commonArgs`, since login's --token means something different from
@@ -84,5 +86,25 @@ describe('schema discovery', () => {
     const describe = describeCommand('0.0.0', () => ({}));
     const manifest = buildManifest('0.0.0', { describe });
     expect(manifest.commands.find(c => c.name === 'describe')?.outputSchema).toBe('docs/schemas/describe.json');
+  });
+});
+
+describe('the published contract, over the real registry', () => {
+  // The fixture above is the right input for the behaviour tests; it is the wrong input for the
+  // contract. #103 added --prune to sync and nothing here moved, because sync was not in the fixture
+  // (#104). These snapshots take every command the binary registers, so any published arg change
+  // shows up as a diff. The version is pinned so a release bump does not churn them.
+  const registry = buildRegistry('0.0.0');
+
+  it('registers exactly the commands the argv normalizer knows, so a new command cannot miss either list', () => {
+    expect(Object.keys(registry).sort()).toEqual([...SUBCOMMANDS].sort());
+  });
+
+  it('describe: matches the snapshot (any diff here is a contract change)', () => {
+    expect(buildManifest('0.0.0', registry)).toMatchSnapshot();
+  });
+
+  it('manifest: matches the snapshot (any diff here is a contract change)', () => {
+    expect(buildOpenclawManifest('0.0.0', registry)).toMatchSnapshot();
   });
 });
