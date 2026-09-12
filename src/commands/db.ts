@@ -4,6 +4,7 @@ import { formatDaySummary, formatWeekTable, formatTrends, formatStats } from '..
 import { daysBack } from '../lib/time.js';
 import { assertCalendarDate, assertPositiveInt } from '../lib/validate.js';
 import { dataCommand } from './run-command.js';
+import { dayCompleteness } from '../db/day-complete.js';
 
 const SYNC_HINT = 'Run `oura-cli sync` to download your data. Oura publishes a day\'s summary after that night\'s sleep syncs from the ring.';
 
@@ -34,7 +35,10 @@ export const dbCommand = defineCommand({
       meta: { name: 'week', description: 'Last 7 days from local database' },
       needs: { db: true },
       run(ctx) {
-        const days = daysBack(ctx.today, 7).map(d => getDaySummary(ctx.db!, d, ctx.today));
+        // Built once and passed down: it reads the whole activity table, and seven summaries were
+        // seven full reads.
+        const complete = dayCompleteness(ctx.db!, ctx.today);
+        const days = daysBack(ctx.today, 7).map(d => getDaySummary(ctx.db!, d, ctx.today, complete));
         return { json: days, text: () => formatWeekTable(days, 'table', 'Run `oura-cli sync`, then `oura-cli db week` again.') };
       },
     }),
