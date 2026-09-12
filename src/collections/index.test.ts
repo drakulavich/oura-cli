@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import { Database } from 'bun:sqlite';
-import { COLLECTIONS, ddl, insertSql, rowValues, hasIdentity, names, byName, rangeQueries } from './index.js';
+import { COLLECTIONS, ddl, insertSql, rowValues, hasIdentity, identityColumns, names, byName, rangeQueries } from './index.js';
 
 describe('the activity slot count', () => {
   // The column the completeness rule reads (#74). Only the length is stored — that is all the rule
@@ -179,5 +179,21 @@ describe('hasIdentity', () => {
     const sleep = byName('sleep')!;
     expect(hasIdentity(sleep, { id: null, day: '2026-06-16', score: 70 })).toBe(true);
     expect(hasIdentity(sleep, { id: 's1', day: null, score: 70 })).toBe(false);
+  });
+  it('rejects a key value of the wrong type or an empty string, for every collection', () => {
+    // Exploratory session S2 before 0.7.1: a numeric timestamp passed the presence check and hr's `day`
+    // pick threw `.slice is not a function`, the very failure #106 was about; an empty-string timestamp
+    // widened a reconciliation piece to the whole table. Checked over the registry so a new collection
+    // cannot opt out by accident.
+    for (const c of COLLECTIONS) {
+      const keyed = (v: unknown) => Object.fromEntries(identityColumns(c).map(k => [k, v]));
+      expect([c.name, hasIdentity(c, keyed(20260305))]).toEqual([c.name, false]);
+      expect([c.name, hasIdentity(c, keyed(''))]).toEqual([c.name, false]);
+      expect([c.name, hasIdentity(c, keyed(['x']))]).toEqual([c.name, false]);
+      expect([c.name, hasIdentity(c, keyed({ v: 'x' }))]).toEqual([c.name, false]);
+      expect([c.name, hasIdentity(c, keyed('x'))]).toEqual([c.name, true]);
+    }
+    expect(hasIdentity(hr, 'not a row')).toBe(false);
+    expect(hasIdentity(hr, 42)).toBe(false);
   });
 });

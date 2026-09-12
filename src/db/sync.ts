@@ -38,8 +38,9 @@ export interface ImportResult {
   /**
    * Rows per table that the API did not return but that were kept anyway, because dropping them
    * would have taken most of what one request described — the shape of a truncated response. For a
-   * snapshot collection that is an empty response against a table with rows, or one whose every row
-   * was dropped for lacking its identity.
+   * snapshot collection that is an empty response against a table with rows. (A response whose every
+   * row was dropped for lacking its identity also leaves the table alone, but is reported under
+   * `dropped` only: there is no correction for `--prune` to apply.)
    * A non-empty value means the cache is knowingly out of step with the API for those rows. It is
    * the safe direction, and it is not self-healing — a genuine correction that large is refused on
    * every run — so `sync --prune` applies them once the user has decided which shape it was.
@@ -180,8 +181,10 @@ export async function importDaily(
       const ids = () => new Set((db.query(`SELECT ${pk} AS id FROM ${c.table}`).all() as { id: string }[]).map(r => r.id));
       const known = ids();
       // Nothing storable arrived. If rows did arrive and were all dropped, that is not an empty answer
-      // and there is no correction for --prune to apply, so the flag does not lift this one.
-      const refuse = rows.length === 0 && known.size > 0 && (missing > 0 || !mayPrune(c.name));
+      // and there is no correction for --prune to apply: the table is left alone, `dropped` says why,
+      // and `refused` stays clear so it keeps its one meaning, "kept, and --prune would apply it".
+      const unstorable = rows.length === 0 && missing > 0;
+      const refuse = rows.length === 0 && known.size > 0 && (unstorable || !mayPrune(c.name));
       if (!refuse) {
         db.transaction((rs: unknown[]) => {
           db.exec(`DELETE FROM ${c.table}`);
@@ -193,11 +196,11 @@ export async function importDaily(
       fetched[c.table] = rows.length + missing;
       added[c.table] = [...now].filter(id => !known.has(id)).length;
       if (gone > 0) removed[c.table] = gone;
-      if (refuse) refused[c.table] = { rows: known.size, collection: c.name };
+      if (refuse && !unstorable) refused[c.table] = { rows: known.size, collection: c.name };
       else if (rows.length === 0 && gone > 0) pruned[c.table] = { rows: gone, collection: c.name };
       const tail = gone > 0 ? `, ${gone} stale removed${pruned[c.table] ? ' (past the truncation guard)' : ''}` : '';
       const kept = !refuse ? ''
-        : missing > 0 ? `, ${known.size} rows kept: the response held no storable rows`
+        : unstorable ? `, ${known.size} rows kept: the response held no storable rows`
         : `, ${known.size} rows kept that the API did not return — an empty answer describes nothing; re-run with --prune=${c.name} to apply it`;
       _log(`  + ${c.name} (${c.table}): ${fetched[c.table]} fetched, ${added[c.table]} new${droppedTail}${tail}${kept}`);
       continue;
