@@ -185,15 +185,33 @@ describe('hasIdentity', () => {
     // pick threw `.slice is not a function`, the very failure #106 was about; an empty-string timestamp
     // widened a reconciliation piece to the whole table. Checked over the registry so a new collection
     // cannot opt out by accident.
+    // Probes follow the column type, so a future numeric key is judged by its own rule rather than
+    // failing this test with "the wrong type was accepted".
     for (const c of COLLECTIONS) {
-      const keyed = (v: unknown) => Object.fromEntries(identityColumns(c).map(k => [k, v]));
-      expect([c.name, hasIdentity(c, keyed(20260305))]).toEqual([c.name, false]);
-      expect([c.name, hasIdentity(c, keyed(''))]).toEqual([c.name, false]);
-      expect([c.name, hasIdentity(c, keyed(['x']))]).toEqual([c.name, false]);
-      expect([c.name, hasIdentity(c, keyed({ v: 'x' }))]).toEqual([c.name, false]);
-      expect([c.name, hasIdentity(c, keyed('x'))]).toEqual([c.name, true]);
+      const keyed = (f: (type: string) => unknown) =>
+        Object.fromEntries(identityColumns(c).map(k => [k, f(c.columns.find(col => col.name === k)!.type)]));
+      const right = (t: string) => t === 'TEXT' ? 'x' : 1;
+      const wrong = (t: string) => t === 'TEXT' ? 20260305 : '1';
+      expect([c.name, hasIdentity(c, keyed(wrong))]).toEqual([c.name, false]);
+      expect([c.name, hasIdentity(c, keyed(() => ''))]).toEqual([c.name, false]);
+      expect([c.name, hasIdentity(c, keyed(() => ['x']))]).toEqual([c.name, false]);
+      expect([c.name, hasIdentity(c, keyed(() => ({ v: 'x' })))]).toEqual([c.name, false]);
+      expect([c.name, hasIdentity(c, keyed(right))]).toEqual([c.name, true]);
     }
     expect(hasIdentity(hr, 'not a row')).toBe(false);
     expect(hasIdentity(hr, 42)).toBe(false);
+  });
+  it('holds a numeric key to a finite number, even though no shipped collection has one yet', () => {
+    // Every key column in the registry is TEXT today, so without this the numeric branch is unpinned.
+    const numeric = {
+      name: 'synthetic', columns: [{ name: 'n', type: 'INTEGER', pk: true, pick: (r: { n: unknown }) => r.n as never }],
+      identity: [],
+    } as unknown as (typeof hr);
+    expect(hasIdentity(numeric, { n: 7 })).toBe(true);
+    expect(hasIdentity(numeric, { n: 0 })).toBe(true);
+    expect(hasIdentity(numeric, { n: '7' })).toBe(false);
+    expect(hasIdentity(numeric, { n: NaN })).toBe(false);
+    expect(hasIdentity(numeric, { n: Infinity })).toBe(false);
+    expect(hasIdentity(numeric, { n: null })).toBe(false);
   });
 });
