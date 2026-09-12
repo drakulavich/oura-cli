@@ -1,6 +1,6 @@
 import type { Database } from './open.js';
 import type { OuraClient } from '../api/client.js';
-import { COLLECTIONS, fetchCollectionByPiece, hasIdentity, identityColumns, insertSql, rowValues } from '../collections/index.js';
+import { COLLECTIONS, fetchCollectionByPiece, hasIdentity, identityColumns, insertSql, rowValues, type Piece } from '../collections/index.js';
 import { shiftDay } from '../lib/time.js';
 import { planWindow, applyWindowPlan, type WindowPlan } from './reconcile.js';
 
@@ -164,9 +164,9 @@ export async function importDaily(
   for (const { c, start } of plan) {
     const returned = await fetchCollectionByPiece(client, c, start, end, tz);
     // A row without its identity cannot be keyed, and its picks may throw; drop it here and say so.
-    const pieces = returned.map(piece => piece.filter(r => hasIdentity(c, r)));
-    const rows = pieces.flat();
-    const missing = returned.flat().length - rows.length;
+    const pieces = returned.map(piece => ({ ...piece, rows: piece.rows.filter(r => hasIdentity(c, r)) }));
+    const rows = pieces.flatMap(p => p.rows);
+    const missing = returned.flatMap(p => p.rows).length - rows.length;
     if (missing > 0) dropped[c.table] = missing;
     const droppedTail = missing > 0 ? `, ${missing} dropped (no ${identityColumns(c).join('/')})` : '';
     const stmt = db.query(insertSql(c));
@@ -210,9 +210,9 @@ export async function importDaily(
     // plan reads before the first insert writes, and a deferred transaction that takes its read
     // snapshot first fails with SQLITE_BUSY_SNAPSHOT — which busy_timeout does not retry — when
     // another sync commits in between.
-    const { windowPlan, gone } = db.transaction((ps: unknown[][]) => {
+    const { windowPlan, gone } = db.transaction((ps: Piece[]) => {
       const windowPlan: WindowPlan = planWindow(db, c, ps, { prune: mayPrune(c.name) });
-      for (const piece of ps) for (const r of piece) stmt.run(...rowValues(c, r));
+      for (const piece of ps) for (const r of piece.rows) stmt.run(...rowValues(c, r));
       return { windowPlan, gone: applyWindowPlan(db, c, windowPlan) };
     }).immediate(pieces);
     fetched[c.table] = rows.length + missing;

@@ -256,11 +256,15 @@ describe('database integrity', () => {
     const seed = new Database(path);
     ensureSchema(seed);
     const insert = seed.query("INSERT INTO heartrate (timestamp, bpm, source, day) VALUES (?, 60, 'awake', '2026-01-01')");
-    for (let i = 0; i < 400; i++) {
-      const hh = String(Math.floor(i / 60)).padStart(2, '0');
-      const mm = String(i % 60).padStart(2, '0');
-      insert.run(`2026-01-0${1 + Math.floor(i / 1440)}T${hh}:${mm}:00+00:00`);
-    }
+    // One transaction, not 400 autocommits: on a slow CI disk the fsyncs alone blew bun's 5 s
+    // per-test budget (#115, 12.3 s observed).
+    seed.transaction(() => {
+      for (let i = 0; i < 400; i++) {
+        const hh = String(Math.floor(i / 60)).padStart(2, '0');
+        const mm = String(i % 60).padStart(2, '0');
+        insert.run(`2026-01-0${1 + Math.floor(i / 1440)}T${hh}:${mm}:00+00:00`);
+      }
+    })();
     seed.exec('PRAGMA wal_checkpoint(TRUNCATE)');
     seed.close();
     // Zero a page in the middle of the file, the way the exploratory session did.

@@ -1,5 +1,5 @@
 import type { Database } from './open.js';
-import { identityColumns, type AnyCollection, type SqlValue } from '../collections/index.js';
+import { identityColumns, type AnyCollection, type Piece, type SqlValue } from '../collections/index.js';
 
 /**
  * Bring a re-fetched window in line with what the API returned.
@@ -74,17 +74,36 @@ function emptyPlan(): WindowPlan {
   return { added: 0, stale: [], refused: 0, bypassed: 0 };
 }
 
+/**
+ * Whether a scope value lies inside the range a piece's request asked for. Instants are compared as
+ * parsed times, because the request is written `…Z` and Oura writes `…+00:00`; days compare as text.
+ * A missing bound, an empty string or an unparsable value is outside every range.
+ */
+function requestedRange(c: AnyCollection, query: Record<string, string>): (value: string) => boolean {
+  if (c.rangeParams === 'datetime') {
+    const from = Date.parse(query.start_datetime ?? '');
+    const to = Date.parse(query.end_datetime ?? '');
+    return value => { const t = Date.parse(value); return t >= from && t <= to; }; // NaN fails both
+  }
+  const from = query.start_date;
+  const to = query.end_date;
+  return value => from !== undefined && to !== undefined && value >= from && value <= to;
+}
+
 function keyOf(values: readonly unknown[]): string {
   return values.map(v => String(v)).join(KEY_SEPARATOR);
 }
 
 /**
  * What these responses change: how many of their rows are new, and which stored rows they drop.
- * `pieces` holds one array per request the range needed — see `fetchCollectionByPiece`.
+ * `pieces` holds one entry per request the range needed, each with the query it sent — see
+ * `fetchCollectionByPiece`. A piece's scope is clipped to what its query asked for: a row the API
+ * returned from outside that window is still inserted, but it does not widen the scope over stored
+ * rows the request never covered (#111). A piece whose query carries no bounds vouches for nothing.
  * Call before inserting; `applyWindowPlan` performs the deletes afterwards.
  */
 export function planWindow(
-  db: Database, c: AnyCollection, pieces: readonly (readonly unknown[])[], options: PlanOptions = {},
+  db: Database, c: AnyCollection, pieces: readonly Piece[], options: PlanOptions = {},
 ): WindowPlan {
   const identity = identityColumns(c);
   if (identity.length === 0) return emptyPlan();
@@ -99,7 +118,7 @@ export function planWindow(
   const keyFor = (row: unknown) => keyOf(identityPicks.map(pick => pick!(row)));
   // Every row the API returned anywhere in this range. Union rather than per piece: a row is not
   // stale because the piece whose scope it falls in happens not to be the piece that returned it.
-  const wanted = new Set(pieces.flat().map(keyFor));
+  const wanted = new Set(pieces.flatMap(p => p.rows).map(keyFor));
   const plan = emptyPlan();
 
   // Judge every piece before deciding any row. Two pieces whose returned bounds overlap can cover
@@ -107,9 +126,14 @@ export function planWindow(
   // taken as pieces are walked would be settled by whichever came first — the same responses in a
   // different order deleting a row instead of keeping it.
   const judged = pieces.map(piece => {
-    if (piece.length === 0) return null; // described nothing, so it vouches for nothing
-    // A null scope value would sort above every timestamp and widen the range to everything.
-    const scopeValues = piece.map(row => scopePick(row)).filter(v => v !== null && v !== undefined).map(String);
+    if (piece.rows.length === 0) return null; // described nothing, so it vouches for nothing
+    // Only values inside the request count towards the scope. A null would sort above every
+    // timestamp; an empty string or a stray early sample sorts below every stored one, and a scope
+    // taken from the returned bounds then reached back over the whole table: one such value made
+    // 59 of 60 stored samples look stale (#111).
+    const inRequested = requestedRange(c, piece.query);
+    const scopeValues = piece.rows.map(row => scopePick(row))
+      .filter(v => v !== null && v !== undefined).map(String).filter(inRequested);
     if (scopeValues.length === 0) return null;
 
     const days = [...new Set(scopeValues)];
@@ -131,7 +155,7 @@ export function planWindow(
     // The ratio is judged on everything this piece dropped: that is what says whether its own
     // answer looks truncated, independently of what any other piece said.
     const looksTruncated = stale.length > ALWAYS_SAFE_TO_REMOVE && stale.length > stored.length * MAX_REMOVED_SHARE;
-    const fresh = [...new Set(piece.map(keyFor))].filter(key => !storedKeys.has(key));
+    const fresh = [...new Set(piece.rows.map(keyFor))].filter(key => !storedKeys.has(key));
     return { stale, looksTruncated, fresh };
   });
 
