@@ -543,7 +543,7 @@ describe('rows without an identity', () => {
     expect(result.fetched.heartrate).toBe(3); // what the API returned
     expect(result.added.heartrate).toBe(2);
     expect(result.dropped).toEqual({ heartrate: 1 });
-    expect(log.find(l => l.includes('(heartrate)'))).toContain('3 fetched, 2 new, 1 dropped (no timestamp)');
+    expect(log.find(l => l.includes('(heartrate)'))).toContain('3 fetched, 2 new, 1 dropped (no timestamp/source)'); // the unique index, i.e. what the table keys on
   });
 
   it('reports no dropped table when every row is whole', async () => {
@@ -592,6 +592,28 @@ describe('an empty response to a snapshot collection', () => {
     expect(result.removed.ring_configuration).toBe(1);
     expect(result.pruned.ring_configuration).toEqual({ rows: 1, collection: 'ring' });
     expect(result.refused).toEqual({});
+  });
+
+  it('keeps the rows when every returned row was dropped, and does not offer --prune for it', async () => {
+    // Not an empty answer: a ring arrived, it just cannot be stored. Following a prune hint here would
+    // delete the cached ring because a malformed one came back.
+    const malformed = { fetch: async (e: OuraEndpoint) => e === 'ring_configuration' ? [{ id: null, color: 'silver' }] : [] } as unknown as OuraClient;
+    for (const options of [{}, { prune: ['ring'] as const }]) {
+      const db = ringDb();
+      const log: string[] = [];
+      const result = await importDaily(db, malformed, { today: '2026-06-15', tz: 'UTC' }, m => log.push(m), {}, options);
+      const n = (db.query('SELECT COUNT(*) AS n FROM ring_configuration').get() as { n: number }).n;
+      db.close();
+      const line = log.find(l => l.includes('(ring_configuration)'))!;
+      expect(n).toBe(1);
+      expect(result.fetched.ring_configuration).toBe(1);
+      expect(result.dropped.ring_configuration).toBe(1);
+      expect(result.refused.ring_configuration).toEqual({ rows: 1, collection: 'ring' });
+      expect(result.pruned).toEqual({});
+      expect(line).toContain('1 rows kept: the response held no storable rows');
+      expect(line).not.toContain('--prune');
+      expect(line).not.toContain('empty answer');
+    }
   });
 
   it('refuses nothing when the table was already empty', async () => {

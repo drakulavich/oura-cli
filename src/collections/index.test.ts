@@ -169,7 +169,15 @@ describe('hasIdentity', () => {
   it('rejects a row whose identity field is null, undefined, or not there at all', () => {
     expect(hasIdentity(hr, { timestamp: null, bpm: 70, source: 'awake' })).toBe(false);
     expect(hasIdentity(hr, { bpm: 70, source: 'awake' })).toBe(false);
+    expect(hasIdentity(hr, { timestamp: '2026-06-15T10:00:00+00:00', bpm: 70, source: null })).toBe(false); // half the unique index
     expect(hasIdentity(hr, null)).toBe(false);
     expect(() => rowValues(hr, { timestamp: null, bpm: 70, source: 'awake' } as never)).toThrow(TypeError); // what it guards
+  });
+  it('judges by the columns the table keys on, not by the manifest identity', () => {
+    // The daily summaries are keyed by their UNIQUE `day`; `id` is a primary key SQLite lets be NULL.
+    // A row Oura sends without an id is storable and must not be dropped (review of #106).
+    const sleep = byName('sleep')!;
+    expect(hasIdentity(sleep, { id: null, day: '2026-06-16', score: 70 })).toBe(true);
+    expect(hasIdentity(sleep, { id: 's1', day: null, score: 70 })).toBe(false);
   });
 });
