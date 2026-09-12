@@ -555,3 +555,51 @@ describe('rows without an identity', () => {
     expect(result.dropped).toEqual({});
   });
 });
+
+describe('an empty response to a snapshot collection', () => {
+  // #105: the ranged collections refuse a response that would drop most of what a request covered;
+  // the snapshot path deleted every row on an empty 200 and reported nothing in `removed`.
+  function ringDb(): Database {
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    db.query("INSERT INTO ring_configuration (id) VALUES ('ring-1')").run();
+    return db;
+  }
+  const emptyClient = { fetch: async () => [] } as unknown as OuraClient;
+
+  it('keeps the rows, reports them as refused, and says what to do', async () => {
+    const db = ringDb();
+    const log: string[] = [];
+    const result = await importDaily(db, emptyClient, { today: '2026-06-15', tz: 'UTC' }, m => log.push(m));
+    const n = (db.query('SELECT COUNT(*) AS n FROM ring_configuration').get() as { n: number }).n;
+    db.close();
+
+    expect(n).toBe(1);
+    expect(result.refused.ring_configuration).toEqual({ rows: 1, collection: 'ring' });
+    expect(result.removed).toEqual({});
+    expect(result.pruned).toEqual({});
+    expect(log.find(l => l.includes('(ring_configuration)'))).toContain('1 rows kept that the API did not return');
+    expect(log.find(l => l.includes('(ring_configuration)'))).toContain('--prune=ring');
+  });
+
+  it('clears the table under --prune=ring and reports the clear as pruned and removed', async () => {
+    const db = ringDb();
+    const result = await importDaily(db, emptyClient, { today: '2026-06-15', tz: 'UTC' }, undefined, {}, { prune: ['ring'] });
+    const n = (db.query('SELECT COUNT(*) AS n FROM ring_configuration').get() as { n: number }).n;
+    db.close();
+
+    expect(n).toBe(0);
+    expect(result.removed.ring_configuration).toBe(1);
+    expect(result.pruned.ring_configuration).toEqual({ rows: 1, collection: 'ring' });
+    expect(result.refused).toEqual({});
+  });
+
+  it('refuses nothing when the table was already empty', async () => {
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const result = await importDaily(db, emptyClient, { today: '2026-06-15', tz: 'UTC' });
+    db.close();
+    expect(result.refused).toEqual({});
+    expect(result.removed).toEqual({});
+  });
+});
