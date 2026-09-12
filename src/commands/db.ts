@@ -15,7 +15,7 @@ export const dbCommand = defineCommand({
       meta: { name: 'today', description: "Today's summary from local database" },
       needs: { db: true },
       run(ctx) {
-        const summary = getDaySummary(ctx.db!, ctx.today, ctx.today);
+        const summary = getDaySummary(ctx.db!, ctx.today, dayCompleteness(ctx.db!, ctx.today));
         return { json: summary, text: () => formatDaySummary(summary, 'table', SYNC_HINT) };
       },
     }),
@@ -26,7 +26,7 @@ export const dbCommand = defineCommand({
       needs: { db: true },
       run(ctx, args) {
         const day = assertCalendarDate(String(args.day), '<day>');
-        const summary = getDaySummary(ctx.db!, day, ctx.today);
+        const summary = getDaySummary(ctx.db!, day, dayCompleteness(ctx.db!, ctx.today));
         return { json: summary, text: () => formatDaySummary(summary, 'table') };
       },
     }),
@@ -35,10 +35,8 @@ export const dbCommand = defineCommand({
       meta: { name: 'week', description: 'Last 7 days from local database' },
       needs: { db: true },
       run(ctx) {
-        // Built once and passed down: it reads the whole activity table, and seven summaries were
-        // seven full reads.
-        const complete = dayCompleteness(ctx.db!, ctx.today);
-        const days = daysBack(ctx.today, 7).map(d => getDaySummary(ctx.db!, d, ctx.today, complete));
+        const complete = dayCompleteness(ctx.db!, ctx.today); // one read of the activity table, not seven
+        const days = daysBack(ctx.today, 7).map(d => getDaySummary(ctx.db!, d, complete));
         return { json: days, text: () => formatWeekTable(days, 'table', 'Run `oura-cli sync`, then `oura-cli db week` again.') };
       },
     }),

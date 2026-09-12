@@ -26,12 +26,10 @@ export interface DaySummary {
 }
 
 /**
- * `complete` is a parameter so a caller summarising several days builds it once: it reads the whole
- * activity table, and `db week` was paying for that seven times over.
+ * The caller supplies the completeness rule rather than a `today` for this function to build one from:
+ * building it reads the whole activity table, and `db week` summarises seven days off one read.
  */
-export function getDaySummary(
-  db: Database, day: string, today: string, complete: DayCompleteness = dayCompleteness(db, today),
-): DaySummary {
+export function getDaySummary(db: Database, day: string, complete: DayCompleteness): DaySummary {
   const sl = db.query('SELECT score FROM daily_sleep WHERE day=?').get(day) as { score: number | null } | undefined;
   const rd = db.query('SELECT score, temperature_deviation FROM daily_readiness WHERE day=?').get(day) as { score: number | null; temperature_deviation: number | null } | undefined;
   const ac = db.query('SELECT score, steps FROM daily_activity WHERE day=?').get(day) as { score: number | null; steps: number | null } | undefined;

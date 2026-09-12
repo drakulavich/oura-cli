@@ -82,7 +82,6 @@ export function getReport(db: Database, days: number, today: string): ReportData
   // readiness scores exist only once the night is over, so they are never partial and not cut.
   const lastUpload = (db.query('SELECT MAX(timestamp) AS t FROM heartrate').get() as { t: string | null }).t;
   const complete = dayCompleteness(db, today);
-  const isComplete = complete.isComplete;
   const completeThrough = complete.completeThrough(weekStart, today);
   const activityEnd = completeThrough ?? shiftDay(weekStart, -1); // BETWEEN with start > end selects nothing
 
@@ -99,7 +98,7 @@ export function getReport(db: Database, days: number, today: string): ReportData
       readiness: rd?.score ?? null,
       activity: ac?.score ?? null,
       steps: ac?.steps ?? null,
-      partial: ac != null && !isComplete(d), // bun:sqlite returns null, not undefined, for no row
+      partial: ac != null && !complete.isComplete(d), // bun:sqlite returns null, not undefined, for no row
     });
   }
 
