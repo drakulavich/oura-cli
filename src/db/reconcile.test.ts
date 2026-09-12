@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import { ensureSchema } from './open.js';
-import { planWindow, applyWindowPlan, identityColumns, type PlanOptions } from './reconcile.js';
+import { planWindow, applyWindowPlan, type PlanOptions } from './reconcile.js';
+import { identityColumns } from '../collections/index.js';
 import { byName, insertSql, rowValues, type AnyCollection } from '../collections/index.js';
 
 const hr = byName('hr')!;

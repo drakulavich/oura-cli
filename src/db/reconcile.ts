@@ -1,5 +1,5 @@
 import type { Database } from './open.js';
-import type { AnyCollection, SqlValue } from '../collections/index.js';
+import { identityColumns, type AnyCollection, type SqlValue } from '../collections/index.js';
 
 /**
  * Bring a re-fetched window in line with what the API returned.
@@ -23,23 +23,6 @@ import type { AnyCollection, SqlValue } from '../collections/index.js';
  * depends on that holding: a row any piece returned is never stale, whichever piece's scope it
  * falls in.
  */
-
-/**
- * Columns that identify one row of `c` for reconciliation.
- *
- * A UNIQUE column comes first, and for the daily summaries that is `day`: the table already holds
- * one row per day, so a day recomputed under a new id replaces its predecessor rather than joining
- * it. Keying those on `id` would count the recomputed day as new and then hunt for a stale row the
- * insert had already replaced. Everything else keys on the primary key, and the timeseries, which
- * have none, on the columns of their unique index.
- */
-export function identityColumns(c: AnyCollection): readonly string[] {
-  const unique = c.columns.filter(col => col.unique).map(col => col.name);
-  if (unique.length > 0) return unique;
-  const pk = c.columns.filter(col => col.pk).map(col => col.name);
-  if (pk.length > 0) return pk;
-  return (c.indexes ?? []).find(i => i.unique)?.columns ?? [];
-}
 
 /**
  * A piece whose answer drops most of what is stored for it is not a correction, it is a truncated

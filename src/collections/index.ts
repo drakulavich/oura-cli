@@ -57,13 +57,32 @@ export function rowValues<Row>(c: Collection<Row>, row: Row): SqlValue[] {
 }
 
 /**
- * Whether a row carries every identity field. A row missing one cannot be stored under any key and
- * its `pick`s may dereference the field (`hr` derives `day` from `timestamp`), so `sync` drops such
- * rows before `rowValues` sees them rather than letting a TypeError take the whole run down (#106).
+ * Columns that identify one row of `c` for reconciliation.
+ *
+ * A UNIQUE column comes first, and for the daily summaries that is `day`: the table already holds
+ * one row per day, so a day recomputed under a new id replaces its predecessor rather than joining
+ * it. Keying those on `id` would count the recomputed day as new and then hunt for a stale row the
+ * insert had already replaced. Everything else keys on the primary key, and the timeseries, which
+ * have none, on the columns of their unique index.
+ */
+export function identityColumns(c: AnyCollection): readonly string[] {
+  const unique = c.columns.filter(col => col.unique).map(col => col.name);
+  if (unique.length > 0) return unique;
+  const pk = c.columns.filter(col => col.pk).map(col => col.name);
+  if (pk.length > 0) return pk;
+  return (c.indexes ?? []).find(i => i.unique)?.columns ?? [];
+}
+
+/**
+ * Whether a row can be stored: every column the table keys it by (`identityColumns`) picks a value.
+ * Not `c.identity`, which is the manifest's description of the API row and names `id` for the daily
+ * summaries even though the table keys them by `day`. A row that fails this has nowhere to go, and
+ * its other `pick`s may dereference the missing field (`hr` derives `day` from `timestamp`), so
+ * `sync` drops it before `rowValues` sees it rather than letting a TypeError take the run down (#106).
  */
 export function hasIdentity(c: AnyCollection, row: unknown): boolean {
-  const r = row as Record<string, unknown> | null;
-  return r != null && c.identity.every(f => r[f.field] != null);
+  if (row == null) return false;
+  return identityColumns(c).every(name => c.columns.find(col => col.name === name)?.pick(row) != null);
 }
 
 const MS_PER_DAY = 86_400_000;

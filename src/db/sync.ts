@@ -1,6 +1,6 @@
 import type { Database } from './open.js';
 import type { OuraClient } from '../api/client.js';
-import { COLLECTIONS, fetchCollectionByPiece, hasIdentity, insertSql, rowValues } from '../collections/index.js';
+import { COLLECTIONS, fetchCollectionByPiece, hasIdentity, identityColumns, insertSql, rowValues } from '../collections/index.js';
 import { shiftDay } from '../lib/time.js';
 import { planWindow, applyWindowPlan, type WindowPlan } from './reconcile.js';
 
@@ -38,7 +38,8 @@ export interface ImportResult {
   /**
    * Rows per table that the API did not return but that were kept anyway, because dropping them
    * would have taken most of what one request described — the shape of a truncated response. For a
-   * snapshot collection that is an empty response against a table with rows.
+   * snapshot collection that is an empty response against a table with rows, or one whose every row
+   * was dropped for lacking its identity.
    * A non-empty value means the cache is knowingly out of step with the API for those rows. It is
    * the safe direction, and it is not self-healing — a genuine correction that large is refused on
    * every run — so `sync --prune` applies them once the user has decided which shape it was.
@@ -166,7 +167,7 @@ export async function importDaily(
     const rows = pieces.flat();
     const missing = returned.flat().length - rows.length;
     if (missing > 0) dropped[c.table] = missing;
-    const droppedTail = missing > 0 ? `, ${missing} dropped (no ${c.identity.map(f => f.field).join('/')})` : '';
+    const droppedTail = missing > 0 ? `, ${missing} dropped (no ${identityColumns(c).join('/')})` : '';
     const stmt = db.query(insertSql(c));
     if (c.rangeParams === 'none') {
       // A snapshot is the whole truth: rows that disappeared upstream (a ring removed from the account)
@@ -178,7 +179,9 @@ export async function importDaily(
       if (!pk) throw new Error(`Snapshot collection ${c.name} must declare a primary-key column (enforced by the registry tests).`);
       const ids = () => new Set((db.query(`SELECT ${pk} AS id FROM ${c.table}`).all() as { id: string }[]).map(r => r.id));
       const known = ids();
-      const refuse = rows.length === 0 && known.size > 0 && !mayPrune(c.name);
+      // Nothing storable arrived. If rows did arrive and were all dropped, that is not an empty answer
+      // and there is no correction for --prune to apply, so the flag does not lift this one.
+      const refuse = rows.length === 0 && known.size > 0 && (missing > 0 || !mayPrune(c.name));
       if (!refuse) {
         db.transaction((rs: unknown[]) => {
           db.exec(`DELETE FROM ${c.table}`);
@@ -193,9 +196,9 @@ export async function importDaily(
       if (refuse) refused[c.table] = { rows: known.size, collection: c.name };
       else if (rows.length === 0 && gone > 0) pruned[c.table] = { rows: gone, collection: c.name };
       const tail = gone > 0 ? `, ${gone} stale removed${pruned[c.table] ? ' (past the truncation guard)' : ''}` : '';
-      const kept = refuse
-        ? `, ${known.size} rows kept that the API did not return — an empty answer describes nothing; re-run with --prune=${c.name} to apply it`
-        : '';
+      const kept = !refuse ? ''
+        : missing > 0 ? `, ${known.size} rows kept: the response held no storable rows`
+        : `, ${known.size} rows kept that the API did not return — an empty answer describes nothing; re-run with --prune=${c.name} to apply it`;
       _log(`  + ${c.name} (${c.table}): ${fetched[c.table]} fetched, ${added[c.table]} new${tail}${kept}${droppedTail}`);
       continue;
     }
