@@ -25,8 +25,7 @@ export const activity = defineCollection<OuraActivityDay>({
     { name: 'contributors', type: 'TEXT', pick: r => JSON.stringify(r.contributors) },
     { name: 'timestamp', type: 'TEXT', pick: r => r.timestamp },
     // Not the slots themselves — only how many, which is all the completeness rule needs and keeps
-    // the row small. An explicit null check, not `?.length ?? null`: an empty string is zero slots
-    // reported, not a day Oura said nothing about, and the two must not collapse together.
-    { name: 'class_5_min_slots', type: 'INTEGER', pick: r => r.class_5_min == null ? null : r.class_5_min.length },
+    // the row small. An empty string stores 0, a missing field NULL; the rule treats both as no answer.
+    { name: 'class_5_min_slots', type: 'INTEGER', pick: r => r.class_5_min?.length ?? null },
   ],
 });

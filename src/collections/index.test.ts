@@ -13,6 +13,9 @@ describe('the activity slot count', () => {
     expect(slotIndex).toBeGreaterThan(-1);
     expect(rowValues(activity, { ...(base as object), class_5_min: 'x'.repeat(288) })[slotIndex]).toBe(288);
     expect(rowValues(activity, { ...(base as object), class_5_min: 'x'.repeat(150) })[slotIndex]).toBe(150);
+    // An empty string is zero slots reported, which is not the same row as a day Oura said nothing
+    // about; the pick's null check is what keeps them apart.
+    expect(rowValues(activity, { ...(base as object), class_5_min: '' })[slotIndex]).toBe(0);
   });
 
   it('writes null rather than throwing when the field is absent', () => {
@@ -21,7 +24,7 @@ describe('the activity slot count', () => {
   });
 });
 
-describe('names reserved by other commands', () => {
+describe('collection registry', () => {
   it('has unique names, endpoints and tables', () => {
     for (const key of ['name', 'endpoint', 'table'] as const) {
       const vals = COLLECTIONS.map(c => c[key]);

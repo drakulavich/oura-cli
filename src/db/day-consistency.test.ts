@@ -74,3 +74,26 @@ describe('report, trends and the week table on one cache', () => {
     expect(week.filter(d => d.partial)).toEqual([]);
   });
 });
+
+describe('trends with nothing complete in the window', () => {
+  it('drops the activity rows entirely rather than averaging the day in progress', () => {
+    // Only today has a record and today is not over. `report` already pins this case; `db trends`
+    // has its own fallback for it (queries.ts, `?? shiftDay(start, -1)`), and without this test that
+    // line could be replaced by `?? today` and the suite would still pass: #75 reopened silently.
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    db.query('INSERT INTO daily_activity (id, day, score, steps, active_calories, class_5_min_slots) VALUES (?,?,?,?,?,?)')
+      .run('a', TODAY, 70, 809, 300, 150);
+    db.query('INSERT INTO daily_sleep (id, day, score, contributors, timestamp) VALUES (?,?,?,?,?)')
+      .run('s', TODAY, 80, '{}', '');
+
+    const trends = getTrends(db, 7, TODAY);
+    const report = getReport(db, 7, TODAY);
+    db.close();
+
+    expect(trends.find(t => t.label === 'Steps')).toBeUndefined();
+    expect(trends.find(t => t.label === 'Activity')).toBeUndefined();
+    expect(trends.find(t => t.label === 'Sleep Score')!.count).toBe(1); // sleep is final once it exists
+    expect(report.averages.find(a => a.label === 'Steps')).toBeUndefined();
+  });
+});

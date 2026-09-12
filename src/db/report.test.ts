@@ -357,6 +357,18 @@ describe('getReport partial days', () => {
     expect(report.averages.find(a => a.label === 'Steps')).toBeUndefined();
   });
 
+  it('does not name a complete day that lies outside the reported window', () => {
+    // Two closed days six weeks back, nothing this week. The range passed to completeThrough is what
+    // keeps them out; without it the JSON would carry a completeThrough the seven listed days never
+    // reach.
+    insertActivity(day(45), 80, 9000);
+    insertActivity(day(40), 80, 9000);
+
+    const report = getReport(db, 7, TODAY);
+    expect(report.completeThrough).toBeNull();
+    expect(report.averages.find(a => a.label === 'Steps')).toBeUndefined();
+  });
+
   it('does not let a record dated after today close today out (pins the `d < today` guard)', () => {
     insertActivity(day(0), 60, 4000);
     insertActivity(shiftDay(TODAY, 1), 10, 50); // a ring with a wrong clock, or a hand-made import

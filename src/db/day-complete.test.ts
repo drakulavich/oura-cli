@@ -54,12 +54,15 @@ describe('dayCompleteness', () => {
   it('calls a day with no record at all incomplete, so completeThrough never names one', () => {
     const db = seeded();
     activity(db, '2026-06-12', SLOTS_PER_DAY);
+    // 06-14 is what makes this a test of the guard: with a later record on file, the fallback alone
+    // would call recordless 06-13 complete. Only the `has()` check says no.
+    activity(db, '2026-06-14');
 
     const c = dayCompleteness(db, TODAY);
     const through = c.completeThrough('2026-06-12', '2026-06-14');
     db.close();
     expect(c.isComplete('2026-06-13')).toBe(false);
-    expect(through).toBe('2026-06-12'); // not 06-14, which is over but holds nothing
+    expect(through).toBe('2026-06-12'); // not 06-14: newest record, nothing closes it
   });
 
   it('falls back to the next-day rule for rows written before the column existed', () => {
