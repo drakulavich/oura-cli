@@ -25,7 +25,8 @@ export interface ImportResult {
   added: Record<string, number>;
   /**
    * Rows deleted per table because the API no longer has them: a heart-rate sample Oura
-   * reclassified, a workout re-issued under a new id. Only tables that lost rows appear.
+   * reclassified, a workout re-issued under a new id, a ring no longer in the account. Only tables
+   * that lost rows appear.
    */
   removed: Record<string, number>;
   /**
@@ -36,7 +37,8 @@ export interface ImportResult {
   dropped: Record<string, number>;
   /**
    * Rows per table that the API did not return but that were kept anyway, because dropping them
-   * would have taken most of what one request described — the shape of a truncated response.
+   * would have taken most of what one request described — the shape of a truncated response. For a
+   * snapshot collection that is an empty response against a table with rows.
    * A non-empty value means the cache is knowingly out of step with the API for those rows. It is
    * the safe direction, and it is not self-healing — a genuine correction that large is refused on
    * every run — so `sync --prune` applies them once the user has decided which shape it was.
@@ -168,18 +170,33 @@ export async function importDaily(
     const stmt = db.query(insertSql(c));
     if (c.rangeParams === 'none') {
       // A snapshot is the whole truth: rows that disappeared upstream (a ring removed from the account)
-      // disappear here too, and "new" means an id the table did not hold before.
+      // disappear here too, and "new" means an id the table did not hold before. With one exception,
+      // the same one planWindow makes for an empty piece: an empty 200 describes nothing, so it must
+      // not clear a table that has rows (#105). A ring genuinely removed leaves the account with zero
+      // rings, which looks identical from here; `--prune=ring` is how the user says which it was.
       const pk = c.columns.find(col => col.pk)?.name;
       if (!pk) throw new Error(`Snapshot collection ${c.name} must declare a primary-key column (enforced by the registry tests).`);
       const ids = () => new Set((db.query(`SELECT ${pk} AS id FROM ${c.table}`).all() as { id: string }[]).map(r => r.id));
       const known = ids();
-      db.transaction((rs: unknown[]) => {
-        db.exec(`DELETE FROM ${c.table}`);
-        for (const r of rs) stmt.run(...rowValues(c, r));
-      })(rows);
+      const refuse = rows.length === 0 && known.size > 0 && !mayPrune(c.name);
+      if (!refuse) {
+        db.transaction((rs: unknown[]) => {
+          db.exec(`DELETE FROM ${c.table}`);
+          for (const r of rs) stmt.run(...rowValues(c, r));
+        })(rows);
+      }
+      const now = ids();
+      const gone = [...known].filter(id => !now.has(id)).length;
       fetched[c.table] = rows.length + missing;
-      added[c.table] = [...ids()].filter(id => !known.has(id)).length;
-      _log(`  + ${c.name} (${c.table}): ${fetched[c.table]} fetched, ${added[c.table]} new${rows.length === 0 ? ", table cleared" : ""}${droppedTail}`);
+      added[c.table] = [...now].filter(id => !known.has(id)).length;
+      if (gone > 0) removed[c.table] = gone;
+      if (refuse) refused[c.table] = { rows: known.size, collection: c.name };
+      else if (rows.length === 0 && gone > 0) pruned[c.table] = { rows: gone, collection: c.name };
+      const tail = gone > 0 ? `, ${gone} stale removed${pruned[c.table] ? ' (past the truncation guard)' : ''}` : '';
+      const kept = refuse
+        ? `, ${known.size} rows kept that the API did not return — an empty answer describes nothing; re-run with --prune=${c.name} to apply it`
+        : '';
+      _log(`  + ${c.name} (${c.table}): ${fetched[c.table]} fetched, ${added[c.table]} new${tail}${kept}${droppedTail}`);
       continue;
     }
     // Insert and reconcile in one transaction: the window ends up holding exactly what the API
