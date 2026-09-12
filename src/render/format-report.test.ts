@@ -126,13 +126,51 @@ describe('formatReport — partial day', () => {
     expect(out).toContain('* Fri 08/05 is still accumulating');
   });
 
-  it('marks the monthly bucket that holds the accumulating day and keeps the note', () => {
+  it('marks the monthly bucket that holds the accumulating day and names the bucket in the note, not "today"', () => {
+    // #84: the note took its wording from the daily rule while the table showed week buckets.
     const out = stripAnsi(formatReport({ ...partialFixture, period: 'month' }, 'table', 'month'));
-    expect(out).toContain('2026-05-07*');
-    expect(out).toContain('still accumulating');
+    expect(out).toContain('2026-05-07 (2 days)*');
+    expect(out).toContain('* the week of 2026-05-07 is still accumulating');
+    expect(out).not.toContain('today is still accumulating');
   });
 
   it('prints no note when every day is complete', () => {
     expect(stripAnsi(formatReport(fixture, 'table', 'week'))).not.toContain('still accumulating');
+  });
+});
+
+describe('formatReport — monthly buckets', () => {
+  // 2026-04-14 .. 2026-05-13: 30 days at 10,000 steps, the newest still accumulating.
+  const start = Date.UTC(2026, 3, 14);
+  const days: ReportData['days'] = Array.from({ length: 30 }, (_, i) => {
+    const day = new Date(start + i * 86_400_000).toISOString().slice(0, 10);
+    return { day, dayLabel: day, sleep: 80, readiness: 80, activity: 80, steps: 10_000, partial: i === 29 };
+  });
+  const month: ReportData = { ...fixture, period: 'month', weekStart: '2026-04-14', weekEnd: '2026-05-13', days, completeThrough: '2026-05-12' };
+  const rows = () => stripAnsi(formatReport(month, 'table', 'month')).split('\n').filter(l => /^\s{2}2026-/.test(l) && !l.includes('—')); // the range line under the title also starts with a date
+
+  it('anchors the buckets on the newest day, so the short one is the oldest and is labelled with its size', () => {
+    // Chunked from the oldest day forward, the 2-day remainder sat at the bottom: 20,000 steps under
+    // four rows of 70,000, which read as an 85 % collapse (#84).
+    const r = rows();
+    expect(r.length).toBe(5);
+    expect(r[0]).toContain('2026-04-14 (2 days)');
+    expect(r[0]).toContain('20,000');
+    expect(r[4]).toContain('2026-05-07*');
+    expect(r[4]).not.toContain('days)');
+    expect(r[4]).toContain('70,000');
+  });
+
+  it('keeps the score columns aligned whether or not a row carries the stub label', () => {
+    const r = rows();
+    const firstDigitAfterLabel = (l: string) => l.slice(24).search(/\d/);
+    expect(new Set(r.map(firstDigitAfterLabel)).size).toBe(1);
+    const header = stripAnsi(formatReport(month, 'table', 'month')).split('\n').find(l => /^\s{2}Week of/.test(l))!;
+    expect(header.indexOf('Sleep') + 5).toBe(r[0].indexOf('80') + 2);
+  });
+
+  it('names the newest bucket in the note', () => {
+    expect(stripAnsi(formatReport(month, 'table', 'month')))
+      .toContain('* the week of 2026-05-07 is still accumulating; activity averages cover through 2026-05-12.');
   });
 });
