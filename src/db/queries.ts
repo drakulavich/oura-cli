@@ -1,6 +1,6 @@
 import type { Database } from './open.js';
 import { shiftDay } from '../lib/time.js';
-import { dayCompleteness } from './day-complete.js';
+import { dayCompleteness, type DayCompleteness } from './day-complete.js';
 import { COLLECTIONS } from '../collections/index.js';
 
 export interface DaySummary {
@@ -25,7 +25,13 @@ export interface DaySummary {
   partial: boolean;
 }
 
-export function getDaySummary(db: Database, day: string, today: string): DaySummary {
+/**
+ * `complete` is a parameter so a caller summarising several days builds it once: it reads the whole
+ * activity table, and `db week` was paying for that seven times over.
+ */
+export function getDaySummary(
+  db: Database, day: string, today: string, complete: DayCompleteness = dayCompleteness(db, today),
+): DaySummary {
   const sl = db.query('SELECT score FROM daily_sleep WHERE day=?').get(day) as { score: number | null } | undefined;
   const rd = db.query('SELECT score, temperature_deviation FROM daily_readiness WHERE day=?').get(day) as { score: number | null; temperature_deviation: number | null } | undefined;
   const ac = db.query('SELECT score, steps FROM daily_activity WHERE day=?').get(day) as { score: number | null; steps: number | null } | undefined;
@@ -38,7 +44,7 @@ export function getDaySummary(db: Database, day: string, today: string): DaySumm
 
   return {
     day,
-    partial: ac != null && !dayCompleteness(db, today).isComplete(day),
+    partial: ac != null && !complete.isComplete(day),
     sleep_score: sl?.score ?? null,
     readiness_score: rd?.score ?? null,
     activity_score: ac?.score ?? null,
@@ -71,9 +77,7 @@ export function getTrends(db: Database, days: number, today: string): TrendRow[]
   // Activity accumulates, so a day still in progress is not an average of the same kind as the days
   // around it — `report` has always cut it and these numbers did not, which is how the same seven
   // days produced two different step averages (#75). Sleep and readiness are final once they exist.
-  const windowDays: string[] = [];
-  for (let d = start; d <= today; d = shiftDay(d, 1)) windowDays.push(d);
-  const activityEnd = dayCompleteness(db, today).completeThrough(windowDays)
+  const activityEnd = dayCompleteness(db, today).completeThrough(start, today)
     ?? shiftDay(start, -1); // BETWEEN with start > end selects nothing
 
   const metrics: [string, string, string, boolean][] = [

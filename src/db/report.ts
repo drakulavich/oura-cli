@@ -83,7 +83,7 @@ export function getReport(db: Database, days: number, today: string): ReportData
   const lastUpload = (db.query('SELECT MAX(timestamp) AS t FROM heartrate').get() as { t: string | null }).t;
   const complete = dayCompleteness(db, today);
   const isComplete = complete.isComplete;
-  const completeThrough = complete.completeThrough(windowDays);
+  const completeThrough = complete.completeThrough(weekStart, today);
   const activityEnd = completeThrough ?? shiftDay(weekStart, -1); // BETWEEN with start > end selects nothing
 
   // Daily table
