@@ -513,3 +513,45 @@ describe('Import', () => {
     });
   });
 });
+
+describe('rows without an identity', () => {
+  it('drops a heart-rate sample with a null timestamp, counts it, and syncs the rest of the run', async () => {
+    // #106: the `day` pick dereferences `timestamp`, so this row used to throw a TypeError out of
+    // importDaily. Every collection after hr in the registry then never synced.
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const log: string[] = [];
+    const client = {
+      fetch: async (endpoint: OuraEndpoint) => {
+        if (endpoint === 'heartrate') return [
+          { bpm: 60, source: 'awake', timestamp: '2026-06-15T10:00:00+00:00' },
+          { bpm: 61, source: 'awake', timestamp: null },
+          { bpm: 62, source: 'awake', timestamp: '2026-06-15T10:05:00+00:00' },
+        ];
+        if (endpoint === 'ring_configuration') return [{ id: 'ring-1' }]; // after hr in the loop
+        return [];
+      },
+    } as unknown as OuraClient;
+
+    const result = await importDaily(db, client, { today: '2026-06-15', tz: 'UTC' }, m => log.push(m));
+    const stored = (db.query('SELECT COUNT(*) AS n FROM heartrate').get() as { n: number }).n;
+    const rings = (db.query('SELECT COUNT(*) AS n FROM ring_configuration').get() as { n: number }).n;
+    db.close();
+
+    expect(stored).toBe(2);
+    expect(rings).toBe(1);
+    expect(result.fetched.heartrate).toBe(3); // what the API returned
+    expect(result.added.heartrate).toBe(2);
+    expect(result.dropped).toEqual({ heartrate: 1 });
+    expect(log.find(l => l.includes('(heartrate)'))).toContain('3 fetched, 2 new, 1 dropped (no timestamp)');
+  });
+
+  it('reports no dropped table when every row is whole', async () => {
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const client = { fetch: async () => [] } as unknown as OuraClient;
+    const result = await importDaily(db, client, { today: '2026-06-15', tz: 'UTC' });
+    db.close();
+    expect(result.dropped).toEqual({});
+  });
+});

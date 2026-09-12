@@ -307,7 +307,7 @@ describe('formatImportSummary', () => {
       isFirstSync: true,
       fetched: { daily_sleep: 5 },
       added: { daily_sleep: 2 },
-      removed: {}, refused: {}, pruned: {},
+      removed: {}, dropped: {}, refused: {}, pruned: {},
     };
     const out = formatImportSummary(result, 80);
     expect(out).toMatch(/sleep +5 \(\+2\)/);
@@ -322,11 +322,11 @@ describe('formatImportSummary', () => {
   // narrow terminal wrapped mid-cell and `hr 70 (+0)` printed as `hr 7` / `0 (+0)`.
   const oneSleepDay: ImportResult = {
     startDate: '2026-08-07', endDate: '2026-09-06', isFirstSync: false,
-    fetched: { daily_sleep: 3 }, added: { daily_sleep: 1 }, removed: {}, refused: {}, pruned: {},
+    fetched: { daily_sleep: 3 }, added: { daily_sleep: 1 }, removed: {}, dropped: {}, refused: {}, pruned: {},
   };
   const wide: ImportResult = {
     startDate: '2026-08-07', endDate: '2026-09-06', isFirstSync: false,
-    fetched: { heartrate: 12172 }, added: { heartrate: 8004 }, removed: {}, refused: {}, pruned: {},
+    fetched: { heartrate: 12172 }, added: { heartrate: 8004 }, removed: {}, dropped: {}, refused: {}, pruned: {},
   };
   const rowsAt = (result: ImportResult, width: number) => formatImportSummary(result, width).split('\n').slice(1);
 
@@ -481,7 +481,7 @@ describe('formatImportSummary', () => {
       isFirstSync: true,
       fetched: { daily_sleep: 5 },
       added: { daily_sleep: 2 },
-      removed: {}, refused: {}, pruned: {},
+      removed: {}, dropped: {}, refused: {}, pruned: {},
     };
     const out = formatImportSummary(result, 80);
     expect(out).toMatch(/sleep +5 \(\+2\)/);
@@ -496,7 +496,7 @@ describe('formatImportSummary', () => {
   // narrow terminal wrapped mid-cell and `hr 70 (+0)` printed as `hr 7` / `0 (+0)`.
   const wide: ImportResult = {
     startDate: '2026-08-07', endDate: '2026-09-06', isFirstSync: false,
-    fetched: { heartrate: 12172 }, added: { heartrate: 8004 }, removed: {}, refused: {}, pruned: {},
+    fetched: { heartrate: 12172 }, added: { heartrate: 8004 }, removed: {}, dropped: {}, refused: {}, pruned: {},
   };
 
   it('keeps each collection whole on one line at a narrow width', () => {

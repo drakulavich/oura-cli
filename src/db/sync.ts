@@ -1,6 +1,6 @@
 import type { Database } from './open.js';
 import type { OuraClient } from '../api/client.js';
-import { COLLECTIONS, fetchCollectionByPiece, insertSql, rowValues } from '../collections/index.js';
+import { COLLECTIONS, fetchCollectionByPiece, hasIdentity, insertSql, rowValues } from '../collections/index.js';
 import { shiftDay } from '../lib/time.js';
 import { planWindow, applyWindowPlan, type WindowPlan } from './reconcile.js';
 
@@ -28,6 +28,12 @@ export interface ImportResult {
    * reclassified, a workout re-issued under a new id. Only tables that lost rows appear.
    */
   removed: Record<string, number>;
+  /**
+   * Rows per table the API returned without an identity field (a heart-rate sample with a null
+   * `timestamp`), dropped before insert because nothing could store or reconcile them. Only tables
+   * that lost rows this way appear. Counted in `fetched`, never in `added`.
+   */
+  dropped: Record<string, number>;
   /**
    * Rows per table that the API did not return but that were kept anyway, because dropping them
    * would have taken most of what one request described — the shape of a truncated response.
@@ -147,12 +153,18 @@ export async function importDaily(
   const fetched: Record<string, number> = {};
   const added: Record<string, number> = {};
   const removed: Record<string, number> = {};
+  const dropped: Record<string, number> = {};
   const refused: Record<string, RefusalRecord> = {};
   const pruned: Record<string, RefusalRecord> = {};
   const mayPrune = (name: string) => options.prune === 'all' || (options.prune?.includes(name) ?? false);
   for (const { c, start } of plan) {
-    const pieces = await fetchCollectionByPiece(client, c, start, end, tz);
+    const returned = await fetchCollectionByPiece(client, c, start, end, tz);
+    // A row without its identity cannot be keyed, and its picks may throw; drop it here and say so.
+    const pieces = returned.map(piece => piece.filter(r => hasIdentity(c, r)));
     const rows = pieces.flat();
+    const missing = returned.flat().length - rows.length;
+    if (missing > 0) dropped[c.table] = missing;
+    const droppedTail = missing > 0 ? `, ${missing} dropped (no ${c.identity.map(f => f.field).join('/')})` : '';
     const stmt = db.query(insertSql(c));
     if (c.rangeParams === 'none') {
       // A snapshot is the whole truth: rows that disappeared upstream (a ring removed from the account)
@@ -165,9 +177,9 @@ export async function importDaily(
         db.exec(`DELETE FROM ${c.table}`);
         for (const r of rs) stmt.run(...rowValues(c, r));
       })(rows);
-      fetched[c.table] = rows.length;
+      fetched[c.table] = rows.length + missing;
       added[c.table] = [...ids()].filter(id => !known.has(id)).length;
-      _log(`  + ${c.name} (${c.table}): ${rows.length} fetched, ${added[c.table]} new${rows.length === 0 ? ', table cleared' : ''}`);
+      _log(`  + ${c.name} (${c.table}): ${fetched[c.table]} fetched, ${added[c.table]} new${rows.length === 0 ? ", table cleared" : ""}${droppedTail}`);
       continue;
     }
     // Insert and reconcile in one transaction: the window ends up holding exactly what the API
@@ -180,7 +192,7 @@ export async function importDaily(
       for (const piece of ps) for (const r of piece) stmt.run(...rowValues(c, r));
       return { windowPlan, gone: applyWindowPlan(db, c, windowPlan) };
     }).immediate(pieces);
-    fetched[c.table] = rows.length;
+    fetched[c.table] = rows.length + missing;
     added[c.table] = windowPlan.added;
     if (gone > 0) removed[c.table] = gone;
     if (windowPlan.refused > 0) refused[c.table] = { rows: windowPlan.refused, collection: c.name };
@@ -200,10 +212,10 @@ export async function importDaily(
     const kept = windowPlan.refused > 0
       ? `, ${windowPlan.refused} rows kept that the API did not return — too many to drop on one response; re-run with --prune=${c.name} to apply them`
       : '';
-    _log(`  + ${c.name} (${c.table}): ${rows.length} fetched, ${added[c.table]} new${tail}${kept}`);
+    _log(`  + ${c.name} (${c.table}): ${fetched[c.table]} fetched, ${added[c.table]} new${tail}${kept}${droppedTail}`);
   }
 
   _log('Import complete.');
-  return { startDate, endDate: end, fetched, added, removed, refused, pruned, isFirstSync,
+  return { startDate, endDate: end, fetched, added, removed, dropped, refused, pruned, isFirstSync,
     ...(options.prune === undefined ? {} : { pruneScope: options.prune }) };
 }
