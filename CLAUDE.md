@@ -2,47 +2,33 @@
 
 `oura-cli` pulls Oura Ring data into a local SQLite cache and prints it for humans or agents. Bun-only: `bun:sqlite` is the reason — it removes any native dependency, at the cost of no Node fallback.
 
-## Critical Development Rules
+## Rules that are easy to get wrong
 
-### THERE IS A BUILD STEP — `bin` POINTS AT `dist/`, NOT `src/`
+### There is a build step: `bin` points at `dist/`, not `src/`
 
-Unlike most Bun projects, this one ships compiled output: `package.json#bin` → `dist/index.js`, produced by `bun run build` (`prepublishOnly` runs it before publish). `bun run dev` runs the sources directly for local work.
+Unlike most Bun projects, this one ships compiled output: `package.json#bin` → `dist/index.js`, produced by `bun run build` (`prepublishOnly` runs it). `bun run dev` runs the sources. **Never hand-edit `dist/`** — it is generated; if a change seems to have no effect, you are probably running a stale `dist/` via the globally linked binary. The version is read from package.json at runtime; there is no constant to keep in sync.
 
-**Never hand-edit `dist/`** — it is generated. If a change seems to have no effect, you are probably running a stale `dist/` via the globally linked binary.
+### Releases are tag-driven and permanent
 
-The version is read from package.json at runtime; there is no constant to keep in sync.
+A release is a PR that bumps `package.json` and adds a `## [x.y.z] - YYYY-MM-DD` section to `CHANGELOG.md`, then a tag on the **merge commit GitHub reports** — never local `HEAD` (the merge rewrote it) and never `origin/main` (it moves when the next PR lands). `release.yml` publishes to npm with Trusted Publishing (no token secret) and creates a GitHub Release whose body is that CHANGELOG section. A published version is permanent and a tag is one-use: on failure **fix forward** with a new patch version, never re-tag. The step-by-step procedure and the tag command are in CONTRIBUTING.md under "Releasing (maintainers)".
 
-### RELEASES ARE TAG-DRIVEN AND PERMANENT
+### Layers depend only downward
 
-Bump the version in `package.json`, add a `## [x.y.z] - YYYY-MM-DD` section to `CHANGELOG.md`, and land those two through a PR — `main` is protected, so pushing to it is rejected with `GH013`. The commit that lands is never the one you pushed — a rebase or squash rewrites it, a merge wraps it — so fetch and tag the commit GitHub says the merge produced: `git fetch origin && git tag vx.y.z "$(gh pr view <n> -R drakulavich/oura-cli --json mergeCommit -q .mergeCommit.oid)" && git push origin vx.y.z`. The fetch is load-bearing: without it that object is not in the clone and `git tag` exits 128. Nothing checks the tag against `main` — the workflow builds whatever it points at — so tagging a local branch, or `origin/main` after the next PR has landed on top, publishes a tree that is not the one reviewed for this release. `release.yml` runs tests, publishes to npm, and creates a GitHub Release whose body is that CHANGELOG section.
+`src/lib/` → `src/api/` → `src/collections/` → `src/db/` → `src/render/` → `src/commands/` → `src/index.ts`. Reaching *upward* is the mistake to avoid — `lib/` must not import `api/`, `api/` must not import `db/`. Text formatters live in `src/render/`: they import `db` types and write nothing to stdout.
 
-Publishing uses **npm Trusted Publishing** (`id-token: write` + `--provenance`); there is no `NPM_TOKEN` secret to configure. A published version is permanent and a tag is one-use: on failure, **fix forward** with a new patch version — never re-tag.
+### Every user-facing data command has both output modes
 
-### THE CLI IS `citty`, NOT COMMANDER
+JSON for agents and pipes, table/text for a TTY. The existing exceptions are deliberate — `describe`, `manifest`, `healthcheck` and `fetch` are JSON-only, `login` is interactive text. Don't "fix" those. Structured output is a published contract: the JSON Schemas under `docs/schemas/` and the `describe` manifest are consumed externally, so changing a shape means updating the schema in the same PR.
 
-Commands are `defineCommand`/`runMain` from `citty`. There is no `commander` dependency. Don't refactor toward it.
+### Errors that reach the CLI surface are `CliError`
 
-### LAYERS DEPEND ONLY DOWNWARD
+Use `CliError` with a documented `ErrorCode` from `src/lib/errors.ts`; a new code also needs an arm in `exitCodeFor`. The boundary is the runner in `src/commands/run-command.ts`, so a `dataCommand` cannot forget it; `login` has its own catch and `healthcheck` swallows into `{ok:false}` by design. Errors citty raises *before* a command runs (unknown command, missing positional) are translated in `src/index.ts` via `src/lib/citty-error.ts`, which also holds the hints for commands removed in 0.5.0. The runner rejects any flag a command did not declare in `args`.
 
-`src/lib/` → `src/api/` → `src/collections/` → `src/db/` → `src/render/` → `src/commands/` → `src/index.ts`.
+### Keep `bun.lock` in sync
 
-Reaching *upward* is the mistake to avoid — `lib/` must not import `api/`, `api/` must not import `db/`. Text formatters live in `src/render/` (between `db/` and `commands/`): they import `db` types and write nothing to stdout.
+CI runs `bun install --frozen-lockfile`, so a lockfile that lags `package.json` fails the install step before any test runs; this has blocked CI twice (#15, #16). Commit the lockfile with any dependency change.
 
-### EVERY USER-FACING COMMAND NEEDS BOTH OUTPUT MODES
-
-JSON for agent and pipe contexts, table/text for a TTY. This applies to **new user-facing data commands**; the existing exceptions are deliberate — `describe`, `manifest` and `healthcheck` are JSON-only, `login` is interactive text, and `fetch` is JSON-only. Don't "fix" those.
-
-Structured output is a published contract: the JSON Schemas under `docs/schemas/` and the `describe` manifest are consumed externally, so changing a shape means updating the schema in the same change.
-
-### ERRORS THAT REACH THE CLI SURFACE ARE `CliError`
-
-Use `CliError` with a documented `ErrorCode` from `src/lib/errors.ts`; a new code also needs an arm in `exitCodeFor`. The boundary is the runner in src/commands/run-command.ts; a command built with dataCommand cannot forget it. Errors citty raises *before* a command runs (unknown command, missing positional) are translated in `src/index.ts` via `src/lib/citty-error.ts`, which also holds the hints for commands removed in 0.5.0. login has its own catch; healthcheck swallows into {ok:false}. The runner rejects any flag a command did not declare in `args`, so a new flag must be declared or it is a `BAD_ARGS` at runtime.
-
-### KEEP `bun.lock` IN SYNC
-
-CI runs `bun install --frozen-lockfile`, so a lockfile that lags `package.json` fails the install step before any test runs. This has blocked CI twice (#15, #16) — commit the lockfile with any dependency change.
-
-## Build & Verify
+## Build & verify
 
 ```bash
 bun install
@@ -53,24 +39,24 @@ bun run build          # emit dist/
 bun run schemas        # regenerate docs/schemas from the registry
 ```
 
-CI runs type-check → tests → build → `npm audit` (high+). Only the first three block: the audit step swallows failures into a `::warning::`. `release.yml` runs tests and build but **not** `tsc`, so type errors only surface in CI on a PR — run it locally before pushing.
+CI runs type-check → tests → build → `npm audit` (high+); only the first three block. `release.yml` runs tests and build but not `tsc`, so type errors only surface in CI on a PR — run it locally before pushing.
 
 ## Conventions
 
-- **Tests are co-located**: `foo.test.ts` sits next to `foo.ts`. There is no `tests/` directory.
-- **Named exports only** — there are currently no default exports anywhere in `src/`.
-- **Local imports carry a `.js` suffix** (`./commands/login.js`) even though the files are `.ts`.
-- **A new top-level command touches three files**: `src/commands/` (the implementation), `src/commands/registry.ts` (registration), and the `SUBCOMMANDS` set in `src/lib/argv-normalize.ts` — plus refreshing the describe snapshot (`bun test -u` on `src/commands/__snapshots__/describe.test.ts.snap`, then review the diff). Miss `SUBCOMMANDS` and `oura-cli --format json <cmd>` silently ignores the flag — citty does not hoist root flags onto subcommands, and that normalizer is what moves them. A new *global* flag needs `GLOBAL_FLAGS_WITH_VALUE` / `GLOBAL_FLAGS_BOOLEAN` in the same file.
-- **A new Oura endpoint**: see the "Adding a collection" recipe in `docs/ARCHITECTURE.md`. Treat every API field as nullable unless proven otherwise — #23 had to retype `day_summary`, `label` and `type` after the upstream spec drifted.
-- **Schema migrations are append-only.** `ensureSchema` applies only entries with `version > current`, so editing an already-shipped migration is a no-op on existing databases. Add a new version entry instead.
+- The CLI is `citty` (`defineCommand`/`runMain`). There is no `commander` dependency; don't refactor toward it.
+- Tests are co-located (`foo.test.ts` next to `foo.ts`; no `tests/` directory). A new test must fail under a one-line mutation of the code it pins — reviews check this by mutating the code.
+- Named exports only, and local imports carry a `.js` suffix (`./commands/login.js`) even though the files are `.ts`.
+- A new top-level command: follow "Adding a command" in `docs/ARCHITECTURE.md`. The gotcha is that it must be registered in `src/commands/registry.ts` and added to `SUBCOMMANDS` in `src/lib/argv-normalize.ts`, or `oura-cli --format json <cmd>` silently ignores the flag — citty does not hoist root flags onto subcommands, and that normalizer is what moves them. The contract test fails when the two lists differ. A new *global* flag needs `GLOBAL_FLAGS_WITH_VALUE` / `GLOBAL_FLAGS_BOOLEAN` in the same file.
+- A new Oura endpoint: follow "Adding a collection" in `docs/ARCHITECTURE.md`. Treat every API field as nullable unless proven otherwise — #23 had to retype `day_summary`, `label` and `type` after the upstream spec drifted.
+- Schema migrations are append-only. `ensureSchema` applies only entries with `version > current`, so editing an already-shipped migration is a no-op on existing databases. Add a new version entry instead.
 - A helper → `src/lib/`. Avoid bucket files.
-- **One change per PR**, with a test for any behaviour change and a `CHANGELOG.md` bullet under `## [Unreleased]`.
+- One logical change per commit, with a test for any behaviour change and a `CHANGELOG.md` bullet under `## [Unreleased]`. Related issues may share a PR, one commit per issue. `main` is protected: everything lands through a PR.
 
 ## Environment
 
 `OURA_TOKEN` (or `OURA_TOKEN_PATH`) authenticates; `OURA_DB_PATH` overrides the `~/.oura-cli/oura.db` cache; `OURA_TZ` sets the timezone used for day boundaries; `NO_COLOR` (or `--no-color`) disables ANSI. The rule lives in `src/lib/color-mode.ts` and is applied by `src/lib/apply-color-mode.ts`, which **must stay the first import in `src/index.ts`**: citty decides whether to colour its help output when its module is evaluated, so a later assignment is too late (#80).
 
-## Repo Notes
+## Repo notes
 
-- `assets/*.gif` is **Git LFS**-tracked; run `git lfs install` once per clone or the demo is a pointer stub. Regenerating it needs VHS — see CONTRIBUTING.md.
+- `assets/*.gif` is Git LFS-tracked; run `git lfs install` once per clone or the demo is a pointer stub. Regenerating it needs VHS — see CONTRIBUTING.md.
 - `docs/loops/*-state.md` are memory files for scheduled agent loops, not documentation. Update the state file in the same run that produced the finding, and don't claim a blocker is resolved without evidence.
