@@ -16,13 +16,13 @@ A release is a PR that bumps `package.json` and adds a `## [x.y.z] - YYYY-MM-DD`
 
 `src/lib/` → `src/api/` → `src/collections/` → `src/db/` → `src/render/` → `src/commands/` → `src/index.ts`. Reaching *upward* is the mistake to avoid — `lib/` must not import `api/`, `api/` must not import `db/`. Text formatters live in `src/render/`: they import `db` types and write nothing to stdout.
 
-### Every user-facing data command has both output modes
+### New user-facing data commands need both output modes
 
 JSON for agents and pipes, table/text for a TTY. The existing exceptions are deliberate — `describe`, `manifest`, `healthcheck` and `fetch` are JSON-only, `login` is interactive text. Don't "fix" those. Structured output is a published contract: the JSON Schemas under `docs/schemas/` and the `describe` manifest are consumed externally, so changing a shape means updating the schema in the same PR.
 
 ### Errors that reach the CLI surface are `CliError`
 
-Use `CliError` with a documented `ErrorCode` from `src/lib/errors.ts`; a new code also needs an arm in `exitCodeFor`. The boundary is the runner in `src/commands/run-command.ts`, so a `dataCommand` cannot forget it; `login` has its own catch and `healthcheck` swallows into `{ok:false}` by design. Errors citty raises *before* a command runs (unknown command, missing positional) are translated in `src/index.ts` via `src/lib/citty-error.ts`, which also holds the hints for commands removed in 0.5.0. The runner rejects any flag a command did not declare in `args`.
+Use `CliError` with a documented `ErrorCode` from `src/lib/errors.ts`; a new code also needs an arm in `exitCodeFor`. The boundary is the runner in `src/commands/run-command.ts`, so a `dataCommand` cannot forget it; `login` has its own catch and `healthcheck` swallows into `{ok:false}` by design. Errors citty raises *before* a command runs (unknown command, missing positional) are translated in `src/index.ts` via `src/lib/citty-error.ts`, which also holds the hints for commands removed in 0.5.0. The runner rejects any flag a command did not declare in `args` as `BAD_ARGS` at runtime.
 
 ### Keep `bun.lock` in sync
 

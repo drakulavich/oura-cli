@@ -15,8 +15,8 @@ Runtime: [Bun](https://bun.sh/) >= 1.0. No Node.js fallback yet.
 
 ## Pull request expectations
 
-- **One change per PR.** Bug fixes, features, and refactors get their own branches.
-- **Tests required.** A PR that adds or changes behaviour must add a test. We use `bun test` with co-located `*.test.ts` files next to the modules they cover.
+- **One logical change per commit.** Bug fixes, features, and refactors do not share a commit. Related issues may share a PR, one commit per issue, so each fix can be read on its own.
+- **Tests required.** A PR that adds or changes behaviour must add a test. We use `bun test` with co-located `*.test.ts` files next to the modules they cover. A new test must fail under a one-line mutation of the code it pins; reviews check this by making the mutation.
 - **Match existing patterns.** New commands go under `src/commands/`; new library helpers under `src/lib/`. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the dependency rules.
 - **CHANGELOG entry.** Add a bullet under `## [Unreleased]` in `CHANGELOG.md` describing the user-visible change. Follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) categories (Added / Changed / Fixed / Removed / Security).
 
@@ -56,7 +56,7 @@ Releases are tag-driven (audit issue #1, finding 15):
 1. Bump the version in `package.json` (the CLI reads it at runtime).
 2. Add a `## [x.y.z] - YYYY-MM-DD` section to `CHANGELOG.md`.
 3. Commit on a branch and open a PR; `main` is protected, so it cannot be pushed to directly.
-4. Once it merges, fetch and tag the commit the merge produced — it has a new SHA, and `origin/main` stops pointing at it the moment anything else lands: `git fetch origin && git tag vx.y.z "$(gh pr view <n> -R drakulavich/oura-cli --json mergeCommit -q .mergeCommit.oid)" && git push origin vx.y.z`. Skip the fetch and the tag fails: the merge commit is not in your clone yet.
+4. Once it merges, fetch and tag the commit the merge produced — it has a new SHA, and `origin/main` stops pointing at it the moment anything else lands: `git fetch origin && git tag vx.y.z "$(gh pr view <n> -R drakulavich/oura-cli --json mergeCommit -q .mergeCommit.oid)" && git push origin vx.y.z`. Skip the fetch and the tag fails: the merge commit is not in your clone yet. Nothing checks the tag against `main`; the workflow builds whatever the tag points at.
 5. The `release.yml` workflow runs tests, publishes to npm (with provenance), and creates a GitHub Release whose body is the matching CHANGELOG section.
 
 If the workflow fails, fix forward — the published version is permanent. Do not re-use a tag.
