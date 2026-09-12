@@ -56,6 +56,16 @@ export function rowValues<Row>(c: Collection<Row>, row: Row): SqlValue[] {
   return c.columns.map(col => col.pick(row));
 }
 
+/**
+ * Whether a row carries every identity field. A row missing one cannot be stored under any key and
+ * its `pick`s may dereference the field (`hr` derives `day` from `timestamp`), so `sync` drops such
+ * rows before `rowValues` sees them rather than letting a TypeError take the whole run down (#106).
+ */
+export function hasIdentity(c: AnyCollection, row: unknown): boolean {
+  const r = row as Record<string, unknown> | null;
+  return r != null && c.identity.every(f => r[f.field] != null);
+}
+
 const MS_PER_DAY = 86_400_000;
 
 /**

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import { Database } from 'bun:sqlite';
-import { COLLECTIONS, ddl, insertSql, rowValues, names, byName, rangeQueries } from './index.js';
+import { COLLECTIONS, ddl, insertSql, rowValues, hasIdentity, names, byName, rangeQueries } from './index.js';
 
 describe('the activity slot count', () => {
   // The column the completeness rule reads (#74). Only the length is stored — that is all the rule
@@ -156,5 +156,20 @@ describe('rangeQueries', () => {
       if (c.maxRangeDays !== undefined) expect(Number.isInteger(c.maxRangeDays) && c.maxRangeDays > 0).toBe(true);
       if (c.dayRangeOffset) expect(c.dayRangeOffset.every(o => Number.isInteger(o) && Math.abs(o) <= 1)).toBe(true);
     }
+  });
+});
+
+describe('hasIdentity', () => {
+  // #106: `hr` derives `day` from `timestamp`, so a null timestamp threw a TypeError inside
+  // rowValues and aborted the whole sync. The guard runs first and names the row unusable instead.
+  const hr = byName('hr')!;
+  it('accepts a row that carries every identity field', () => {
+    expect(hasIdentity(hr, { timestamp: '2026-06-15T10:00:00+00:00', bpm: 70, source: 'awake' })).toBe(true);
+  });
+  it('rejects a row whose identity field is null, undefined, or not there at all', () => {
+    expect(hasIdentity(hr, { timestamp: null, bpm: 70, source: 'awake' })).toBe(false);
+    expect(hasIdentity(hr, { bpm: 70, source: 'awake' })).toBe(false);
+    expect(hasIdentity(hr, null)).toBe(false);
+    expect(() => rowValues(hr, { timestamp: null, bpm: 70, source: 'awake' } as never)).toThrow(TypeError); // what it guards
   });
 });
