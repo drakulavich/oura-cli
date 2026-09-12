@@ -199,7 +199,7 @@ export async function importDaily(
       const kept = !refuse ? ''
         : missing > 0 ? `, ${known.size} rows kept: the response held no storable rows`
         : `, ${known.size} rows kept that the API did not return — an empty answer describes nothing; re-run with --prune=${c.name} to apply it`;
-      _log(`  + ${c.name} (${c.table}): ${fetched[c.table]} fetched, ${added[c.table]} new${tail}${kept}${droppedTail}`);
+      _log(`  + ${c.name} (${c.table}): ${fetched[c.table]} fetched, ${added[c.table]} new${droppedTail}${tail}${kept}`);
       continue;
     }
     // Insert and reconcile in one transaction: the window ends up holding exactly what the API
@@ -232,7 +232,7 @@ export async function importDaily(
     const kept = windowPlan.refused > 0
       ? `, ${windowPlan.refused} rows kept that the API did not return — too many to drop on one response; re-run with --prune=${c.name} to apply them`
       : '';
-    _log(`  + ${c.name} (${c.table}): ${fetched[c.table]} fetched, ${added[c.table]} new${tail}${kept}${droppedTail}`);
+    _log(`  + ${c.name} (${c.table}): ${fetched[c.table]} fetched, ${added[c.table]} new${droppedTail}${tail}${kept}`);
   }
 
   _log('Import complete.');

@@ -89,11 +89,10 @@ function bucketLabel(b: WeekBucket): string {
  * One line explaining the `*` mark: which row is still accumulating and how far the activity averages
  * go. The monthly table has no row for a day, so there the note names the bucket that carries the mark.
  */
-function partialDayNote(data: ReportData, period: 'week' | 'month'): string | null {
+function partialDayNote(data: ReportData, bucket: WeekBucket | undefined): string | null {
   const partial = data.days.find(d => d.partial); // the rule yields at most one
   if (!partial) return null;
-  const which = period === 'month'
-    ? `the week of ${bucketDaysIntoWeeks(data.days).find(b => b.partial)!.weekOf}`
+  const which = bucket ? `the week of ${bucket.weekOf}`
     : partial.day === data.weekEnd ? 'today' : partial.dayLabel;
   const covers = data.completeThrough ? `through ${data.completeThrough}` : 'no complete day yet';
   return `  * ${which} is still accumulating; activity averages cover ${covers}.`;
@@ -112,7 +111,8 @@ export function formatReport(data: ReportData, format: OutputFormat, period: 'we
     lines.push(chalk.bold('  Oura Monthly Report'));
   }
   lines.push(chalk.gray(`  ${data.weekStart} — ${data.weekEnd}`));
-  const note = partialDayNote(data, period);
+  const buckets = period === 'month' ? bucketDaysIntoWeeks(data.days) : [];
+  const note = partialDayNote(data, buckets.find(b => b.partial));
   if (note) lines.push(chalk.yellow(note));
   lines.push('');
 
@@ -138,7 +138,6 @@ export function formatReport(data: ReportData, format: OutputFormat, period: 'we
     lines.push('');
   } else {
     // Monthly — weekly buckets table
-    const buckets = bucketDaysIntoWeeks(data.days);
     lines.push(chalk.bold('  Last 30 Days:'));
     // 21: a labelled stub is up to 20 characters, "2026-08-13 (2 days)*".
     lines.push(chalk.gray('  ' + '─'.repeat(69)));
