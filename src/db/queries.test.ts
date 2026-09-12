@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import { ensureSchema } from './open.js';
 import { getDaySummary, getStats, getTrends } from './queries.js';
+import { dayCompleteness } from './day-complete.js';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { unlinkSync } from 'fs';
@@ -29,7 +30,7 @@ afterAll(() => {
 describe('getDaySummary', () => {
   describe('when data exists for the requested date', () => {
     it('returns the sleep score, activity score, and step count for that day', () => {
-      const summary = getDaySummary(db, '2026-03-01', '2026-03-05');
+      const summary = getDaySummary(db, '2026-03-01', dayCompleteness(db, '2026-03-05'));
 
       expect(summary.sleep_score).toBe(82);
       expect(summary.activity_score).toBe(90);
@@ -39,7 +40,7 @@ describe('getDaySummary', () => {
 
   describe('when no data exists for the requested date', () => {
     it('returns null scores so callers can distinguish missing data from a zero score', () => {
-      const summary = getDaySummary(db, '2099-01-01', '2026-03-05');
+      const summary = getDaySummary(db, '2099-01-01', dayCompleteness(db, '2026-03-05'));
 
       expect(summary.sleep_score).toBeNull();
     });

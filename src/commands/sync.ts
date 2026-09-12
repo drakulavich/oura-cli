@@ -1,6 +1,7 @@
 import { importDaily } from '../db/sync.js';
 import type { SyncWindow, SyncOptions } from '../db/sync.js';
 import { getDaySummary } from '../db/queries.js';
+import { dayCompleteness } from '../db/day-complete.js';
 import { formatDaySummary, formatImportSummary } from '../render/format.js';
 import { CliError } from '../lib/errors.js';
 import { assertCalendarDate } from '../lib/validate.js';
@@ -67,7 +68,7 @@ export async function runSync(ctx: Ctx, window: SyncWindow = {}, options: SyncOp
   const lines: string[] = [];
   const log = ctx.format === 'table' ? (m: string) => lines.push(m) : undefined;
   const importResult = await importDaily(ctx.db!, ctx.client!, { today: ctx.today, tz: ctx.tz }, log, window, options);
-  const today = getDaySummary(ctx.db!, ctx.today, ctx.today);
+  const today = getDaySummary(ctx.db!, ctx.today, dayCompleteness(ctx.db!, ctx.today));
   return {
     json: { import: importResult, today },
     text: () => [...lines, formatImportSummary(importResult), formatDaySummary(today, 'table')].join('\n'),

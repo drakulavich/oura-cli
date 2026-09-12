@@ -9,6 +9,7 @@ import { buildManifest } from './describe.js';
 import { CliError } from '../lib/errors.js';
 import { ensureSchema } from '../db/open.js';
 import { getDaySummary } from '../db/queries.js';
+import { dayCompleteness } from '../db/day-complete.js';
 import { formatDaySummary } from '../render/format.js';
 import { OuraClient } from '../api/client.js';
 import { execute, type Ctx, type Output, type RunnerIo } from './run-command.js';
@@ -377,7 +378,7 @@ describe('runSync', () => {
       installFetch(todayFixture());
       const { out, db } = await runSyncFor('table');
 
-      const summary = getDaySummary(db, TODAY, TODAY);
+      const summary = getDaySummary(db, TODAY, dayCompleteness(db, TODAY));
       db.close();
 
       expect(out.text().endsWith(formatDaySummary(summary, 'table'))).toBe(true);

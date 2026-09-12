@@ -3,7 +3,7 @@ import { Database } from 'bun:sqlite';
 import { ensureSchema } from './open.js';
 import { getReport } from './report.js';
 import { getDaySummary, getTrends } from './queries.js';
-import { SLOTS_PER_DAY } from './day-complete.js';
+import { SLOTS_PER_DAY, dayCompleteness } from './day-complete.js';
 import { daysBack } from '../lib/time.js';
 
 // #75: the same seven days used to give three different answers — `report` cut the day in progress
@@ -32,7 +32,7 @@ describe('report, trends and the week table on one cache', () => {
 
     const report = getReport(db, 7, TODAY);
     const trends = getTrends(db, 7, TODAY);
-    const week = daysBack(TODAY, 7).map(d => getDaySummary(db, d, TODAY));
+    const week = daysBack(TODAY, 7).map(d => getDaySummary(db, d, dayCompleteness(db, TODAY)));
     db.close();
 
     // `report`: today marked, averages stop at yesterday.
@@ -65,7 +65,7 @@ describe('report, trends and the week table on one cache', () => {
 
     const report = getReport(db, 7, TODAY);
     const trends = getTrends(db, 7, TODAY);
-    const week = daysBack(TODAY, 7).map(d => getDaySummary(db, d, TODAY));
+    const week = daysBack(TODAY, 7).map(d => getDaySummary(db, d, dayCompleteness(db, TODAY)));
     db.close();
 
     expect(report.days.filter(d => d.partial)).toEqual([]);
