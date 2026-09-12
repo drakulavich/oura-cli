@@ -546,6 +546,25 @@ describe('rows without an identity', () => {
     expect(log.find(l => l.includes('(heartrate)'))).toContain('3 fetched, 2 new, 1 dropped (no timestamp/source)'); // the unique index, i.e. what the table keys on
   });
 
+  it('drops a sample whose timestamp is a number or an empty string instead of throwing', async () => {
+    // S2: `20260305` passed the null check and met `.slice`; `''` would have sorted below every stored
+    // timestamp and widened the reconciliation piece to the whole table.
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const client = {
+      fetch: async (endpoint: OuraEndpoint) => endpoint === 'heartrate' ? [
+        { bpm: 60, source: 'awake', timestamp: 20260305 },
+        { bpm: 61, source: 'awake', timestamp: '' },
+        { bpm: 62, source: 'awake', timestamp: '2026-06-15T10:05:00+00:00' },
+      ] : [],
+    } as unknown as OuraClient;
+    const result = await importDaily(db, client, { today: '2026-06-15', tz: 'UTC' });
+    const stored = (db.query('SELECT COUNT(*) AS n FROM heartrate').get() as { n: number }).n;
+    db.close();
+    expect(stored).toBe(1);
+    expect(result.dropped).toEqual({ heartrate: 2 });
+  });
+
   it('reports no dropped table when every row is whole', async () => {
     const db = new Database(':memory:');
     ensureSchema(db);
@@ -608,7 +627,9 @@ describe('an empty response to a snapshot collection', () => {
       expect(n).toBe(1);
       expect(result.fetched.ring_configuration).toBe(1);
       expect(result.dropped.ring_configuration).toBe(1);
-      expect(result.refused.ring_configuration).toEqual({ rows: 1, collection: 'ring' });
+      // Not `refused`: that field means "kept, and --prune would apply it", and here there is nothing
+      // to apply. `dropped` carries the explanation (exploratory session S2 before 0.7.1).
+      expect(result.refused).toEqual({});
       expect(result.pruned).toEqual({});
       expect(line).toContain('1 rows kept: the response held no storable rows');
       expect(line).not.toContain('--prune');

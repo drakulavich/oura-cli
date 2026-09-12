@@ -74,15 +74,22 @@ export function identityColumns(c: AnyCollection): readonly string[] {
 }
 
 /**
- * Whether a row can be stored: every column the table keys it by (`identityColumns`) picks a value.
- * Not `c.identity`, which is the manifest's description of the API row and names `id` for the daily
- * summaries even though the table keys them by `day`. A row that fails this has nowhere to go, and
- * its other `pick`s may dereference the missing field (`hr` derives `day` from `timestamp`), so
- * `sync` drops it before `rowValues` sees it rather than letting a TypeError take the run down (#106).
+ * Whether a row can be stored: every column the table keys it by (`identityColumns`) picks a value
+ * of the type that column holds. Not `c.identity`, which is the manifest's description of the API
+ * row and names `id` for the daily summaries even though the table keys them by `day`. Type, not
+ * just presence: a numeric timestamp passes `!= null` and then meets `.slice` in hr's `day` pick,
+ * and an empty-string timestamp sorts below every real one, so a reconciliation piece holding it
+ * would claim to describe the whole table. A row that fails this has nowhere to go, and its other
+ * `pick`s may dereference the missing field, so `sync` drops it before `rowValues` sees it rather
+ * than letting a TypeError take the run down (#106).
  */
 export function hasIdentity(c: AnyCollection, row: unknown): boolean {
-  if (row == null) return false;
-  return identityColumns(c).every(name => c.columns.find(col => col.name === name)?.pick(row) != null);
+  if (row == null || typeof row !== 'object') return false;
+  return identityColumns(c).every(name => {
+    const col = c.columns.find(k => k.name === name);
+    const v = col?.pick(row);
+    return col?.type === 'TEXT' ? typeof v === 'string' && v !== '' : typeof v === 'number' && Number.isFinite(v);
+  });
 }
 
 const MS_PER_DAY = 86_400_000;
