@@ -48,7 +48,7 @@ export const dbCommand = defineCommand({
       run(ctx, args) {
         const n = args.days === undefined ? 30 : assertPositiveInt(String(args.days), '<days>');
         const trends = getTrends(ctx.db!, n, ctx.today);
-        return { json: trends, text: () => formatTrends(trends, n, 'table') };
+        return { json: trends, text: () => formatTrends(trends, n, 'table', 'Run `oura-cli sync`, then `oura-cli db trends` again.') };
       },
     }),
 
@@ -57,7 +57,7 @@ export const dbCommand = defineCommand({
       needs: { db: true },
       run(ctx) {
         const stats = getStats(ctx.db!, ctx.today);
-        return { json: stats, text: () => formatStats(stats, 'table') };
+        return { json: stats, text: () => formatStats(stats, 'table', 'Run `oura-cli sync`, then `oura-cli db stats` again.') };
       },
     }),
   },

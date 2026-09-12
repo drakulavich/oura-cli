@@ -132,7 +132,7 @@ export function formatWeekTable(days: DaySummary[], format: OutputFormat, emptyH
   return ['\n  Last 7 Days', sep, `  ${header}`, sep, ...rows.map(r => `  ${r}`), ...note].join('\n');
 }
 
-export function formatTrends(trends: TrendRow[], days: number, format: OutputFormat): string {
+export function formatTrends(trends: TrendRow[], days: number, format: OutputFormat, emptyHint?: string): string {
   if (format === 'json') return JSON.stringify(trends, null, 2);
 
   const lines = [
@@ -140,13 +140,15 @@ export function formatTrends(trends: TrendRow[], days: number, format: OutputFor
     chalk.bold(`  Trends: last ${days} days`),
     chalk.gray('─'.repeat(50)),
   ];
+  // A header over nothing read like a crash (#85); say what is missing, as the day and week views do.
+  if (emptyHint && trends.length === 0) lines.push(`  No Oura data in the last ${days} days yet.`, `  ${emptyHint}`);
   for (const t of trends) {
     lines.push(`  ${t.label.padEnd(15)} avg: ${String(t.avg).padStart(5)}  min: ${String(t.min).padStart(5)}  max: ${String(t.max).padStart(5)}  (${t.count} days)`);
   }
   return lines.join('\n');
 }
 
-export function formatStats(stats: DbStats, format: OutputFormat): string {
+export function formatStats(stats: DbStats, format: OutputFormat, emptyHint?: string): string {
   if (format === 'json') return JSON.stringify(stats, null, 2);
 
   const lines = [
@@ -154,6 +156,10 @@ export function formatStats(stats: DbStats, format: OutputFormat): string {
     chalk.bold('  Database Statistics'),
     chalk.gray('═'.repeat(50)),
   ];
+  // Seventeen lines of "0 rows" said the same thing less clearly (#85).
+  if (emptyHint && stats.tables.every(t => t.rows === 0)) {
+    return [...lines, '  No Oura data in the database yet.', `  ${emptyHint}`].join('\n');
+  }
   for (const t of stats.tables) {
     lines.push(`  ${t.table.padEnd(22)} ${String(t.rows).padStart(8)} rows`);
   }

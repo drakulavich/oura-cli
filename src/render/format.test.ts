@@ -544,10 +544,17 @@ describe('formatTrends', () => {
     expect(out).toContain('Readiness');
   });
 
-  it('renders only the header when there are no trends', () => {
+  it('renders only the header when there are no trends and no hint was given', () => {
     const out = stripAnsi(formatTrends([], 14, 'table'));
     expect(out).toContain('Trends: last 14 days');
     expect(out).not.toContain('avg:');
+  });
+
+  it('explains an empty window and repeats the hint, like the day and week views (#85)', () => {
+    const out = stripAnsi(formatTrends([], 14, 'table', 'Run sync first.'));
+    expect(out).toContain('No Oura data in the last 14 days yet.');
+    expect(out).toContain('Run sync first.');
+    expect(stripAnsi(formatTrends(trends, 14, 'table', 'Run sync first.'))).not.toContain('Run sync first.');
   });
 });
 
@@ -571,6 +578,18 @@ describe('formatStats', () => {
   it('returns pretty-printed JSON when format is json', () => {
     const stats = makeStats();
     expect(formatStats(stats, 'json')).toBe(JSON.stringify(stats, null, 2));
+  });
+
+  it('replaces an all-zero table with one line and the hint, but only when a hint was given (#85)', () => {
+    const empty = makeStats({ tables: [{ table: 'daily_sleep', rows: 0 }, { table: 'daily_activity', rows: 0 }],
+      dateRange: { first: null, last: null }, trends: [], records: { mostSteps: null, bestSleep: null } });
+    const out = stripAnsi(formatStats(empty, 'table', 'Run sync first.'));
+    expect(out).toContain('Database Statistics');
+    expect(out).toContain('No Oura data in the database yet.');
+    expect(out).toContain('Run sync first.');
+    expect(out).not.toContain('0 rows');
+    expect(stripAnsi(formatStats(empty, 'table'))).toMatch(/daily_sleep\s+0 rows/);
+    expect(stripAnsi(formatStats(makeStats(), 'table', 'Run sync first.'))).not.toContain('Run sync first.');
   });
 
   it('renders a row for every table with its row count', () => {
