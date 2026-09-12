@@ -15,11 +15,22 @@ function seeded(): Database {
   return db;
 }
 
+/**
+ * A request wide enough to cover any row these tests use, so a piece's scope is decided by what it
+ * returned, as it was before #111 clipped scopes to the request. The clipping has its own tests below.
+ */
+function anyRange(c: AnyCollection): Record<string, string> {
+  return c.rangeParams === 'datetime'
+    ? { start_datetime: '2000-01-01T00:00:00.000Z', end_datetime: '2100-01-01T00:00:00.000Z' }
+    : { start_date: '2000-01-01', end_date: '2100-01-01' };
+}
+
 /** What `sync` does for one collection: plan, insert, delete — all in one transaction. */
-function syncPieces(db: Database, c: AnyCollection, pieces: unknown[][], options: PlanOptions = {}): { added: number; removed: number; refused: number; bypassed: number } {
+function syncPieces(db: Database, c: AnyCollection, rowsPerPiece: unknown[][], options: PlanOptions = {}): { added: number; removed: number; refused: number; bypassed: number } {
   const stmt = db.query(insertSql(c));
+  const pieces = rowsPerPiece.map(rows => ({ query: anyRange(c), rows }));
   const plan = planWindow(db, c, pieces, options);
-  for (const row of pieces.flat()) stmt.run(...rowValues(c, row));
+  for (const row of rowsPerPiece.flat()) stmt.run(...rowValues(c, row));
   return { added: plan.added, removed: applyWindowPlan(db, c, plan), refused: plan.refused, bypassed: plan.bypassed };
 }
 
@@ -311,5 +322,62 @@ describe('a response that looks truncated', () => {
     db.close();
     expect(result).toEqual({ added: 0, removed: 0, refused: 0, bypassed: 0 });
     expect(count).toBe(1);
+  });
+});
+
+describe('a piece vouches only for the range its request asked for (#111)', () => {
+  // Found by exploratory session S2 before 0.7.1: a piece's scope was `BETWEEN min AND max` over the
+  // rows that came back, so one returned timestamp earlier than the request reached back over every
+  // stored sample between them. 60 stored, one stray: 59 refused, with the log naming the flag that
+  // would delete them.
+  const at = (day: string, minute: number) => ({
+    timestamp: `2026-03-${day}T10:${String(minute).padStart(2, '0')}:00+00:00`, bpm: 60, source: 'awake',
+  });
+  const dayOf = (day: string) => Array.from({ length: 15 }, (_, i) => at(day, i));
+  const request = (day: string) => ({ start_datetime: `2026-03-${day}T00:00:00.000Z`, end_datetime: `2026-03-${day}T23:59:59.999Z` });
+  function withFourDays(): Database {
+    const db = seeded();
+    syncWindow(db, hr, [...dayOf('01'), ...dayOf('02'), ...dayOf('03'), ...dayOf('04')]);
+    return db;
+  }
+
+  it('does not let a returned timestamp earlier than the request widen the scope over stored rows', () => {
+    const db = withFourDays();
+    const stray = { timestamp: '2026-01-01T00:00:00+00:00', bpm: 1, source: 'awake' };
+    const plan = planWindow(db, hr, [{ query: request('04'), rows: [...dayOf('04'), stray] }]);
+    db.close();
+    expect(plan.stale).toEqual([]);   // the 45 samples of 03-01..03 were never in scope
+    expect(plan.refused).toBe(0);
+    expect(plan.added).toBe(1);       // the stray is still new, and still gets inserted
+  });
+
+  it('keeps an empty-string or unparsable timestamp out of the scope', () => {
+    const db = withFourDays();
+    // Two real samples bound the scope (a single one covers only itself); the empty string must not
+    // stretch it downwards over the three earlier days.
+    const plan = planWindow(db, hr, [{ query: request('04'), rows: [{ timestamp: '', bpm: 1, source: 'awake' }, at('04', 0), at('04', 14)] }]);
+    db.close();
+    // Only 10:00..10:14 of 03-04 is in scope: the 13 unreturned samples between them, nothing else.
+    expect(plan.stale.length + plan.refused).toBe(13);
+    expect(plan.stale.every(([timestamp]) => String(timestamp).startsWith('2026-03-04'))).toBe(true);
+  });
+
+  it('gives a piece whose query carries no bounds nothing to vouch for', () => {
+    const db = withFourDays();
+    const plan = planWindow(db, hr, [{ query: {}, rows: [at('04', 0)] }]);
+    db.close();
+    expect(plan.stale).toEqual([]);
+    expect(plan.refused).toBe(0);
+  });
+
+  it('does not let a stray day in a date piece reach that day\'s stored siblings', () => {
+    // Day-scoped collections clip too: a workout returned for a day outside the request must not put
+    // that day's other stored workouts up for deletion.
+    const w = (id: string, day: string) => ({ id, day, start_datetime: `${day}T08:00:00+00:00`, end_datetime: `${day}T09:00:00+00:00`, calories: 100, distance: 1000, label: null, source: 'manual' });
+    const db = seeded();
+    syncWindow(db, workout, [w('w1', '2026-02-01'), w('w2', '2026-02-01'), w('w3', '2026-02-01')]);
+    const plan = planWindow(db, workout, [{ query: { start_date: '2026-03-04', end_date: '2026-03-05' }, rows: [w('w-stray', '2026-02-01')] }]);
+    db.close();
+    expect(plan.stale).toEqual([]);
   });
 });

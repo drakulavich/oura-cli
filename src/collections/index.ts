@@ -146,17 +146,27 @@ export function rangeQueries(c: AnyCollection, start: string, end: string, tz: s
  * own slice of time, and a caller reconciling the cache against the API must not let one piece's
  * bounds vouch for a slice another piece was supposed to describe (#91).
  */
-export async function fetchCollectionByPiece(client: OuraClient, c: AnyCollection, start: string, end: string, tz: string): Promise<unknown[][]> {
-  const pieces: unknown[][] = [];
+/**
+ * One request's worth of a range: the query that was sent and the rows that came back. The query
+ * travels with the rows because reconciliation may only vouch for the range a request asked for,
+ * not for whatever bounds the response happened to have (#111).
+ */
+export interface Piece {
+  query: Record<string, string>;
+  rows: unknown[];
+}
+
+export async function fetchCollectionByPiece(client: OuraClient, c: AnyCollection, start: string, end: string, tz: string): Promise<Piece[]> {
+  const pieces: Piece[] = [];
   for (const query of rangeQueries(c, start, end, tz)) {
-    pieces.push(await client.fetch<unknown>(c.endpoint, query));
+    pieces.push({ query, rows: await client.fetch<unknown>(c.endpoint, query) });
   }
   return pieces;
 }
 
 /** Every row of `c` for the inclusive local-day range [start, end] in `tz`, across range pieces and pages. */
 export async function fetchCollection(client: OuraClient, c: AnyCollection, start: string, end: string, tz: string): Promise<unknown[]> {
-  return (await fetchCollectionByPiece(client, c, start, end, tz)).flat();
+  return (await fetchCollectionByPiece(client, c, start, end, tz)).flatMap(p => p.rows);
 }
 
 export function jsonSchema(c: AnyCollection): Record<string, unknown> {
