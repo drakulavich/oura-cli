@@ -7,6 +7,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Fixed
+- A malformed response body from the Oura API is now an `API_ERROR` (exit 3) naming the endpoint and what came back, instead of an `UNKNOWN` with an internal expression. `sync` and `fetch` walked whatever sat under `data`: an object failed with `{} is not iterable`, and a string was iterated character by character and reported as dropped samples that never existed. A missing or null `data` is still an empty page. (#112)
 - A `sync` response that includes a row from outside the window it was asked for no longer widens that request's reconciliation scope. The scope of one request was taken from the timestamps that came back, so a single early or empty-string timestamp reached back over every stored sample between it and the window: on a 60-sample cache one stray value put 59 rows up as "not returned", with the truncation guard's own message naming the `--prune=hr` flag that would have deleted them. Each request now carries the range it asked for and only rows inside it count towards the scope; rows outside are still stored, they just vouch for nothing. (#111)
 
 ## [0.7.1] - 2026-09-12

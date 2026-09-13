@@ -3,6 +3,13 @@ import { resolveToken } from './token.js';
 import type { OuraEndpoint } from './types.js';
 
 const BASE_URL = 'https://api.ouraring.com/v2/usercollection';
+
+/** For an error message: what a JSON value is, without printing it (bodies can be large or sensitive). */
+function kindOf(value: unknown): string {
+  if (value === null) return 'null';
+  if (Array.isArray(value)) return 'an array';
+  return typeof value === 'object' ? 'an object' : `a ${typeof value}`;
+}
 /** Pages of 1000 rows: ~35 heartrate pages per month, so this bounds a runaway `next_token` stream, not real data. */
 const MAX_PAGES = 10_000;
 
@@ -41,7 +48,7 @@ export class OuraClient {
       }
       const params = new URLSearchParams(query);
       if (nextToken) params.set('next_token', nextToken);
-      const page: { data: T[]; next_token: string | null } = await this.getPage(`${BASE_URL}/${endpoint}?${params}`);
+      const page: { data: T[]; next_token: string | null } = await this.getPage(endpoint, `${BASE_URL}/${endpoint}?${params}`);
       for (const row of page.data) rows.push(row);
       nextToken = page.next_token;
       if (nextToken && seenTokens.has(nextToken)) {
@@ -52,7 +59,7 @@ export class OuraClient {
     return rows;
   }
 
-  private async getPage<T>(url: string): Promise<{ data: T[]; next_token: string | null }> {
+  private async getPage<T>(endpoint: OuraEndpoint, url: string): Promise<{ data: T[]; next_token: string | null }> {
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${this.token}` },
     });
@@ -73,7 +80,16 @@ export class OuraClient {
     } catch {
       throw new CliError('API_ERROR', 'Empty response body from Oura API.');
     }
-    const body = json as { data?: T[]; next_token?: string | null };
-    return { data: body.data ?? [], next_token: body.next_token ?? null };
+    // The shape is Oura's promise, not ours. A body that is not an object, or carries something other
+    // than an array under `data`, is an API fault and must not be walked as rows: a string there was
+    // iterated per character and reported as dropped samples that never existed (#112).
+    const body = json as { data?: unknown; next_token?: unknown } | null;
+    if (body === null || typeof body !== 'object' || Array.isArray(body)) {
+      throw new CliError('API_ERROR', `Oura API returned a malformed body for ${endpoint}: expected an object, got ${kindOf(body)}.`);
+    }
+    if (body.data != null && !Array.isArray(body.data)) {
+      throw new CliError('API_ERROR', `Oura API returned a malformed body for ${endpoint}: expected an array under "data", got ${kindOf(body.data)}.`);
+    }
+    return { data: (body.data as T[] | null | undefined) ?? [], next_token: typeof body.next_token === 'string' ? body.next_token : null };
   }
 }
