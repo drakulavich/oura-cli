@@ -2,6 +2,7 @@ import { OuraClient } from '../api/client.js';
 import { byName, fetchCollection, names } from '../collections/index.js';
 import type { AnyCollection } from '../collections/types.js';
 import { CliError } from '../lib/errors.js';
+import { pageProgress } from '../lib/progress.js';
 import { shiftDay } from '../lib/time.js';
 import { assertCalendarDate, assertPositiveInt } from '../lib/validate.js';
 import { dataCommand } from './run-command.js';
@@ -54,8 +55,17 @@ export const fetchCommand = dataCommand({
     };
     assertRangeAllowed(c, opts);
     const { start, end } = resolveRange({ ...opts, today: ctx.today });
-    const client = new OuraClient(args.token ? { token: args.token as string } : {});
-    const data = await fetchCollection(client, c, start, end, ctx.tz);
-    return { json: data, text: () => JSON.stringify(data, null, 2) };
+    // Progress only when someone is watching: on a pipe stderr carries the error envelope (#45).
+    const progress = process.stderr.isTTY ? pageProgress(process.stderr, `fetching ${c.name}`) : undefined;
+    const client = new OuraClient({
+      ...(args.token ? { token: args.token as string } : {}),
+      ...(progress ? { onPage: progress.onPage } : {}),
+    });
+    try {
+      const data = await fetchCollection(client, c, start, end, ctx.tz);
+      return { json: data, text: () => JSON.stringify(data, null, 2) };
+    } finally {
+      progress?.done();
+    }
   },
 });

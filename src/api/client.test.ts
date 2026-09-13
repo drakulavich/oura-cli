@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
-import { OuraClient } from './client.js';
+import { OuraClient, retryDelayMs, MAX_RETRY_AFTER_MS, RETRY_LIMIT } from './client.js';
 import { CliError } from '../lib/errors.js';
 
 const realFetch = globalThis.fetch;
@@ -142,12 +142,13 @@ describe('OuraClient', () => {
     });
 
     describe('on 429 Rate Limit', () => {
-      it('throws API_ERROR so the caller can surface a retry message', async () => {
+      it('throws API_ERROR with a retry hint once the retries are spent', async () => {
         mockFetch({ status: 429, body: 'rate limited' });
-        const client = new OuraClient();
+        const client = new OuraClient({ sleep: async () => {} }); // the retries (#45) would otherwise wait 7 s here
         const err = await client.fetch('daily_sleep', { start_date: '2026-05-10' }).catch(e => e);
         expect(err).toBeInstanceOf(CliError);
         expect((err as CliError).code).toBe('API_ERROR');
+        expect((err as CliError).hint).toContain('Rate limited');
       });
     });
 
@@ -303,5 +304,98 @@ describe('a malformed response body (#112)', () => {
     expect(err.code).toBe('API_ERROR');
     expect(err.message).toContain('next_token');
     expect(err.message).toContain('a number');
+  });
+});
+
+describe('rate limiting and progress (#45)', () => {
+  beforeEach(() => { process.env.OURA_TOKEN = 'test-token'; });
+  afterEach(() => { globalThis.fetch = realFetch; delete process.env.OURA_TOKEN; });
+
+  /** Serves `answers` in order (a 429 with optional Retry-After, or a 200 page) and records every URL. */
+  function serve(answers: Array<{ status: 429; retryAfter?: string } | { status: 200; data: unknown[]; next_token?: string | null }>): string[] {
+    const urls: string[] = [];
+    globalThis.fetch = (async (url: unknown) => {
+      urls.push(String(url));
+      const a = answers[urls.length - 1] ?? { status: 200, data: [] };
+      if (a.status === 429) {
+        return new Response('{"detail":"Too Many Requests"}', { status: 429, headers: a.retryAfter === undefined ? {} : { 'Retry-After': a.retryAfter } });
+      }
+      return new Response(JSON.stringify({ data: a.data, next_token: a.next_token ?? null }), { status: 200 });
+    }) as unknown as typeof globalThis.fetch;
+    return urls;
+  }
+  function recorder(): { waits: number[]; sleep: (ms: number) => Promise<void> } {
+    const waits: number[] = [];
+    return { waits, sleep: async ms => { waits.push(ms); } };
+  }
+
+  it('retries the same page after a 429 and returns the rows the retry brings', async () => {
+    const urls = serve([{ status: 429 }, { status: 200, data: [1, 2] }]);
+    const { waits, sleep } = recorder();
+    const rows = await new OuraClient({ sleep }).fetch('daily_sleep', { start_date: '2026-05-01' });
+    expect(rows).toEqual([1, 2]);
+    expect(urls).toHaveLength(2);
+    expect(urls[0]).toBe(urls[1]);
+    expect(waits).toEqual([1_000]);
+  });
+
+  it('keeps the pagination cursor on the retried page', async () => {
+    const urls = serve([
+      { status: 200, data: [1], next_token: 'p2' },
+      { status: 429, retryAfter: '3' },
+      { status: 200, data: [2] },
+    ]);
+    const { waits, sleep } = recorder();
+    const rows = await new OuraClient({ sleep }).fetch('daily_sleep', { start_date: '2026-05-01' });
+    expect(rows).toEqual([1, 2]);
+    expect(urls.map(u => new URL(u).searchParams.get('next_token'))).toEqual([null, 'p2', 'p2']);
+    expect(waits).toEqual([3_000]);
+  });
+
+  it('waits what Retry-After asks for, in seconds or as an HTTP date, never longer than a minute', () => {
+    const now = Date.parse('2026-09-13T10:00:00Z');
+    expect(retryDelayMs('7', 0, now)).toBe(7_000);
+    expect(retryDelayMs('Sun, 13 Sep 2026 10:00:30 GMT', 0, now)).toBe(30_000);
+    expect(retryDelayMs('600', 0, now)).toBe(MAX_RETRY_AFTER_MS);
+    expect(retryDelayMs('Sun, 13 Sep 2026 11:00:00 GMT', 0, now)).toBe(MAX_RETRY_AFTER_MS);
+  });
+
+  it('falls back to a doubling backoff without a usable Retry-After', () => {
+    expect([null, 'soon', 'Sun, 13 Sep 2026 09:00:00 GMT', '0', '-5'].map(h => retryDelayMs(h, 0, Date.parse('2026-09-13T10:00:00Z')))).toEqual([1_000, 1_000, 1_000, 1_000, 1_000]);
+    expect([0, 1, 2, 9].map(attempt => retryDelayMs(null, attempt))).toEqual([1_000, 2_000, 4_000, 4_000]);
+  });
+
+  it('gives up after RETRY_LIMIT retries with an API_ERROR that says so', async () => {
+    const urls = serve([{ status: 429 }, { status: 429 }, { status: 429 }, { status: 429 }, { status: 200, data: [1] }]);
+    const { waits, sleep } = recorder();
+    const err = await new OuraClient({ sleep }).fetch('daily_sleep', { start_date: '2026-05-01' }).catch(e => e as unknown);
+    expect(err).toBeInstanceOf(CliError);
+    expect((err as CliError).code).toBe('API_ERROR');
+    expect((err as CliError).message).toBe('Oura API 429: {"detail":"Too Many Requests"}');
+    expect((err as CliError).hint).toContain(`retried ${RETRY_LIMIT} times`);
+    expect(urls).toHaveLength(1 + RETRY_LIMIT);
+    expect(waits).toEqual([1_000, 2_000, 4_000]);
+  });
+
+  it('does not retry other failures, and still reads 401 as TOKEN_INVALID', async () => {
+    mockFetch({ status: 500, body: 'boom' });
+    const { waits, sleep } = recorder();
+    const err = await new OuraClient({ sleep }).fetch('daily_sleep', { start_date: '2026-05-01' }).catch(e => e as unknown);
+    expect((err as CliError).code).toBe('API_ERROR');
+    expect(waits).toEqual([]);
+  });
+
+  it('reports every page as it arrives, with the rows it carried', async () => {
+    serve([
+      { status: 200, data: [1, 2], next_token: 'p2' },
+      { status: 429 },
+      { status: 200, data: [], next_token: 'p3' },
+      { status: 200, data: [3] },
+    ]);
+    const seen: Array<{ endpoint: string; rows: number }> = [];
+    const client = new OuraClient({ sleep: async () => {}, onPage: p => seen.push(p) });
+    await client.fetch('heartrate', { start_datetime: 'a', end_datetime: 'b' });
+    // A 429 is not a page; the retry that succeeds is.
+    expect(seen).toEqual([{ endpoint: 'heartrate', rows: 2 }, { endpoint: 'heartrate', rows: 0 }, { endpoint: 'heartrate', rows: 1 }]);
   });
 });

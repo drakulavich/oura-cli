@@ -13,15 +13,53 @@ function kindOf(value: unknown): string {
 /** Pages of 1000 rows: ~35 heartrate pages per month, so this bounds a runaway `next_token` stream, not real data. */
 const MAX_PAGES = 10_000;
 
+/**
+ * How many `429 Too Many Requests` answers one page absorbs before the command fails. A long
+ * `fetch hr` is hundreds of sequential requests, and a single 429 used to end it with nothing to
+ * show for the pages already fetched (#45).
+ */
+export const RETRY_LIMIT = 3;
+/** The longest single wait, whatever `Retry-After` asks for: past a minute the user should decide. */
+export const MAX_RETRY_AFTER_MS = 60_000;
+const BACKOFF_MS = [1_000, 2_000, 4_000] as const;
+
+/**
+ * Milliseconds to wait before retry number `attempt` (0-based). `Retry-After` may be seconds or an
+ * HTTP date; anything else, or nothing, falls back to a doubling backoff.
+ */
+export function retryDelayMs(retryAfter: string | null, attempt: number, now = Date.now()): number {
+  let ms = Number.NaN;
+  if (retryAfter !== null) {
+    const seconds = Number(retryAfter);
+    ms = Number.isFinite(seconds) ? seconds * 1_000 : Date.parse(retryAfter) - now;
+  }
+  if (!Number.isFinite(ms) || ms <= 0) ms = BACKOFF_MS[Math.min(attempt, BACKOFF_MS.length - 1)]!;
+  return Math.min(ms, MAX_RETRY_AFTER_MS);
+}
+
+export interface PageEvent {
+  endpoint: OuraEndpoint;
+  /** Rows on this page. */
+  rows: number;
+}
+
 export interface OuraClientOptions {
   tokenPath?: string;
   token?: string;
+  /** Called as each page arrives; `fetch` uses it to show progress on a terminal (#45). */
+  onPage?: (page: PageEvent) => void;
+  /** Waits before a retry. Injectable so tests do not sleep. */
+  sleep?: (ms: number) => Promise<void>;
 }
 
 export class OuraClient {
   private token: string;
+  private onPage: ((page: PageEvent) => void) | undefined;
+  private sleep: (ms: number) => Promise<void>;
 
   constructor(options: OuraClientOptions = {}) {
+    this.onPage = options.onPage;
+    this.sleep = options.sleep ?? (ms => new Promise(resolve => setTimeout(resolve, ms)));
     const { token, source } = resolveToken(options.token, options.tokenPath);
     if (!token) {
       throw new CliError('TOKEN_MISSING', `No Oura access token at ${source}.`, 'Run `oura-cli login` or set OURA_TOKEN.');
@@ -49,6 +87,7 @@ export class OuraClient {
       const params = new URLSearchParams(query);
       if (nextToken) params.set('next_token', nextToken);
       const page: { data: T[]; next_token: string | null } = await this.getPage(endpoint, `${BASE_URL}/${endpoint}?${params}`);
+      this.onPage?.({ endpoint, rows: page.data.length });
       for (const row of page.data) rows.push(row);
       nextToken = page.next_token;
       if (nextToken && seenTokens.has(nextToken)) {
@@ -60,9 +99,13 @@ export class OuraClient {
   }
 
   private async getPage<T>(endpoint: OuraEndpoint, url: string): Promise<{ data: T[]; next_token: string | null }> {
-    const response = await fetch(url, {
-      headers: { Authorization: `Bearer ${this.token}` },
-    });
+    let response = await fetch(url, { headers: { Authorization: `Bearer ${this.token}` } });
+    // The same page again after the wait the API asked for: a 429 is the API pacing us, not refusing us.
+    for (let attempt = 0; response.status === 429 && attempt < RETRY_LIMIT; attempt++) {
+      await response.body?.cancel(); // the 429 body is not read; release the stream rather than hold it to GC
+      await this.sleep(retryDelayMs(response.headers.get('retry-after'), attempt));
+      response = await fetch(url, { headers: { Authorization: `Bearer ${this.token}` } });
+    }
 
     if (!response.ok) {
       const rawBody = await response.text();
@@ -70,6 +113,9 @@ export class OuraClient {
       const body = redacted.length > 200 ? redacted.slice(0, 200) + '… (truncated)' : redacted;
       if (response.status === 401 || response.status === 403) {
         throw new CliError('TOKEN_INVALID', `Oura API ${response.status}: ${body}`, 'Run `oura-cli login` with a fresh Personal Access Token, or check OURA_TOKEN.');
+      }
+      if (response.status === 429) {
+        throw new CliError('API_ERROR', `Oura API 429: ${body}`, `Rate limited; the page was retried ${RETRY_LIMIT} times. Wait a few minutes and run the command again, or ask for a shorter range.`);
       }
       throw new CliError('API_ERROR', `Oura API ${response.status}: ${body}`);
     }
