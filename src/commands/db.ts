@@ -1,6 +1,6 @@
 import { defineCommand } from 'citty';
 import { byName, names } from '../collections/index.js';
-import { getDaySummary, getTrends, getStats } from '../db/queries.js';
+import { getDaySummary, getTrends, getStats, hasDailySummaries } from '../db/queries.js';
 import { getRows } from '../db/rows.js';
 import { formatDaySummary, formatWeekTable, formatTrends, formatStats, PUBLISH_DELAY_NOTE } from '../render/format.js';
 import { formatRows } from '../render/format-rows.js';
@@ -12,6 +12,9 @@ import { dataCommand } from './run-command.js';
 import { dayCompleteness } from '../db/day-complete.js';
 
 const SYNC_HINT = `Run \`oura-cli sync\` to download your data. ${PUBLISH_DELAY_NOTE}`;
+// A cache that already holds days is not waiting for a download: today is not published yet, or the
+// ring has not uploaded. "Download your data" here sent users back to a sync that changed nothing (#127).
+const TODAY_UNPUBLISHED_HINT = `${PUBLISH_DELAY_NOTE} If the ring has synced since, run \`oura-cli sync\` again.`;
 
 export const dbCommand = defineCommand({
   meta: { name: 'db', description: 'Query and manage the local SQLite database' },
@@ -21,7 +24,8 @@ export const dbCommand = defineCommand({
       needs: { db: true },
       run(ctx) {
         const summary = getDaySummary(ctx.db!, ctx.today, dayCompleteness(ctx.db!, ctx.today));
-        return { json: summary, text: () => formatDaySummary(summary, 'table', SYNC_HINT) };
+        const hint = hasDailySummaries(ctx.db!) ? TODAY_UNPUBLISHED_HINT : SYNC_HINT;
+        return { json: summary, text: () => formatDaySummary(summary, 'table', hint) };
       },
     }),
 

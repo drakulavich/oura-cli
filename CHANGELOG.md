@@ -6,6 +6,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- `doctor` no longer prescribes `oura-cli sync` for a stale cache that already matches Oura. When the ring has not uploaded for days, sync adds nothing, doctor says sync again, and the two looped forever. Live, doctor now asks Oura whether it holds any day after the newest cached one: if so the fix stays `oura-cli sync`; if not, the detail says the ring has not uploaded and the fix is to open the Oura app, then sync. Offline, or when the API cannot be reached, both causes are named. The limit reads `36 hours`, with its unit. `db today` on a cache that already holds days no longer says "download your data"; it explains the publish delay and says when to sync again. (#127)
+
 ## [0.8.1] - 2026-09-13
 
 ### Added
