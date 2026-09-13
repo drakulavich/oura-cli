@@ -168,6 +168,21 @@ describe('a global flag whose value is missing swallows the next flag', () => {
   });
 });
 
+describe('a --format with no value (#121)', () => {
+  it.each([
+    [['db', 'today', '--format']],
+    [['db', 'today', '--format=']],
+    [['db', 'today', '--format', '']],
+  ])('is reported as missing, with a hint, on the JSON envelope: %j', async argv => {
+    const { stdout, stderr, code } = await run(...argv);
+    expect(stdout).toBe('');
+    const e = envelope(stderr);
+    expect(e.message).toBe('--format has no value');
+    expect(e.hint).toContain('json');
+    expect(code).toBe(1);
+  });
+});
+
 describe('--format validation across every command', () => {
   // #81: the enum lives in the format resolver, which the JSON-only commands never reach, so
   // `--format xml` exited 0 for describe, manifest and healthcheck and 1 everywhere else.

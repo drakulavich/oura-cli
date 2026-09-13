@@ -6,6 +6,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- The two `--format` errors carry a hint like every other error path (`Valid values: table, json.`), and a bare `--format` with no value says so (`--format has no value`) instead of reporting an unknown value `""`. (#121)
+
 ## [0.8.0] - 2026-09-13
 
 ### Added
