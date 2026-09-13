@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-09-13
+
 ### Added
 - `manifest` lists the subcommands of `db` (`today`, `date`, `week`, `trends`, `stats`, `rows`) with their descriptions, and a `db rows` example, so the OpenClaw registry shape no longer hides five sixths of what `db` does; `describe` already listed them. (#122)
 
