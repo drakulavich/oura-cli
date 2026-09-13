@@ -107,6 +107,8 @@ export function getTrends(db: Database, days: number, today: string): TrendRow[]
 }
 
 export interface TableStats {
+  /** The name `fetch`, `sync` and `--prune` use; `table` is what the schema and SQL use (#72). */
+  collection: string;
   table: string;
   rows: number;
 }
@@ -121,7 +123,7 @@ export interface DbStats {
 export function getStats(db: Database, today: string): DbStats {
   const tables = COLLECTIONS.map(c => {
     const row = db.query(`SELECT COUNT(*) as cnt FROM ${c.table}`).get() as { cnt: number };
-    return { table: c.table, rows: row.cnt };
+    return { collection: c.name, table: c.table, rows: row.cnt };
   });
 
   const range = db.query('SELECT MIN(day) as first, MAX(day) as last FROM daily_sleep').get() as { first: string | null; last: string | null };

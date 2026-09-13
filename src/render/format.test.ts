@@ -562,8 +562,8 @@ describe('formatStats', () => {
   function makeStats(overrides: Partial<DbStats> = {}): DbStats {
     return {
       tables: [
-        { table: 'daily_sleep', rows: 30 },
-        { table: 'daily_activity', rows: 28 },
+        { collection: 'daily_sleep', table: 'daily_sleep', rows: 30 },
+        { collection: 'daily_activity', table: 'daily_activity', rows: 28 },
       ],
       dateRange: { first: '2026-01-01', last: '2026-05-07' },
       trends: [{ label: 'Sleep', avg: 80, min: 60, max: 95, count: 30 }],
@@ -581,19 +581,19 @@ describe('formatStats', () => {
   });
 
   it('replaces an all-zero table with one line and the hint, but only when a hint was given (#85)', () => {
-    const empty = makeStats({ tables: [{ table: 'daily_sleep', rows: 0 }, { table: 'daily_activity', rows: 0 }],
+    const empty = makeStats({ tables: [{ collection: 'daily_sleep', table: 'daily_sleep', rows: 0 }, { collection: 'daily_activity', table: 'daily_activity', rows: 0 }],
       dateRange: { first: null, last: null }, trends: [], records: { mostSteps: null, bestSleep: null } });
     const out = stripAnsi(formatStats(empty, 'table', 'Run sync first.'));
     expect(out).toContain('Database Statistics');
     expect(out).toContain('No Oura data in the database yet.');
     expect(out).toContain('Run sync first.');
     expect(out).not.toContain('0 rows');
-    expect(stripAnsi(formatStats(empty, 'table'))).toMatch(/daily_sleep\s+0 rows/);
+    expect(stripAnsi(formatStats(empty, 'table'))).toMatch(/daily_sleep\)\s+0 rows/);
     // A partly filled cache is the normal state (tags and rest-mode periods are usually empty): it
     // must keep its table. `every` and `some` differ only here.
-    const mixed = makeStats({ tables: [{ table: 'daily_sleep', rows: 30 }, { table: 'enhanced_tags', rows: 0 }] });
+    const mixed = makeStats({ tables: [{ collection: 'daily_sleep', table: 'daily_sleep', rows: 30 }, { collection: 'enhanced_tags', table: 'enhanced_tags', rows: 0 }] });
     const mixedOut = stripAnsi(formatStats(mixed, 'table', 'Run sync first.'));
-    expect(mixedOut).toMatch(/enhanced_tags\s+0 rows/);
+    expect(mixedOut).toMatch(/enhanced_tags\)\s+0 rows/);
     expect(mixedOut).not.toContain('Run sync first.');
     expect(stripAnsi(formatStats(makeStats(), 'table', 'Run sync first.'))).not.toContain('Run sync first.');
   });
@@ -602,8 +602,8 @@ describe('formatStats', () => {
     const out = stripAnsi(formatStats(makeStats(), 'table'));
     expect(out).toContain('Database Statistics');
     expect(out).toContain('daily_sleep');
-    expect(out).toMatch(/daily_sleep\s+30 rows/);
-    expect(out).toMatch(/daily_activity\s+28 rows/);
+    expect(out).toMatch(/daily_sleep\)\s+30 rows/);
+    expect(out).toMatch(/daily_activity\)\s+28 rows/);
   });
 
   it('renders the date-range line only when a first date is present', () => {
@@ -643,5 +643,26 @@ describe('formatDaySummary partial day', () => {
   it('leaves the JSON untouched', () => {
     const day = makeDay({ partial: true });
     expect(formatDaySummary(day, 'json')).toBe(JSON.stringify(day, null, 2));
+  });
+});
+
+describe('formatStats naming and hints (#72)', () => {
+  const base: DbStats = {
+    tables: [{ collection: 'sleep-periods', table: 'sleep_model', rows: 1 }, { collection: 'battery', table: 'ring_battery_level', rows: 42 }],
+    dateRange: { first: null, last: null }, trends: [], records: { mostSteps: null, bestSleep: null },
+  };
+  it('prints both names for a table, and "row" for one row', () => {
+    // One collection reached the user under three names in one session: sleep-periods (sync summary),
+    // sleep_model (db stats), daily_sleep (sync progress). The fetch/--prune name comes first.
+    const out = stripAnsi(formatStats(base, 'table'));
+    expect(out).toMatch(/sleep-periods \(sleep_model\)\s+1 row\n/);
+    expect(out).toMatch(/battery \(ring_battery_level\)\s+42 rows/);
+  });
+  it('explains the missing sections when there are rows but no daily summaries', () => {
+    const out = stripAnsi(formatStats(base, 'table', 'Run sync first.'));
+    expect(out).toContain('42 rows');                               // the counts still print
+    expect(out).toContain('No daily summaries in the database yet.');
+    expect(out).toContain('Run sync first.');
+    expect(stripAnsi(formatStats(base, 'table'))).not.toContain('Run sync first.'); // no hint, no line
   });
 });

@@ -86,8 +86,10 @@ function bucketLabel(b: WeekBucket): string {
 }
 
 /**
- * One line explaining the `*` mark: which row is still accumulating and how far the activity averages
- * go. The monthly table has no row for a day, so there the note names the bucket that carries the mark.
+ * One line explaining the `*` mark: which row is not final and how far the activity averages go. The
+ * monthly table has no row for a day, so there the note names the bucket that carries the mark. "Not
+ * final" rather than "still accumulating": the marked day may be days in the past when the ring has
+ * simply not uploaded, and the week table says the same thing in the same words (#72).
  */
 function partialDayNote(data: ReportData, bucket: WeekBucket | undefined): string | null {
   const partial = data.days.find(d => d.partial); // the rule yields at most one
@@ -95,7 +97,7 @@ function partialDayNote(data: ReportData, bucket: WeekBucket | undefined): strin
   const which = bucket ? `the week of ${bucket.weekOf}`
     : partial.day === data.weekEnd ? 'today' : partial.dayLabel;
   const covers = data.completeThrough ? `through ${data.completeThrough}` : 'no complete day yet';
-  return `  * ${which} is still accumulating; activity averages cover ${covers}.`;
+  return `  * ${which}: activity totals are not final; averages cover ${covers}.`;
 }
 
 export function formatReport(data: ReportData, format: OutputFormat, period: 'week' | 'month'): string {

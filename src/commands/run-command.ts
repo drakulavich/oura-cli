@@ -77,7 +77,7 @@ export function assertKnownArgs(declared: ArgsDef, args: Record<string, unknown>
     const flags = unknown.map(f => (f.length === 1 ? `-${f}` : `--${f}`)).join(', ');
     // mri splits "-30" into the keys "3" and "0" (and reorders them), so name the cause rather than the letters.
     const hint = unknown.every(f => f.length === 1)
-      ? 'oura-cli has no single-letter flags; a value that starts with "-" must come after "--".'
+      ? 'oura-cli has no single-letter flags other than -v and -h; a value that starts with "-" must come after "--".'
       : 'Run the command with --help to see its flags.';
     throw new CliError('BAD_ARGS', `Unknown flag${unknown.length > 1 ? 's' : ''}: ${flags}.`, hint);
   }

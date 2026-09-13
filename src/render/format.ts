@@ -166,9 +166,14 @@ export function formatStats(stats: DbStats, format: OutputFormat, emptyHint?: st
   if (emptyHint && stats.tables.every(t => t.rows === 0)) {
     return [...lines, '  No Oura data in the database yet.', `  ${emptyHint}`].join('\n');
   }
+  // Both names, as the sync lines print them: one collection was reaching the user under three names
+  // in a single session — `sleep-periods` in the summary, `sleep_model` here (#72).
   for (const t of stats.tables) {
-    lines.push(`  ${t.table.padEnd(22)} ${String(t.rows).padStart(8)} rows`);
+    lines.push(`  ${`${t.collection} (${t.table})`.padEnd(38)} ${String(t.rows).padStart(8)} row${t.rows === 1 ? '' : 's'}`);
   }
+  // Counts alone do not say why the sections below are missing: a cache holding only battery samples
+  // has rows but no days, and printed seventeen counts and nothing else (#72).
+  if (emptyHint && stats.dateRange.first === null) lines.push('', '  No daily summaries in the database yet.', `  ${emptyHint}`);
   if (stats.dateRange.first) {
     lines.push(`\n  Date range: ${stats.dateRange.first} → ${stats.dateRange.last}`);
   }

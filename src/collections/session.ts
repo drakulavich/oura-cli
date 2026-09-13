@@ -4,8 +4,9 @@ import type { OuraSession } from '../api/types.js';
 export const session = defineCollection<OuraSession>({
   name: 'session', endpoint: 'session', table: 'sessions',
   description: 'Guided sessions (meditation, breathing, naps, rest) with their sample series as JSON',
-  // Unverified: the test account has no sessions. Every event-shaped endpoint probed so far (workout,
-  // rest_mode_period, enhanced_tag, vO2_max) excludes end_date, so session is assumed to as well.
+  // Verified against the sandbox on 2026-09-06 (#72): session excludes end_date — a [D, D] request
+  // returns nothing, [D, D+1] returns the day — like every other event-shaped endpoint (workout,
+  // rest_mode_period, enhanced_tag, vO2_max).
   conflict: 'replace', rangeParams: 'date', dayRangeOffset: [0, 1],
   identity: [
     { field: 'id', description: 'Oura record id' },

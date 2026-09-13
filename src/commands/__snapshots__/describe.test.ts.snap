@@ -456,7 +456,7 @@ exports[`the published contract, over the real registry describe: matches the sn
           "type": "string",
         },
       ],
-      "description": "Import latest data from Oura API and return today's summary",
+      "description": "Download new Oura data into the local cache and report what each collection fetched",
       "name": "sync",
     },
     {
@@ -630,7 +630,7 @@ exports[`the published contract, over the real registry manifest: matches the sn
       "name": "fetch",
     },
     {
-      "description": "Import latest data from Oura API and return today's summary",
+      "description": "Download new Oura data into the local cache and report what each collection fetched",
       "examples": [
         "oura-cli sync",
       ],
