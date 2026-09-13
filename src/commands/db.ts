@@ -1,8 +1,13 @@
 import { defineCommand } from 'citty';
+import { byName, names } from '../collections/index.js';
 import { getDaySummary, getTrends, getStats } from '../db/queries.js';
+import { getRows } from '../db/rows.js';
 import { formatDaySummary, formatWeekTable, formatTrends, formatStats, PUBLISH_DELAY_NOTE } from '../render/format.js';
+import { formatRows } from '../render/format-rows.js';
+import { CliError } from '../lib/errors.js';
 import { daysBack } from '../lib/time.js';
 import { assertCalendarDate, assertPositiveInt } from '../lib/validate.js';
+import { assertRangeAllowed, resolveRange } from './fetch.js';
 import { dataCommand } from './run-command.js';
 import { dayCompleteness } from '../db/day-complete.js';
 
@@ -58,6 +63,35 @@ export const dbCommand = defineCommand({
       run(ctx) {
         const stats = getStats(ctx.db!, ctx.today);
         return { json: stats, text: () => formatStats(stats, 'table', 'Run `oura-cli sync`, then `oura-cli db stats` again.') };
+      },
+    }),
+
+    // Eight collections were write-only from the user's side: `sync` filled them, `db stats` counted
+    // them, and seeing a tag or a battery curve meant `fetch`, which goes back to the API (#73).
+    // Same range flags and defaults as `fetch`, so the two are twins: one reads the API, this the cache.
+    rows: dataCommand({
+      meta: { name: 'rows', description: 'Cached rows of one collection, as stored: the local twin of `fetch`' },
+      args: {
+        collection: { type: 'positional', required: true, description: `Collection: ${names().join(' | ')} (ring is a snapshot and takes no range flags)` },
+        day:  { type: 'string', description: 'Single day (YYYY-MM-DD). Default: today.' },
+        from: { type: 'string', description: 'Range start (YYYY-MM-DD); requires --to' },
+        to:   { type: 'string', description: 'Range end (YYYY-MM-DD); requires --from' },
+        days: { type: 'string', description: 'Last N days ending today' },
+      },
+      needs: { db: true },
+      run(ctx, args) {
+        const c = byName(String(args.collection));
+        if (!c) throw new CliError('BAD_ARGS', `Unknown collection "${args.collection}".`, `Valid collections: ${names().join(', ')}`);
+        const opts = {
+          day: args.day as string | undefined, from: args.from as string | undefined,
+          to: args.to as string | undefined, days: args.days as string | undefined,
+        };
+        assertRangeAllowed(c, opts);
+        const range = c.rangeParams === 'none' ? null : resolveRange({ ...opts, today: ctx.today });
+        const rows = getRows(ctx.db!, c, range, ctx.tz);
+        const scope = range === null ? '' : range.start === range.end ? ` for ${range.start}` : ` for ${range.start} → ${range.end}`;
+        const hint = `Run \`oura-cli sync\` to fill the cache (\`sync --from <day>\` reaches back further), or \`oura-cli fetch ${c.name}\` to read the API directly.`;
+        return { json: rows, text: () => formatRows(c, rows, scope, 'table', hint) };
       },
     }),
   },

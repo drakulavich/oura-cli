@@ -41,6 +41,7 @@ export interface Manifest {
 const OUTPUT_SCHEMAS: Record<string, string> = { doctor: 'docs/schemas/doctor.json', describe: 'docs/schemas/describe.json' };
 const ENUM_ARGS: Record<string, Record<string, string[]>> = {
   fetch: { collection: names() },
+  rows: { collection: names() }, // `db rows`, the cache-side twin of fetch (#73)
   report: { period: ['week', 'month'] },
 };
 

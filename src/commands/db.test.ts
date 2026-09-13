@@ -36,3 +36,39 @@ describe('db trends', () => {
     expect(Array.isArray(JSON.parse(stdout))).toBe(true);
   });
 });
+
+describe('db rows (#73)', () => {
+  it('rejects an unknown collection with the valid list', async () => {
+    const { stdout, stderr, code } = await run('db', 'rows', 'bogus', '--format', 'json');
+    expect(stdout).toBe('');
+    const e = JSON.parse(stderr).error;
+    expect(e.code).toBe('BAD_ARGS');
+    expect(e.message).toBe('Unknown collection "bogus".');
+    expect(e.hint).toContain('tags');
+    expect(code).toBe(1);
+  });
+
+  it('rejects range flags for the ring snapshot, like fetch does', async () => {
+    const { stderr, code } = await run('db', 'rows', 'ring', '--day', '2026-06-15', '--format', 'json');
+    expect(JSON.parse(stderr).error.message).toContain('snapshot');
+    expect(code).toBe(1);
+  });
+
+  it('rejects a bad --days before touching the cache', async () => {
+    const { stderr, code } = await run('db', 'rows', 'tags', '--days', '0', '--format', 'json');
+    expect(JSON.parse(stderr).error.code).toBe('BAD_ARGS');
+    expect(code).toBe(1);
+  });
+
+  it('returns an empty array for an empty cache in JSON, and an explanation in text', async () => {
+    const json = await run('db', 'rows', 'tags', '--days', '7', '--format', 'json');
+    expect(json.code).toBe(0);
+    expect(JSON.parse(json.stdout)).toEqual([]);
+
+    const text = await run('db', 'rows', 'ring', '--format', 'table');
+    expect(text.code).toBe(0);
+    expect(text.stdout).toContain('ring (ring_configuration): 0 rows');
+    expect(text.stdout).toContain('No cached ring rows.');
+    expect(text.stdout).toContain('oura-cli fetch ring');
+  });
+});

@@ -61,7 +61,7 @@ describe('errors raised before a command runs', () => {
     const bare = await run('db'); // run() adds `--db :memory:`, which citty used to report as the unknown command ":memory:"
     expect(bare.stdout).toBe('');
     expect(envelope(bare.stderr).message).toBe('"db" needs a subcommand.');
-    expect(envelope(bare.stderr).hint).toBe('`oura-cli db` takes one of: today, date, week, trends, stats. Run `oura-cli db --help` for details.');
+    expect(envelope(bare.stderr).hint).toBe('`oura-cli db` takes one of: today, date, week, trends, stats, rows. Run `oura-cli db --help` for details.');
     expect(bare.code).toBe(1);
 
     const typo = await run('db', 'toady');
