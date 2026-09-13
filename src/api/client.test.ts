@@ -256,3 +256,43 @@ describe('OuraClient', () => {
     });
   });
 });
+
+describe('a malformed response body (#112)', () => {
+  // `getPage` used to return `body.data ?? []` and let the caller iterate it. An object there exited
+  // 1 as UNKNOWN with "{} is not iterable"; a string was iterated per character, and `sync` reported
+  // four dropped heart-rate samples that never existed. Both are API faults and say so now.
+  beforeEach(() => { process.env.OURA_TOKEN = 'test-token'; });
+  afterEach(() => { globalThis.fetch = realFetch; delete process.env.OURA_TOKEN; });
+
+  async function failure(body: string): Promise<CliError> {
+    mockFetch({ status: 200, body });
+    const outcome: unknown = await new OuraClient().fetch('heartrate', { start_datetime: 'x', end_datetime: 'y' }).catch(e => e);
+    if (!(outcome instanceof CliError)) throw new Error(`expected a CliError, got ${JSON.stringify(outcome)}`);
+    return outcome;
+  }
+
+  it('rejects a string, an object, or a number under "data" as API_ERROR naming the endpoint', async () => {
+    for (const [body, kind] of [['{"data":"nope"}', 'a string'], ['{"data":{"a":1}}', 'an object'], ['{"data":5}', 'a number']] as const) {
+      const err = await failure(body);
+      expect(err).toBeInstanceOf(CliError);
+      expect(err.code).toBe('API_ERROR');
+      expect(err.message).toContain('heartrate');
+      expect(err.message).toContain(kind);
+      expect(err.message).not.toContain('nope'); // never echo the body
+    }
+  });
+
+  it('rejects a body that is not an object', async () => {
+    for (const body of ['"nope"', '[1,2]', '42']) {
+      const err = await failure(body);
+      expect(err.code).toBe('API_ERROR');
+    }
+  });
+
+  it('still treats a missing or null "data" as an empty page, and a non-string next_token as the last page', async () => {
+    mockFetch({ status: 200, body: '{"next_token": 7}' });
+    expect(await new OuraClient().fetch('heartrate', {})).toEqual([]);
+    mockFetch({ status: 200, body: '{"data": null}' });
+    expect(await new OuraClient().fetch('heartrate', {})).toEqual([]);
+  });
+});
