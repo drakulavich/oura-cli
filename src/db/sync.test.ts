@@ -544,6 +544,8 @@ describe('rows without an identity', () => {
     expect(result.added.heartrate).toBe(2);
     expect(result.dropped).toEqual({ heartrate: 1 });
     expect(log.find(l => l.includes('(heartrate)'))).toContain('3 fetched, 2 new, 1 dropped (no timestamp/source)'); // the unique index, i.e. what the table keys on
+    // The only collection line: the ring snapshot stored its one row with nothing to add (#132).
+    expect(log.filter(l => l.startsWith('  + '))).toHaveLength(1);
   });
 
   it('drops a sample whose timestamp is a number or an empty string instead of throwing', async () => {
