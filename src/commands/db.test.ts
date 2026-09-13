@@ -1,4 +1,9 @@
 import { describe, it, expect } from 'bun:test';
+import { Database } from 'bun:sqlite';
+import { rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
+import { ensureSchema } from '../db/open.js';
 
 async function run(...argv: string[]) {
   const proc = Bun.spawn(['bun', 'run', 'src/index.ts', '--db', ':memory:', ...argv], { stdout: 'pipe', stderr: 'pipe' });
@@ -58,6 +63,46 @@ describe('db rows (#73)', () => {
     const { stderr, code } = await run('db', 'rows', 'tags', '--days', '0', '--format', 'json');
     expect(JSON.parse(stderr).error.code).toBe('BAD_ARGS');
     expect(code).toBe(1);
+  });
+
+  it('rejects a bad --limit, and accepts a positive one', async () => {
+    const bad = await run('db', 'rows', 'tags', '--limit', '0', '--format', 'json');
+    expect(JSON.parse(bad.stderr).error.message).toContain('--limit');
+    expect(bad.code).toBe(1);
+    const ok = await run('db', 'rows', 'tags', '--limit', '5', '--format', 'json');
+    expect(ok.code).toBe(0);
+    expect(JSON.parse(ok.stdout)).toEqual([]);
+  });
+
+  it('applies --limit to the rows it prints and says how many the range holds', async () => {
+    const path = join(tmpdir(), `oura-db-rows-limit-${process.pid}.db`);
+    const db = new Database(path);
+    ensureSchema(db);
+    const tag = db.query('INSERT INTO enhanced_tags (id, day, end_day, start_time, end_time, tag_type_code, comment, custom_name) VALUES (?,?,?,?,?,?,?,?)');
+    for (const [id, day] of [['t1', '2026-06-13'], ['t2', '2026-06-14'], ['t3', '2026-06-15']]) tag.run(id, day, null, null, null, 'tag_generic_nap', null, null);
+    db.close();
+    try {
+      const proc = Bun.spawn(['bun', 'run', 'src/index.ts', '--db', path, 'db', 'rows', 'tags', '--from', '2026-06-01', '--to', '2026-06-30', '--limit', '2', '--format', 'json'], { stdout: 'pipe', stderr: 'pipe' });
+      const json = JSON.parse(await new Response(proc.stdout).text()) as Array<{ id: string }>;
+      expect(await proc.exited).toBe(0);
+      expect(json.map(r => r.id)).toEqual(['t1', 't2']);
+
+      const table = Bun.spawn(['bun', 'run', 'src/index.ts', '--db', path, 'db', 'rows', 'tags', '--from', '2026-06-01', '--to', '2026-06-30', '--limit', '2', '--format', 'table'], { stdout: 'pipe', stderr: 'pipe' });
+      const text = await new Response(table.stdout).text();
+      expect(await table.exited).toBe(0);
+      expect(text).toContain('tags (enhanced_tags): 2 of 3 rows for 2026-06-01 → 2026-06-30');
+      expect(text).toContain('t2');
+      expect(text).not.toContain('t3');
+    } finally {
+      for (const suffix of ['', '-wal', '-shm']) rmSync(path + suffix, { force: true });
+    }
+  });
+
+  it('gives the ring snapshot no --from hint, since it has no history to reach back into', async () => {
+    const text = await run('db', 'rows', 'ring', '--format', 'table');
+    expect(text.stdout).not.toContain('--from');
+    const tags = await run('db', 'rows', 'tags', '--format', 'table');
+    expect(tags.stdout).toContain('sync --from <day>');
   });
 
   it('returns an empty array for an empty cache in JSON, and an explanation in text', async () => {

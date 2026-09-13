@@ -77,6 +77,7 @@ export const dbCommand = defineCommand({
         from: { type: 'string', description: 'Range start (YYYY-MM-DD); requires --to' },
         to:   { type: 'string', description: 'Range end (YYYY-MM-DD); requires --from' },
         days: { type: 'string', description: 'Last N days ending today' },
+        limit: { type: 'string', description: 'Print at most N rows, the earliest first (a day of heart rate is hundreds)' },
       },
       needs: { db: true },
       run(ctx, args) {
@@ -88,10 +89,15 @@ export const dbCommand = defineCommand({
         };
         assertRangeAllowed(c, opts);
         const range = c.rangeParams === 'none' ? null : resolveRange({ ...opts, today: ctx.today });
-        const rows = getRows(ctx.db!, c, range, ctx.tz);
+        const limit = args.limit === undefined ? undefined : assertPositiveInt(String(args.limit), '--limit');
+        const all = getRows(ctx.db!, c, range, ctx.tz);
+        const rows = limit === undefined ? all : all.slice(0, limit);
         const scope = range === null ? '' : range.start === range.end ? ` for ${range.start}` : ` for ${range.start} → ${range.end}`;
-        const hint = `Run \`oura-cli sync\` to fill the cache (\`sync --from <day>\` reaches back further), or \`oura-cli fetch ${c.name}\` to read the API directly.`;
-        return { json: rows, text: () => formatRows(c, rows, scope, 'table', hint) };
+        // A snapshot has no history to reach back into, so it gets no `--from` hint.
+        const hint = range === null
+          ? `Run \`oura-cli sync\` to fill the cache, or \`oura-cli fetch ${c.name}\` to read the API.`
+          : `Run \`oura-cli sync\` (\`sync --from <day>\` for older days), or \`oura-cli fetch ${c.name}\` to read the API.`;
+        return { json: rows, text: () => formatRows(c, rows, scope, 'table', hint, undefined, all.length) };
       },
     }),
   },

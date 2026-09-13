@@ -180,6 +180,12 @@ exports[`buildManifest matches the snapshot (any diff here is a contract change)
               "required": false,
               "type": "string",
             },
+            {
+              "description": "Print at most N rows, the earliest first (a day of heart rate is hundreds)",
+              "name": "--limit",
+              "required": false,
+              "type": "string",
+            },
           ],
           "description": "Cached rows of one collection, as stored: the local twin of \`fetch\`",
           "name": "rows",
@@ -606,6 +612,12 @@ exports[`the published contract, over the real registry describe: matches the sn
             {
               "description": "Last N days ending today",
               "name": "--days",
+              "required": false,
+              "type": "string",
+            },
+            {
+              "description": "Print at most N rows, the earliest first (a day of heart rate is hundreds)",
+              "name": "--limit",
               "required": false,
               "type": "string",
             },
