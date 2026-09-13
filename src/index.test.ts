@@ -239,3 +239,26 @@ describe('formatFromArgv', () => {
     expect(formatFromArgv(['--token', '--format', 'db'], true)).toBe('table');
   });
 });
+
+describe('help fits an 80-column terminal (#130)', () => {
+  const ANSI = new RegExp(String.fromCharCode(27) + '\\[[0-9;]*m', 'g');
+  const COMMANDS = [[], ['login'], ['describe'], ['healthcheck'], ['doctor'], ['manifest'], ['fetch'], ['sync'], ['report'],
+    ['db'], ['db', 'today'], ['db', 'date'], ['db', 'week'], ['db', 'trends'], ['db', 'stats'], ['db', 'rows']];
+
+  it('keeps every line of every --help within 80 columns, bar the root USAGE line that lists all commands', async () => {
+    for (const cmd of COMMANDS) {
+      const { stdout, code } = await run(...cmd, '--help');
+      expect(code).toBe(0);
+      const over = stdout.split('\n').map(l => l.replace(ANSI, '').trimEnd()).filter(l => l.length > 80 && !l.startsWith('USAGE'));
+      expect(over).toEqual([]);
+    }
+  }, 60_000);
+
+  it('lists the collections when fetch or db rows is given none, since the help line no longer can', async () => {
+    for (const cmd of [['fetch'], ['db', 'rows']]) {
+      const e = envelope((await run(...cmd)).stderr);
+      expect(e.message).toBe('Missing required positional argument: COLLECTION.');
+      expect(e.hint).toMatch(/^Valid collections: sleep, readiness, .*, ring\b/);
+    }
+  });
+});

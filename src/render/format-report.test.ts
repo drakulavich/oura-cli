@@ -174,3 +174,20 @@ describe('formatReport — monthly buckets', () => {
       .toContain('* the week of 2026-05-07: activity totals are not final; averages cover through 2026-05-12.');
   });
 });
+
+describe('the partial-day note wraps at the screen width (#130)', () => {
+  const marked: ReportData = { ...fixture, days: fixture.days.map((d, i, all) => (i === all.length - 1 ? { ...d, partial: true } : d)) };
+
+  it('continues under the note text on a narrow terminal, and stays one line on a pipe', () => {
+    const narrow = stripAnsi(formatReport(marked, 'table', 'week', 50)).split('\n');
+    const start = narrow.findIndex(l => l.startsWith('  * Fri 08/05:'));
+    expect(start).toBeGreaterThan(0);
+    expect(narrow[start]!.length).toBeLessThanOrEqual(50);
+    expect(narrow[start + 1]!.startsWith('    ')).toBe(true);
+    expect(narrow[start + 1]!.startsWith('     ')).toBe(false);
+    expect(narrow.slice(start, start + 3).map(l => l.trim()).join(' ')).toContain('* Fri 08/05: activity totals are not final; averages cover through 2026-05-13.');
+
+    const wide = stripAnsi(formatReport(marked, 'table', 'week', undefined)).split('\n');
+    expect(wide).toContain('  * Fri 08/05: activity totals are not final; averages cover through 2026-05-13.');
+  });
+});

@@ -749,3 +749,32 @@ describe('rules and whitespace in the text views (#61)', () => {
     expect(stripAnsi(rule(130))).toBe('  ' + '─'.repeat(130));
   });
 });
+
+describe('hints wrap at the screen width (#130)', () => {
+  const HINT = "Run `oura-cli sync` to download your data. Oura publishes a day's summary after that night's sleep syncs from the ring.";
+  const ANSI = new RegExp(String.fromCharCode(27) + '\\[[0-9;]*m', 'g');
+  const visible = (out: string) => out.split('\n').map(l => l.replace(ANSI, ''));
+  const empty = makeDay({
+    sleep_score: null, readiness_score: null, activity_score: null, steps: null, stress: null, spo2: null,
+    temp_deviation: null, sleep_hours: null, deep_hours: null, rem_hours: null, avg_hrv: null, lowest_hr: null, efficiency: null,
+  });
+  const noRows: DbStats = { tables: [{ collection: 'sleep', table: 'daily_sleep', rows: 0 }], dateRange: { first: null, last: null }, trends: [], records: { mostSteps: null, bestSleep: null } };
+  const noDays: DbStats = { ...noRows, tables: [{ collection: 'battery', table: 'ring_battery', rows: 12 }] };
+
+  /** Every line fits, the hint's words all arrive in order, and its continuation lines carry the body indent. */
+  function expectWrapped(wide: string, narrow: string, max: number): void {
+    const lines = visible(narrow);
+    for (const l of lines) expect(l.length).toBeLessThanOrEqual(max);
+    expect(lines.map(l => l.trim()).join(' ')).toContain(HINT);
+    expect(lines.length).toBeGreaterThan(visible(wide).length);
+    expect(lines.filter(l => l.trim() !== '').every(l => l.startsWith('  '))).toBe(true);
+    // Nothing wraps on a pipe: the whole hint is one line.
+    expect(visible(wide)).toContain(`  ${HINT}`);
+  }
+
+  it('the day view', () => expectWrapped(formatDaySummary(empty, 'table', HINT, undefined), formatDaySummary(empty, 'table', HINT, 60), 60));
+  it('the week view', () => expectWrapped(formatWeekTable([empty], 'table', HINT, undefined), formatWeekTable([empty], 'table', HINT, 60), 60));
+  it('the trends view', () => expectWrapped(formatTrends([], 30, 'table', HINT, undefined), formatTrends([], 30, 'table', HINT, 60), 60));
+  it('the stats view with no rows at all', () => expectWrapped(formatStats(noRows, 'table', HINT, undefined), formatStats(noRows, 'table', HINT, 60), 60));
+  it('the stats view with rows but no daily summaries', () => expectWrapped(formatStats(noDays, 'table', HINT, undefined), formatStats(noDays, 'table', HINT, 60), 60));
+});

@@ -1,4 +1,5 @@
 import { openDatabase, ensureSchema, getDbPath } from '../db/open.js';
+import { homePath } from '../lib/home-path.js';
 import type { Database } from '../db/open.js';
 import { OuraClient } from '../api/client.js';
 import { resolveToken } from '../api/token.js';
@@ -15,9 +16,10 @@ export async function runChecks(deps: DoctorDeps): Promise<DoctorResult> {
 
   const { token, source } = deps.resolveToken();
   if (token) {
-    checks.push({ id: 'token', status: 'ok', detail: `Token found via ${source}.` });
+    // `source` is an env var name or a file path; homePath leaves the former alone.
+    checks.push({ id: 'token', status: 'ok', detail: `Token found via ${homePath(source)}.` });
   } else {
-    checks.push({ id: 'token', status: 'fail', detail: `No token found (checked ${source}).`, fix: 'oura-cli login' });
+    checks.push({ id: 'token', status: 'fail', detail: `No token found (checked ${homePath(source)}).`, fix: 'oura-cli login' });
   }
 
   // Once the token has been accepted, the data check can ask Oura whether it holds anything newer
@@ -54,7 +56,7 @@ export async function runChecks(deps: DoctorDeps): Promise<DoctorResult> {
   try {
     const opened = deps.openDb();
     db = opened.db;
-    checks.push({ id: 'database', status: 'ok', detail: `Database ready at ${opened.path}.` });
+    checks.push({ id: 'database', status: 'ok', detail: `Database ready at ${homePath(opened.path)}.` });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     checks.push({ id: 'database', status: 'fail', detail: msg });
@@ -213,8 +215,8 @@ export async function runDoctor(ctx: Ctx, args: { db?: string; token?: string; o
 }
 
 export const doctorCommand = dataCommand({
-  meta: { name: 'doctor', description: 'Diagnose token, database, and sync health, and suggest the next step.' },
-  args: { offline: { type: 'boolean', default: false, description: 'Skip the live Oura API token-validation call' } },
+  meta: { name: 'doctor', description: 'Check token, database and sync health; suggest a fix.' },
+  args: { offline: { type: 'boolean', default: false, description: 'Skip the live Oura API token check' } },
   run: (ctx, args) => runDoctor(ctx, {
     db: args.db as string | undefined,
     token: args.token as string | undefined,

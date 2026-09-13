@@ -133,3 +133,17 @@ describe('formatRows (#73)', () => {
     expect(out[4]).toBe(`  ${HINT}`);
   });
 });
+
+describe('the empty-cache hint wraps at the screen width (#130)', () => {
+  const LONG = 'Run `oura-cli sync` (`sync --from <day>` for older days), or `oura-cli fetch tags` to read the API.';
+
+  it('breaks the hint between words under the body indent, and leaves it whole on a pipe', () => {
+    const narrow = stripAnsi(formatRows(byName('tags')!, [], ' for 2026-05-01', 'table', LONG, 50)).split('\n');
+    for (const l of narrow) expect(l.length).toBeLessThanOrEqual(50);
+    expect(narrow.filter(l => l.trim() !== '').every(l => l.startsWith('  '))).toBe(true);
+    expect(narrow.map(l => l.trim()).join(' ')).toContain(LONG);
+    expect(narrow.some(l => l.includes('`sync --from <day>`'))).toBe(true); // a backticked command is never split
+
+    expect(stripAnsi(formatRows(byName('tags')!, [], '', 'table', LONG, undefined))).toContain(`  ${LONG}`);
+  });
+});

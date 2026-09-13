@@ -14,7 +14,7 @@ exports[`buildManifest matches the snapshot (any diff here is a contract change)
     {
       "args": [
         {
-          "description": "Collection: sleep | readiness | activity | hr | spo2 | stress | workout | sleep-periods | cv-age | resilience | vo2max | sleep-time | session | rest-mode | tags | ring | battery (ring is a snapshot and takes no range flags)",
+          "description": "Collection name (ring is a snapshot: no range flags)",
           "name": "<collection>",
           "required": true,
           "type": "string",
@@ -63,7 +63,7 @@ exports[`buildManifest matches the snapshot (any diff here is a contract change)
           "type": "string",
         },
       ],
-      "description": "Fetch raw records for one Oura collection straight from the API (JSON).",
+      "description": "One collection's raw records from the API (JSON).",
       "name": "fetch",
       "outputSchemas": {
         "activity": "docs/schemas/activity.json",
@@ -132,7 +132,7 @@ exports[`buildManifest matches the snapshot (any diff here is a contract change)
         {
           "args": [
             {
-              "description": "Collection: sleep | readiness | activity | hr | spo2 | stress | workout | sleep-periods | cv-age | resilience | vo2max | sleep-time | session | rest-mode | tags | ring | battery (ring is a snapshot and takes no range flags)",
+              "description": "Collection name (ring is a snapshot: no range flags)",
               "name": "<collection>",
               "required": true,
               "type": "string",
@@ -181,7 +181,7 @@ exports[`buildManifest matches the snapshot (any diff here is a contract change)
               "type": "string",
             },
             {
-              "description": "Print at most N rows, the earliest first (a day of heart rate is hundreds)",
+              "description": "At most N rows, earliest first; a day of hr is hundreds",
               "name": "--limit",
               "required": false,
               "type": "string",
@@ -211,13 +211,13 @@ exports[`buildManifest matches the snapshot (any diff here is a contract change)
     {
       "args": [
         {
-          "description": "Skip the live Oura API token-validation call",
+          "description": "Skip the live Oura API token check",
           "name": "--offline",
           "required": false,
           "type": "boolean",
         },
       ],
-      "description": "Diagnose token, database, and sync health, and suggest the next step.",
+      "description": "Check token, database and sync health; suggest a fix.",
       "name": "doctor",
       "outputSchema": "docs/schemas/doctor.json",
     },
@@ -304,7 +304,7 @@ exports[`buildOpenclawManifest matches the snapshot 1`] = `
   "bin": "oura-cli",
   "commands": [
     {
-      "description": "Fetch raw records for one Oura collection straight from the API (JSON).",
+      "description": "One collection's raw records from the API (JSON).",
       "examples": [
         "oura-cli fetch sleep",
         "oura-cli fetch hr --days 7",
@@ -355,7 +355,7 @@ exports[`buildOpenclawManifest matches the snapshot 1`] = `
       "name": "report",
     },
     {
-      "description": "Diagnose token, database, and sync health, and suggest the next step.",
+      "description": "Check token, database and sync health; suggest a fix.",
       "examples": [
         "oura-cli doctor --offline",
       ],
@@ -369,7 +369,7 @@ exports[`buildOpenclawManifest matches the snapshot 1`] = `
       "name": "login",
     },
   ],
-  "description": "Oura Ring CLI — query and analyze Oura Ring health data. Designed for humans and agents.",
+  "description": "Oura Ring data, cached locally, for humans and agents.",
   "envVars": [
     "OURA_TOKEN",
     "OURA_TOKEN_PATH",
@@ -411,7 +411,7 @@ exports[`the published contract, over the real registry describe: matches the sn
           "type": "string",
         },
         {
-          "description": "Where to save the token (default: $OURA_TOKEN_PATH or ~/.oura-token)",
+          "description": "Token file (default: $OURA_TOKEN_PATH or ~/.oura-token)",
           "name": "--path",
           "required": false,
           "type": "string",
@@ -422,37 +422,37 @@ exports[`the published contract, over the real registry describe: matches the sn
     },
     {
       "args": [],
-      "description": "Emit a machine-readable manifest of commands, args, and outputs.",
+      "description": "Machine-readable manifest of commands and outputs.",
       "name": "describe",
       "outputSchema": "docs/schemas/describe.json",
     },
     {
       "args": [],
-      "description": "Fast liveness probe: opens the local database and runs one query (JSON: {ok, version, latencyMs}, plus error when ok is false). It proves the file opens, not that its contents are intact — \`doctor\` checks that.",
+      "description": "JSON liveness probe: the database answers a query.",
       "name": "healthcheck",
     },
     {
       "args": [
         {
-          "description": "Skip the live Oura API token-validation call",
+          "description": "Skip the live Oura API token check",
           "name": "--offline",
           "required": false,
           "type": "boolean",
         },
       ],
-      "description": "Diagnose token, database, and sync health, and suggest the next step.",
+      "description": "Check token, database and sync health; suggest a fix.",
       "name": "doctor",
       "outputSchema": "docs/schemas/doctor.json",
     },
     {
       "args": [],
-      "description": "Print openclaw-tool-registry-compatible manifest as JSON.",
+      "description": "Print an openclaw-tool-registry manifest as JSON.",
       "name": "manifest",
     },
     {
       "args": [
         {
-          "description": "Collection: sleep | readiness | activity | hr | spo2 | stress | workout | sleep-periods | cv-age | resilience | vo2max | sleep-time | session | rest-mode | tags | ring | battery (ring is a snapshot and takes no range flags)",
+          "description": "Collection name (ring is a snapshot: no range flags)",
           "name": "<collection>",
           "required": true,
           "type": "string",
@@ -501,7 +501,7 @@ exports[`the published contract, over the real registry describe: matches the sn
           "type": "string",
         },
       ],
-      "description": "Fetch raw records for one Oura collection straight from the API (JSON).",
+      "description": "One collection's raw records from the API (JSON).",
       "name": "fetch",
       "outputSchemas": {
         "activity": "docs/schemas/activity.json",
@@ -526,25 +526,25 @@ exports[`the published contract, over the real registry describe: matches the sn
     {
       "args": [
         {
-          "description": "Re-fetch every collection from this day (YYYY-MM-DD) instead of from its last stored day",
+          "description": "Re-fetch every collection from this day (YYYY-MM-DD)",
           "name": "--from",
           "required": false,
           "type": "string",
         },
         {
-          "description": "End of the explicit window (YYYY-MM-DD, default: today); requires --from",
+          "description": "Window end (YYYY-MM-DD, default today); needs --from",
           "name": "--to",
           "required": false,
           "type": "string",
         },
         {
-          "description": "Apply removals sync kept back: --prune=hr, a list, or --prune=all",
+          "description": "Apply removals sync held back: hr, a list, or all",
           "name": "--prune",
           "required": false,
           "type": "string",
         },
       ],
-      "description": "Download new Oura data into the local cache and report what each collection fetched",
+      "description": "Download new Oura data into the local cache.",
       "name": "sync",
     },
     {
@@ -594,7 +594,7 @@ exports[`the published contract, over the real registry describe: matches the sn
         {
           "args": [
             {
-              "description": "Collection: sleep | readiness | activity | hr | spo2 | stress | workout | sleep-periods | cv-age | resilience | vo2max | sleep-time | session | rest-mode | tags | ring | battery (ring is a snapshot and takes no range flags)",
+              "description": "Collection name (ring is a snapshot: no range flags)",
               "name": "<collection>",
               "required": true,
               "type": "string",
@@ -643,7 +643,7 @@ exports[`the published contract, over the real registry describe: matches the sn
               "type": "string",
             },
             {
-              "description": "Print at most N rows, the earliest first (a day of heart rate is hundreds)",
+              "description": "At most N rows, earliest first; a day of hr is hundreds",
               "name": "--limit",
               "required": false,
               "type": "string",
@@ -742,35 +742,35 @@ exports[`the published contract, over the real registry manifest: matches the sn
       "name": "login",
     },
     {
-      "description": "Emit a machine-readable manifest of commands, args, and outputs.",
+      "description": "Machine-readable manifest of commands and outputs.",
       "examples": [
         "oura-cli describe",
       ],
       "name": "describe",
     },
     {
-      "description": "Fast liveness probe: opens the local database and runs one query (JSON: {ok, version, latencyMs}, plus error when ok is false). It proves the file opens, not that its contents are intact — \`doctor\` checks that.",
+      "description": "JSON liveness probe: the database answers a query.",
       "examples": [
         "oura-cli healthcheck",
       ],
       "name": "healthcheck",
     },
     {
-      "description": "Diagnose token, database, and sync health, and suggest the next step.",
+      "description": "Check token, database and sync health; suggest a fix.",
       "examples": [
         "oura-cli doctor --offline",
       ],
       "name": "doctor",
     },
     {
-      "description": "Print openclaw-tool-registry-compatible manifest as JSON.",
+      "description": "Print an openclaw-tool-registry manifest as JSON.",
       "examples": [
         "oura-cli manifest",
       ],
       "name": "manifest",
     },
     {
-      "description": "Fetch raw records for one Oura collection straight from the API (JSON).",
+      "description": "One collection's raw records from the API (JSON).",
       "examples": [
         "oura-cli fetch sleep",
         "oura-cli fetch hr --days 7",
@@ -779,7 +779,7 @@ exports[`the published contract, over the real registry manifest: matches the sn
       "name": "fetch",
     },
     {
-      "description": "Download new Oura data into the local cache and report what each collection fetched",
+      "description": "Download new Oura data into the local cache.",
       "examples": [
         "oura-cli sync",
       ],
@@ -828,7 +828,7 @@ exports[`the published contract, over the real registry manifest: matches the sn
       "name": "report",
     },
   ],
-  "description": "Oura Ring CLI — query and analyze Oura Ring health data. Designed for humans and agents.",
+  "description": "Oura Ring data, cached locally, for humans and agents.",
   "envVars": [
     "OURA_TOKEN",
     "OURA_TOKEN_PATH",

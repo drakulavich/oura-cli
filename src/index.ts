@@ -3,7 +3,8 @@ import './lib/apply-color-mode.js';
 import { readFileSync } from 'fs';
 import { defineCommand, runCommand, runMain } from 'citty';
 import { buildRegistry } from './commands/registry.js';
-import { commonArgs } from './commands/common.js';
+import { CLI_DESCRIPTION, commonArgs } from './commands/common.js';
+import { names } from './collections/index.js';
 import { isVersionRequest, normalizeArgv } from './lib/argv-normalize.js';
 import { commandTokens, fromCittyError, type ParentCommands } from './lib/citty-error.js';
 import { emitError, exitCodeFor } from './lib/errors.js';
@@ -33,11 +34,18 @@ const REMOVED_COMMANDS: Readonly<Record<string, string>> = {
   spo2: FETCH_HINT, stress: FETCH_HINT, workout: FETCH_HINT,
 };
 
+/**
+ * What a left-out positional takes, said in the error's hint. The list of every collection does
+ * not fit the one-line description `--help` shows, so it lives here and in the unknown-collection
+ * error instead (#130).
+ */
+const POSITIONAL_HINTS = { COLLECTION: `Valid collections: ${names().join(', ')}` };
+
 const main = defineCommand({
   meta: {
     name: 'oura-cli',
     version: VERSION,
-    description: 'Oura Ring CLI — query and analyze Oura Ring health data. Designed for humans and agents.',
+    description: CLI_DESCRIPTION,
   },
   args: { ...commonArgs },
   subCommands,
@@ -63,7 +71,7 @@ if (isVersionRequest(rawArgs)) {
   // positional) get the same envelope and exit code as errors raised inside a command,
   // instead of citty's coloured usage dump on stdout.
   runCommand(main, { rawArgs }).catch((raw: unknown) => {
-    const err = fromCittyError(raw, REMOVED_COMMANDS, rawArgs, PARENT_COMMANDS);
+    const err = fromCittyError(raw, REMOVED_COMMANDS, rawArgs, PARENT_COMMANDS, POSITIONAL_HINTS);
     emitError(err, formatFromArgv(rawArgs, process.stdout.isTTY === true));
     process.exit(exitCodeFor(err));
   });

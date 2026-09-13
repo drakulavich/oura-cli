@@ -2,6 +2,8 @@ import chalk from 'chalk';
 import type { ReportData } from '../db/report.js';
 import type { OutputFormat } from '../lib/format-resolve.js';
 import { padLeft } from '../lib/pad.js';
+import { screenWidth } from '../lib/terminal.js';
+import { wrap } from '../lib/wrap.js';
 import { RULE, finish } from './rule.js';
 
 function colorizeScore(n: number): (s: string) => string {
@@ -98,10 +100,10 @@ function partialDayNote(data: ReportData, bucket: WeekBucket | undefined): strin
   const which = bucket ? `the week of ${bucket.weekOf}`
     : partial.day === data.weekEnd ? 'today' : partial.dayLabel;
   const covers = data.completeThrough ? `through ${data.completeThrough}` : 'no complete day yet';
-  return `  * ${which}: activity totals are not final; averages cover ${covers}.`;
+  return `* ${which}: activity totals are not final; averages cover ${covers}.`;
 }
 
-export function formatReport(data: ReportData, format: OutputFormat, period: 'week' | 'month'): string {
+export function formatReport(data: ReportData, format: OutputFormat, period: 'week' | 'month', max = screenWidth()): string {
   if (format === 'json') return JSON.stringify(data, null, 2);
 
   const lines: string[] = [];
@@ -116,7 +118,8 @@ export function formatReport(data: ReportData, format: OutputFormat, period: 'we
   lines.push(chalk.gray(`  ${data.weekStart} — ${data.weekEnd}`));
   const buckets = period === 'month' ? bucketDaysIntoWeeks(data.days) : [];
   const note = partialDayNote(data, buckets.find(b => b.partial));
-  if (note) lines.push(chalk.yellow(note));
+  // The note is a sentence; on a terminal it breaks between words and continues under its text (#130).
+  if (note) lines.push(...wrap(note, max, '    ', '  ').map(l => chalk.yellow(l)));
   lines.push('');
 
   const hasReportData = data.days.some(day =>
@@ -137,7 +140,7 @@ export function formatReport(data: ReportData, format: OutputFormat, period: 'we
     for (const d of data.days) {
       table.push(`  ${(d.partial ? d.dayLabel + '*' : d.dayLabel).padEnd(10)} ${scoreCell(d.sleep, 6)} ${scoreCell(d.readiness, 6)} ${scoreCell(d.activity, 7)} ${stepsCell(d.steps, 8)}`);
     }
-    lines.push(...finish(table), '');
+    lines.push(...finish(table, max), '');
   } else {
     // Monthly — weekly buckets table
     lines.push(chalk.bold('  Last 30 Days:'));
@@ -149,7 +152,7 @@ export function formatReport(data: ReportData, format: OutputFormat, period: 'we
       const avgActiveInt = b.avgActivity !== null ? Math.round(b.avgActivity) : null;
       table.push(`  ${bucketLabel(b).padEnd(21)} ${scoreCell(avgSleepInt, 6)} ${scoreCell(avgReadyInt, 6)} ${scoreCell(avgActiveInt, 7)} ${stepsCell(b.totalSteps, 10)}`);
     }
-    lines.push(...finish(table), '');
+    lines.push(...finish(table, max), '');
   }
 
   // Averages

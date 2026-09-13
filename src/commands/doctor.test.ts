@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import { openSync, writeSync, closeSync, rmSync } from 'fs';
-import { tmpdir } from 'os';
+import { homedir, tmpdir } from 'os';
 import { join } from 'path';
 import { ensureSchema } from '../db/open.js';
 import { CliError } from '../lib/errors.js';
@@ -427,5 +427,48 @@ describe('doctor argument handling', () => {
     } catch (e) { err = e; }
     expect(err).toBeInstanceOf(CliError);
     expect((err as CliError).code).toBe('BAD_ARGS');
+  });
+});
+
+describe('formatDoctorTable wraps details and the next step at the screen width (#130)', () => {
+  const ANSI = new RegExp(String.fromCharCode(27) + '\\[[0-9;]*m', 'g');
+  const detail = 'Most recent data is from 2026-09-10; that day ended over 60 hours ago (the limit is 36 hours). Oura has nothing newer, so the ring has not uploaded since then.';
+  const fix = 'Open the Oura app so the ring uploads its data, then run `oura-cli sync`.';
+  const result = { ok: false, checks: [{ id: 'data' as const, status: 'warn' as const, detail, fix }], nextStep: fix };
+
+  it('continues a long detail under the detail column and a long Next: under its text', () => {
+    const lines = formatDoctorTable(result, 60).split('\n').map(l => l.replace(ANSI, ''));
+    for (const l of lines) expect(l.length).toBeLessThanOrEqual(60);
+    const row = lines.findIndex(l => l.startsWith('  ! data'));
+    expect(row).toBeGreaterThan(0);
+    expect(lines[row + 1]!.startsWith(' '.repeat(17))).toBe(true);
+    expect(lines[row + 1]!.startsWith(' '.repeat(18))).toBe(false);
+    const next = lines.findIndex(l => l.startsWith('  Next: '));
+    expect(lines[next + 1]!.startsWith(' '.repeat(8))).toBe(true);
+    expect(lines[next + 1]!.startsWith(' '.repeat(9))).toBe(false);
+    expect(lines.map(l => l.trim()).join(' ')).toContain(detail);
+    expect(lines.map(l => l.trim()).join(' ')).toContain(`Next: ${fix}`);
+  });
+
+  it('leaves both on one line on a pipe', () => {
+    const lines = formatDoctorTable(result, undefined).split('\n').map(l => l.replace(ANSI, ''));
+    expect(lines).toContain(`  ! data         ${detail}`);
+    expect(lines).toContain(`  Next: ${fix}`);
+  });
+});
+
+describe('the database row names the path as a shell would (#130)', () => {
+  it('shows the home directory as ~ in the token and database rows, so the default paths fit beside their sentences', async () => {
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const result = await runChecks(makeDeps({
+      resolveToken: () => ({ token: 'secret-token-value', source: join(homedir(), '.oura-token') }),
+      openDb: () => ({ db, path: join(homedir(), '.oura-cli', 'oura.db') }),
+    }));
+    expect(result.checks.find(c => c.id === 'token')!.detail).toBe('Token found via ~/.oura-token.');
+    expect(result.checks.find(c => c.id === 'database')!.detail).toBe('Database ready at ~/.oura-cli/oura.db.');
+
+    const missing = await runChecks(makeDeps({ resolveToken: () => ({ token: null, source: join(homedir(), '.oura-token') }) }));
+    expect(missing.checks.find(c => c.id === 'token')!.detail).toBe('No token found (checked ~/.oura-token).');
   });
 });
