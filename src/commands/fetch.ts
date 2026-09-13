@@ -55,11 +55,12 @@ export const fetchCommand = dataCommand({
     };
     assertRangeAllowed(c, opts);
     const { start, end } = resolveRange({ ...opts, today: ctx.today });
-    // Progress only when someone is watching: on a pipe stderr carries the error envelope (#45).
-    const progress = process.stderr.isTTY ? pageProgress(process.stderr, `fetching ${c.name}`) : undefined;
+    // Progress only when someone is watching; the runner leaves `ctx.progress` unset on a pipe, where
+    // stderr carries the error envelope (#45).
+    const progress = ctx.progress ? pageProgress(ctx.progress, 'fetching') : undefined;
     const client = new OuraClient({
       ...(args.token ? { token: args.token as string } : {}),
-      ...(progress ? { onPage: progress.onPage } : {}),
+      ...(progress ? { onPage: progress.onPage, onRetry: progress.onRetry } : {}),
     });
     try {
       const data = await fetchCollection(client, c, start, end, ctx.tz);

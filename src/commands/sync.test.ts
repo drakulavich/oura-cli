@@ -447,3 +447,37 @@ describe('resolveWindow', () => {
     expect((err as CliError).code).toBe('BAD_ARGS');
   });
 });
+
+describe('sync progress on a terminal (pre-0.8.0 S2)', () => {
+  it('writes a progress line per page to the io progress sink and wipes it before the output is printed', async () => {
+    installFetch(todayFixture());
+    const chunks: string[] = [];
+    let stdoutAt = -1;
+    const io: RunnerIo = {
+      stdout: () => { stdoutAt = chunks.length; },
+      stderr: () => {},
+      exit: () => {},
+      isTty: true,
+      progress: { write: (c: string) => { chunks.push(c); } },
+    };
+    process.env.OURA_TOKEN = 'test-token';
+    try {
+      await execute(syncDef, { db: TEST_DB, format: 'table' } as never, io);
+    } finally { delete process.env.OURA_TOKEN; }
+    expect(chunks.length).toBeGreaterThan(1);
+    expect(chunks[0]).toMatch(/^\r  syncing daily_sleep: page 1, \d+ rows so far…$/);
+    expect(chunks.at(-1)).toMatch(/^\r +\r$/);          // wiped
+    expect(stdoutAt).toBe(chunks.length);               // and only then the table
+  });
+
+  it('stays silent on a pipe: no progress sink, nothing written', async () => {
+    installFetch(todayFixture());
+    const stderr: string[] = [];
+    const io: RunnerIo = { stdout: () => {}, stderr: s => { stderr.push(s); }, exit: () => {}, isTty: false };
+    process.env.OURA_TOKEN = 'test-token';
+    try {
+      await execute(syncDef, { db: TEST_DB, format: 'json' } as never, io);
+    } finally { delete process.env.OURA_TOKEN; }
+    expect(stderr).toEqual([]);
+  });
+});

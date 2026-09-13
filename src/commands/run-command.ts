@@ -7,6 +7,7 @@ import { CliError } from '../lib/errors.js';
 import { OuraClient } from '../api/client.js';
 import { formatError, exitCodeFor } from '../lib/errors.js';
 import { assertValidFormat, resolveFormat, type OutputFormat } from '../lib/format-resolve.js';
+import { pageProgress, type ProgressSink } from '../lib/progress.js';
 import { today, resolveDefaultTimezone } from '../lib/time.js';
 import { assertTimezone } from '../lib/validate.js';
 import { commonArgs } from './common.js';
@@ -20,6 +21,8 @@ export interface Ctx {
   today: string;
   db?: Database;
   client?: OuraClient;
+  /** Where a command that builds its own API client may draw a progress line; unset on a pipe (#45). */
+  progress?: ProgressSink;
 }
 
 export interface Output {
@@ -35,6 +38,8 @@ export interface RunnerIo {
   stderr(s: string): void;
   exit(code: number): void;
   isTty: boolean;
+  /** Where a progress line may go while a command that talks to the API runs; unset on a pipe. */
+  progress?: ProgressSink;
 }
 
 export interface DataCommandDef<A extends ArgsDef> {
@@ -50,6 +55,8 @@ export const processIo: RunnerIo = {
   stderr: s => { process.stderr.write(s + '\n'); },
   exit: code => process.exit(code),
   isTty: process.stdout.isTTY === true,
+  // Progress only when someone is watching: on a pipe stderr carries the error envelope (#45).
+  progress: process.stderr.isTTY ? process.stderr : undefined,
 };
 
 const camel = (s: string) => s.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
@@ -104,16 +111,27 @@ export async function execute<A extends ArgsDef>(
     assertKnownArgs({ ...commonArgs, ...(def.args ?? {}) } as ArgsDef, args as Record<string, unknown>);
     const outputFormat: OutputFormat = def.jsonOnly ? 'json' : format;
     const tz = assertTimezone((args.tz as string | undefined) ?? resolveDefaultTimezone());
-    const ctx: Ctx = { format: outputFormat, tz, today: today(tz) };
+    const ctx: Ctx = { format: outputFormat, tz, today: today(tz), ...(io.progress ? { progress: io.progress } : {}) };
     if (def.needs?.db) {
       db = openDatabase(args.db as string | undefined);
       ensureSchema(db);
       ctx.db = db;
     }
+    // `sync` makes hundreds of requests and buffers its table lines until the end; without this a
+    // slow or rate-limited run is silence indistinguishable from a hang (#45). Wiped before any output.
+    const progress = def.needs?.client && io.progress ? pageProgress(io.progress, 'syncing') : undefined;
     if (def.needs?.client) {
-      ctx.client = new OuraClient(args.token ? { token: args.token as string } : {});
+      ctx.client = new OuraClient({
+        ...(args.token ? { token: args.token as string } : {}),
+        ...(progress ? { onPage: progress.onPage, onRetry: progress.onRetry } : {}),
+      });
     }
-    const out = await def.run(ctx, args);
+    let out: Output;
+    try {
+      out = await def.run(ctx, args);
+    } finally {
+      progress?.done();
+    }
     io.stdout(outputFormat === 'json' ? JSON.stringify(out.json, null, 2) : out.text());
     exitCode = out.exitCode ?? 0;
   } catch (raw) {
