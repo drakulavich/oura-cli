@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-13
+
 ### Added
 - `db rows <collection>` prints the cached rows of any collection, as stored, in both output modes: the cache-side twin of `fetch`, with the same range flags and defaults (`--day`, `--from/--to`, `--days`; today by default; none for `ring`). Eight of the seventeen collections were write-only from the user's side: `sync` filled resilience, VO₂ max, bedtime guidance, sessions, rest mode, tags, ring and battery, `db stats` counted them, and nothing read them back short of `fetch`, which goes to the API and ignores the cache. The table view shows one column per stored column, numbers right-aligned, text cells cut at 40 characters and, on a terminal, squeezed further so the table fits the screen; a column name is never cut, and when the names alone would not fit (sleep-periods has 19 columns) each row is printed as a block of `name  value` lines instead. `--limit N` prints the first N rows and the title says how many the range holds; a day of heart rate is hundreds. A newline in a tag comment shows as ⏎ instead of breaking the row. The JSON is the rows exactly as stored, so a JSON blob such as `contributors` stays a string. Heart-rate and battery samples are bounded on the local day asked for, the way `fetch` bounds its request, not on the UTC date their `day` column stores. An empty result names the range asked for and how to fill it. The `describe` manifest lists the subcommand with the collection enum. (#73)
 
