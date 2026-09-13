@@ -25,5 +25,10 @@ export interface DoctorDeps {
   openDb: () => { db: Database; path: string };
   createClient: (token: string) => { fetch: (endpoint: 'daily_sleep', query: Record<string, string>) => Promise<unknown[]> };
   offline: boolean;
+  /** YYYY-MM-DD in `tz`; the day the live token probe asks for. */
   today: string;
+  /** The instant the checks run at (ISO 8601 UTC); the data check measures staleness from it. */
+  now: string;
+  /** Timezone the cache's days are bounded in; a day ends at its local midnight. */
+  tz: string;
 }

@@ -3,6 +3,7 @@ import type { Database } from '../db/open.js';
 import { OuraClient } from '../api/client.js';
 import { resolveToken } from '../api/token.js';
 import { CliError, exitCodeFor } from '../lib/errors.js';
+import { localDateToUtcRange, nowUtc } from '../lib/time.js';
 import { formatDoctorTable } from '../render/doctor-table.js';
 import { dataCommand, type Ctx, type Output } from './run-command.js';
 import type { CheckStatus, DoctorCheck, DoctorResult, DoctorDeps } from '../render/doctor-types.js';
@@ -72,11 +73,15 @@ export async function runChecks(deps: DoctorDeps): Promise<DoctorResult> {
     } else if (!last) {
       checks.push({ id: 'data', status: 'warn', detail: 'No data in the local cache yet.', fix: 'oura-cli sync' });
     } else {
-      const ageDays = Math.round(
-        (new Date(`${deps.today}T00:00:00Z`).getTime() - new Date(`${last}T00:00:00Z`).getTime()) / 86400000,
-      );
-      if (ageDays > 2) {
-        checks.push({ id: 'data', status: 'warn', detail: `Most recent data is from ${last} (${ageDays} days ago).`, fix: 'oura-cli sync' });
+      // "Current through D" means covered to the end of D, so staleness is measured from D's local
+      // midnight, not from its date: a day-granular rule called a cache current while `report` and
+      // `db week` were marking the same newest day as still accumulating (#114).
+      const hours = hoursSinceDayEnded(last, deps.now, deps.tz);
+      if (hours > STALE_AFTER_HOURS) {
+        checks.push({
+          id: 'data', status: 'warn', fix: 'oura-cli sync',
+          detail: `Most recent data is from ${last}; that day ended over ${Math.floor(hours)} hours ago (the limit is ${STALE_AFTER_HOURS}).`,
+        });
       } else {
         checks.push({ id: 'data', status: 'ok', detail: `Data current through ${last}.` });
       }
@@ -113,6 +118,23 @@ function quickCheck(db: Database): string | null {
 
 const DATA_TABLES = ['daily_sleep', 'daily_readiness', 'daily_activity'] as const;
 
+/**
+ * Hours the `data` check tolerates between the end of the newest cached day and now. One missed
+ * night is ordinary ring lag (a day's summaries appear once the ring has synced after waking);
+ * a second missed night is worth a nudge, and 36 hours past the newest day's midnight is where
+ * that second night has clearly been skipped.
+ */
+export const STALE_AFTER_HOURS = 36;
+
+/** Hours from the local midnight that closed `day` (in `tz`) to `now`; negative while `day` is still running. */
+function hoursSinceDayEnded(day: string, now: string, tz: string): number {
+  const ended = Date.parse(localDateToUtcRange(day, tz)[1]);
+  const hours = (Date.parse(now) - ended) / 3_600_000;
+  // NaN would compare false against the limit and call any cache current; say so instead.
+  if (!Number.isFinite(hours)) throw new Error(`hoursSinceDayEnded: cannot place ${JSON.stringify(now)} against day ${day}.`);
+  return hours;
+}
+
 function latestDataDay(db: Database): string | null {
   let latest: string | null = null;
   for (const tbl of DATA_TABLES) {
@@ -145,6 +167,8 @@ export async function runDoctor(ctx: Ctx, args: { db?: string; token?: string; o
     createClient: (token: string) => new OuraClient({ token }),
     offline: args.offline === true,
     today: ctx.today,
+    now: nowUtc(),
+    tz: ctx.tz,
   };
   const result = await runChecks(deps);
   return {
