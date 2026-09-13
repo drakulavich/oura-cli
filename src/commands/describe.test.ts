@@ -48,7 +48,7 @@ describe('buildManifest', () => {
 
   it('describes db subcommands with their positionals', () => {
     const db = m.commands.find(c => c.name === 'db')!;
-    expect(db.subcommands?.map(s => s.name)).toEqual(['today', 'date', 'week', 'trends', 'stats']);
+    expect(db.subcommands?.map(s => s.name)).toEqual(['today', 'date', 'week', 'trends', 'stats', 'rows']);
     expect(db.subcommands?.find(s => s.name === 'date')?.args[0]).toMatchObject({ name: '<day>', required: true });
   });
 

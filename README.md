@@ -105,6 +105,16 @@ oura-cli db trends 30             # score trends across the last 30 days
 oura-cli db stats                 # row counts, date range, personal bests
 ```
 
+### Cached rows of any collection
+
+`db rows` prints what the cache holds for one collection, as stored, in either output mode. It takes the same range flags and defaults as `fetch` (`--day`, `--from/--to`, `--days`; today by default; none for `ring`), so the two are twins: `fetch` reads the API, `db rows` reads the cache. This is how the collections no summary shows — tags, sessions, resilience, VO₂ max, bedtime guidance, rest mode, ring, battery — are read back.
+
+```bash
+oura-cli db rows tags --days 30                     # your own annotations for the month
+oura-cli db rows battery --day 2026-09-01           # the battery curve for one day
+oura-cli db rows ring --format json                 # every ring on the account, as JSON
+```
+
 ### Raw API records
 
 `fetch` returns one collection straight from the Oura API as JSON, without touching the local cache.
