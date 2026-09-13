@@ -98,6 +98,26 @@ describe('db rows (#73)', () => {
     }
   });
 
+  it('db today: "download your data" only on an empty cache; a cache with days gets the publish-delay note (#127)', async () => {
+    const empty = await run('db', 'today', '--format', 'table');
+    expect(empty.stdout).toContain('to download your data');
+
+    const path = join(tmpdir(), `oura-db-today-hint-${process.pid}.db`);
+    const db = new Database(path);
+    ensureSchema(db);
+    db.query('INSERT INTO daily_sleep VALUES (?,?,?,?,?)').run('s1', '2026-06-01', 80, '{}', '');
+    db.close();
+    try {
+      const proc = Bun.spawn(['bun', 'run', 'src/index.ts', '--db', path, 'db', 'today', '--format', 'table'], { stdout: 'pipe', stderr: 'pipe' });
+      const text = await new Response(proc.stdout).text();
+      expect(await proc.exited).toBe(0);
+      expect(text).not.toContain('to download your data');
+      expect(text).toContain("Oura publishes a day's summary after that night's sleep syncs from the ring. If the ring has synced since, run `oura-cli sync` again.");
+    } finally {
+      for (const suffix of ['', '-wal', '-shm']) rmSync(path + suffix, { force: true });
+    }
+  });
+
   it('gives the ring snapshot no --from hint, since it has no history to reach back into', async () => {
     const text = await run('db', 'rows', 'ring', '--format', 'table');
     expect(text.stdout).not.toContain('--from');

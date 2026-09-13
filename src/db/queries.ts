@@ -25,6 +25,12 @@ export interface DaySummary {
   partial: boolean;
 }
 
+/** True once any daily summary has been stored: the difference between "download your data" and "today is not published yet" (#127). */
+export function hasDailySummaries(db: Database): boolean {
+  const row = db.query('SELECT EXISTS (SELECT 1 FROM daily_sleep) OR EXISTS (SELECT 1 FROM daily_activity) OR EXISTS (SELECT 1 FROM daily_readiness) AS any_row').get() as { any_row: number } | undefined;
+  return row?.any_row === 1;
+}
+
 /**
  * The caller supplies the completeness rule rather than a `today` for this function to build one from:
  * building it reads the whole activity table, and `db week` summarises seven days off one read.
