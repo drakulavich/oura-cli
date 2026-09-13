@@ -144,9 +144,13 @@ export async function importDaily(
   // and quoting it here would tell a user that every sync covers a fortnight of daily summaries.
   const startDate = ranged.map(p => p.resume).sort()[0]!;
 
+  // An incremental run names no window: startDate is the oldest resume day across collections, and
+  // quoting it read as one request that no collection made (#132). A first sync and an explicit
+  // --from do request that range, so they keep it.
   _log(isFirstSync && window.from === undefined
     ? `First sync — backfilling the last ${BACKFILL_DAYS} days: ${startDate} → ${end}`
-    : `Syncing ${startDate} → ${end}`);
+    : window.from !== undefined ? `Syncing ${startDate} → ${end}`
+    : `Syncing each collection from its last stored day, through ${end}`);
   // Say it before the collection lines rather than after: the run that bypasses the guard should be
   // recognisable as such in the output someone kept, not only by the removals it went on to make.
   if (options.prune !== undefined) {
@@ -202,7 +206,7 @@ export async function importDaily(
       const kept = !refuse ? ''
         : unstorable ? `, ${known.size} rows kept: the response held no storable rows`
         : `, ${known.size} rows kept that the API did not return — an empty answer describes nothing; re-run with --prune=${c.name} to apply it`;
-      _log(`  + ${c.name} (${c.table}): ${fetched[c.table]} fetched, ${added[c.table]} new${droppedTail}${tail}${kept}`);
+      if (droppedTail || tail || kept) _log(`  + ${c.name} (${c.table}): ${fetched[c.table]} fetched, ${added[c.table]} new${droppedTail}${tail}${kept}`);
       continue;
     }
     // Insert and reconcile in one transaction: the window ends up holding exactly what the API
@@ -220,10 +224,11 @@ export async function importDaily(
     if (gone > 0) removed[c.table] = gone;
     if (windowPlan.refused > 0) refused[c.table] = { rows: windowPlan.refused, collection: c.name };
     if (windowPlan.bypassed > 0) pruned[c.table] = { rows: windowPlan.bypassed, collection: c.name };
-    // Every collection gets a line, including the ones that returned nothing: a silent collection
-    // was indistinguishable from a failed one, while the summary listed it anyway. Both names are
-    // printed because the summary and `fetch` speak in collection names while `db stats` and the
-    // schema speak in table names.
+    // A collection gets a line only when it has more to say than its counts — rows dropped, stale
+    // rows removed, rows kept back. The summary grid already lists every collection's counts, and
+    // seventeen lines followed by the same numbers in a grid read as the run reported twice (#132).
+    // Both names are printed because the summary and `fetch` speak in collection names while
+    // `db stats` and the schema speak in table names.
     // A bypass is named on its own line's tail: "12 stale removed" alone reads like any other
     // reconciliation, and under --from those rows do not come back on the next sync.
     const tail = gone > 0
@@ -235,10 +240,9 @@ export async function importDaily(
     const kept = windowPlan.refused > 0
       ? `, ${windowPlan.refused} rows kept that the API did not return — too many to drop on one response; re-run with --prune=${c.name} to apply them`
       : '';
-    _log(`  + ${c.name} (${c.table}): ${fetched[c.table]} fetched, ${added[c.table]} new${droppedTail}${tail}${kept}`);
+    if (droppedTail || tail || kept) _log(`  + ${c.name} (${c.table}): ${fetched[c.table]} fetched, ${added[c.table]} new${droppedTail}${tail}${kept}`);
   }
 
-  _log('Import complete.');
   return { startDate, endDate: end, fetched, added, removed, dropped, refused, pruned, isFirstSync,
     ...(options.prune === undefined ? {} : { pruneScope: options.prune }) };
 }

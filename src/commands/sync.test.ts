@@ -288,8 +288,8 @@ describe('runSync', () => {
       // The importer's `_log` is undefined in JSON mode, so the buffered
       // progress lines stay empty and text() falls back to just the summary.
       const text = out.text();
-      expect(text).not.toMatch(/Syncing from/);
-      expect(text).not.toMatch(/Import complete\./);
+      expect(text).not.toContain('First sync');
+      expect(text).not.toContain('Syncing each collection');
     });
 
     it('summarizes only today, leaving fields null when the imported row is dated a different day', async () => {
@@ -328,12 +328,13 @@ describe('runSync', () => {
   });
 
   describe('table output', () => {
-    it('forwards a logger to the importer so progress lines are buffered into text()', async () => {
+    it('forwards a logger to the importer so its header line is buffered into text()', async () => {
       installFetch(todayFixture());
       const { out, db } = await runSyncFor('table');
       db.close();
 
-      expect(out.text()).toMatch(/Import complete\./);
+      expect(out.text()).toMatch(/^First sync — backfilling/);
+      expect(out.text()).not.toContain('Import complete');
     });
 
     it('labels a first sync as a 30-day backfill, naming the resolved date range', async () => {
@@ -344,7 +345,7 @@ describe('runSync', () => {
       expect(out.text()).toContain('First sync — backfilling the last 30 days: 2026-05-17 → 2026-06-15');
     });
 
-    it('labels an incremental sync with just the resolved date range, no "First sync"', async () => {
+    it('labels an incremental sync as one from each collection\'s last stored day, not as a window (#132)', async () => {
       installFetch(todayFixture());
       const first = await runSyncFor('table');
       first.db.close();
@@ -354,21 +355,25 @@ describe('runSync', () => {
       db.close();
 
       const text = out.text();
-      expect(text).toContain(`Syncing 2026-05-17 → ${TODAY}`);
+      // The oldest watermark across collections was quoted as if one request covered it; none did.
+      expect(text).toContain(`Syncing each collection from its last stored day, through ${TODAY}`);
+      expect(text).not.toMatch(/Syncing \d{4}-\d{2}-\d{2}/);
       expect(text).not.toContain('First sync');
     });
 
-    it('includes a per-collection count summary, including zero counts for empty collections', async () => {
+    it('reports each collection once, in the count grid, including zero counts for empty collections', async () => {
       installFetch(todayFixture());
       const { out, db } = await runSyncFor('table');
       db.close();
 
       const text = out.text();
-      expect(text).toContain('Fetched 2026-05-17 → 2026-06-15, rows fetched (+new):');
+      expect(text).toContain('Rows fetched (+new):');
+      expect(text).not.toContain('Fetched 2026-05-17');
       expect(text).toMatch(/sleep +1 +\(\+1\)/);
-      // every collection reports, under both its collection name and its table name
-      expect(text).toContain('  + tags (enhanced_tags): 0 fetched, 0 new');
-      expect(text).toContain('  + sleep (daily_sleep): 1 fetched, 1 new');
+      // A collection whose line would only repeat its counts gets none: the grid reported every
+      // collection a second time, and a terminal run listed the same numbers twice (#132).
+      expect(text).not.toContain('  + ');
+      expect(text).not.toContain('fetched, ');
       // workouts and heartrate have no fixture rows and must still show as 0.
       expect(text).toMatch(/workout +0 +\(\+0\)/);
       expect(text).toMatch(/hr +0 +\(\+0\)/);

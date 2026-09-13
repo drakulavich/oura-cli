@@ -116,7 +116,9 @@ export function formatImportSummary(result: ImportResult, width = terminalWidth(
   const cellW = Math.max(...aligned.map(visibleWidth));
   const columns = columnsThatFit(cellW, width);
   const cells = columns === 1 ? bare : aligned.map(c => padRight(c, cellW));
-  const head = `  Fetched ${result.startDate} → ${result.endDate}, rows fetched (+new):`;
+  // No window in the head: the line `importDaily` logs first already names it, or says why there is
+  // none to name (#132).
+  const head = '  Rows fetched (+new):';
   return [head, ...rowsOf(cells, columns)].join('\n');
 }
 

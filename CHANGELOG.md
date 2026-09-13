@@ -6,6 +6,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- `sync` on a terminal no longer reports every collection twice, nor a window no collection requested. An incremental run says `Syncing each collection from its last stored day, through <today>` instead of quoting the oldest watermark as if one request covered it; a collection gets a line of its own only when it has more to say than its counts (rows dropped, stale rows removed, rows kept back); the grid of counts, now headed `Rows fetched (+new):`, is the one summary; and `Import complete.` is gone. A first sync and an explicit `--from` keep their date range, which those runs do request. JSON output is unchanged. (#132)
+
 ## [0.8.2] - 2026-09-13
 
 ### Fixed
