@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import chalk from 'chalk';
-import { formatDaySummary, formatWeekTable, formatTrends, formatStats, formatImportSummary } from './format.js';
+import { formatDaySummary, formatWeekTable, formatTrends, formatStats, formatImportSummary, PARTIAL_NOTE } from './format.js';
 import type { DaySummary, TrendRow, DbStats } from '../db/queries.js';
 import type { ImportResult } from '../db/sync.js';
 
@@ -202,11 +202,11 @@ describe('formatWeekTable', () => {
 
     expect(out).toContain('2026-05-07*');
     expect(out).not.toContain('2026-05-06*');
-    expect(out).toContain('* still accumulating');
+    expect(out).toContain('* activity totals are not final.');
   });
 
   it('says nothing about accumulating when no day is partial', () => {
-    expect(formatWeekTable([makeDay()], 'table')).not.toContain('still accumulating');
+    expect(formatWeekTable([makeDay()], 'table')).not.toContain('not final');
   });
 
   it('returns pretty-printed JSON when format is json', () => {
@@ -624,5 +624,24 @@ describe('formatStats', () => {
     );
     expect(noRecords).not.toContain('Most steps:');
     expect(noRecords).not.toContain('Best sleep:');
+  });
+});
+
+describe('formatDaySummary partial day', () => {
+  // #113: `db date` for the day the week table marks with `*` printed the same numbers with no mark
+  // and no note, while its JSON already said `partial: true`.
+  it('marks the header and explains the mark, with the wording the week table uses', () => {
+    const out = stripAnsi(formatDaySummary(makeDay({ day: '2026-05-07', partial: true }), 'table'));
+    expect(out).toContain('2026-05-07*');
+    expect(out).toContain(PARTIAL_NOTE.trim());
+    expect(stripAnsi(formatWeekTable([makeDay({ day: '2026-05-07', partial: true })], 'table'))).toContain(PARTIAL_NOTE.trim());
+  });
+  it('prints neither for a complete day', () => {
+    const out = stripAnsi(formatDaySummary(makeDay({ day: '2026-05-07', partial: false }), 'table'));
+    expect(out).not.toContain('*');
+  });
+  it('leaves the JSON untouched', () => {
+    const day = makeDay({ partial: true });
+    expect(formatDaySummary(day, 'json')).toBe(JSON.stringify(day, null, 2));
   });
 });
