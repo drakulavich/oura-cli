@@ -117,25 +117,25 @@ describe('formatReport — partial day', () => {
     const out = stripAnsi(formatReport(partialFixture, 'table', 'week'));
     expect(out).toContain('Fri 08/05*');
     expect(out).toContain('Thu 07/05 ');
-    expect(out).toContain('* today is still accumulating; activity averages cover through 2026-05-07.');
+    expect(out).toContain('* today: activity totals are not final; averages cover through 2026-05-07.');
   });
 
   it('names the day when the partial day is not today', () => {
     const data = { ...partialFixture, weekEnd: '2026-05-09' };
     const out = stripAnsi(formatReport(data, 'table', 'week'));
-    expect(out).toContain('* Fri 08/05 is still accumulating');
+    expect(out).toContain('* Fri 08/05: activity totals are not final');
   });
 
   it('marks the monthly bucket that holds the accumulating day and names the bucket in the note, not "today"', () => {
     // #84: the note took its wording from the daily rule while the table showed week buckets.
     const out = stripAnsi(formatReport({ ...partialFixture, period: 'month' }, 'table', 'month'));
     expect(out).toContain('2026-05-07 (2 days)*');
-    expect(out).toContain('* the week of 2026-05-07 is still accumulating');
-    expect(out).not.toContain('today is still accumulating');
+    expect(out).toContain('* the week of 2026-05-07: activity totals are not final');
+    expect(out).not.toContain('today:');
   });
 
   it('prints no note when every day is complete', () => {
-    expect(stripAnsi(formatReport(fixture, 'table', 'week'))).not.toContain('still accumulating');
+    expect(stripAnsi(formatReport(fixture, 'table', 'week'))).not.toContain('not final');
   });
 });
 
@@ -171,6 +171,6 @@ describe('formatReport — monthly buckets', () => {
 
   it('names the newest bucket in the note', () => {
     expect(stripAnsi(formatReport(month, 'table', 'month')))
-      .toContain('* the week of 2026-05-07 is still accumulating; activity averages cover through 2026-05-12.');
+      .toContain('* the week of 2026-05-07: activity totals are not final; averages cover through 2026-05-12.');
   });
 });

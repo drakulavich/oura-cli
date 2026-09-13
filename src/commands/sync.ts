@@ -83,7 +83,7 @@ const syncArgs = {
 
 /** Exported apart from the command so a test can drive the args-to-options mapping through `execute`. */
 export const syncDef: DataCommandDef<typeof syncArgs> = {
-  meta: { name: 'sync', description: "Import latest data from Oura API and return today's summary" },
+  meta: { name: 'sync', description: 'Download new Oura data into the local cache and report what each collection fetched' },
   args: syncArgs,
   needs: { db: true, client: true },
   run: (ctx, args) => runSync(
