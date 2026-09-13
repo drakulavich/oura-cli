@@ -64,6 +64,7 @@ Subsequent `oura-cli sync` re-fetches each collection from its own last stored d
 | `No Oura access token at /…/.oura-token` | `oura-cli login` |
 | `Oura API 401` | `oura-cli login` with a fresh PAT |
 | `db today` empty right after a sync | Normal — Oura publishes a day's summary after that night's sleep syncs from the ring. |
+| `doctor` still warns that data is stale after a sync | The ring has not uploaded: open the Oura app near the ring, then `oura-cli sync`. `doctor` (without `--offline`) says which side is behind. |
 | Anything else | `oura-cli doctor` |
 
 ## Daily use

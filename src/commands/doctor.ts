@@ -3,7 +3,7 @@ import type { Database } from '../db/open.js';
 import { OuraClient } from '../api/client.js';
 import { resolveToken } from '../api/token.js';
 import { CliError, exitCodeFor } from '../lib/errors.js';
-import { localDateToUtcRange, nowUtc } from '../lib/time.js';
+import { localDateToUtcRange, nowUtc, shiftDay } from '../lib/time.js';
 import { formatDoctorTable } from '../render/doctor-table.js';
 import { dataCommand, type Ctx, type Output } from './run-command.js';
 import type { CheckStatus, DoctorCheck, DoctorResult, DoctorDeps } from '../render/doctor-types.js';
@@ -20,6 +20,10 @@ export async function runChecks(deps: DoctorDeps): Promise<DoctorResult> {
     checks.push({ id: 'token', status: 'fail', detail: `No token found (checked ${source}).`, fix: 'oura-cli login' });
   }
 
+  // Once the token has been accepted, the data check can ask Oura whether it holds anything newer
+  // than the cache (#127). Undefined while offline or when the API could not be reached.
+  let hasNewer: ((from: string, to: string) => Promise<boolean>) | undefined;
+
   if (!token) {
     checks.push({ id: 'token-valid', status: 'fail', detail: 'No token to validate.', fix: 'oura-cli login' });
   } else if (deps.offline) {
@@ -29,6 +33,12 @@ export async function runChecks(deps: DoctorDeps): Promise<DoctorResult> {
       const client = deps.createClient(token);
       await client.fetch('daily_sleep', { start_date: deps.today, end_date: deps.today });
       checks.push({ id: 'token-valid', status: 'ok', detail: 'Token accepted by the Oura API.' });
+      // The same three tables latestDataDay reads, so a day Oura holds in any of them counts as newer.
+      hasNewer = async (from, to) => {
+        const query = { start_date: from, end_date: to };
+        for (const endpoint of DATA_TABLES) if ((await client.fetch(endpoint, query)).length > 0) return true;
+        return false;
+      };
     } catch (err) {
       if (err instanceof CliError && err.code === 'TOKEN_INVALID') {
         checks.push({ id: 'token-valid', status: 'fail', detail: err.message, fix: 'oura-cli login' });
@@ -79,11 +89,7 @@ export async function runChecks(deps: DoctorDeps): Promise<DoctorResult> {
       // `db week` were marking the same newest day as still accumulating (#114).
       const hours = hoursSinceDayEnded(last, deps.now, deps.tz);
       if (hours > STALE_AFTER_HOURS) {
-        checks.push({
-          id: 'data', status: 'warn',
-          detail: `Most recent data is from ${last}; that day ended over ${Math.floor(hours)} hours ago (the limit is ${STALE_AFTER_HOURS}).`,
-          fix: 'oura-cli sync',
-        });
+        checks.push(await staleDataCheck(last, hours, hasNewer, deps.today));
       } else {
         checks.push({ id: 'data', status: 'ok', detail: `Data current through ${last}.` });
       }
@@ -135,6 +141,32 @@ function hoursSinceDayEnded(day: string, now: string, tz: string): number {
   // NaN would compare false against the limit and call any cache current; say so instead.
   if (!Number.isFinite(hours)) throw new Error(`hoursSinceDayEnded: cannot place ${JSON.stringify(now)} against day ${day}.`);
   return hours;
+}
+
+/**
+ * The `data` warning for a cache whose newest day is stale. `oura-cli sync` was the fix whatever
+ * the cause, and when the cause was a ring that had not uploaded, sync added nothing, doctor said
+ * sync again, and the two looped forever (#127). Live, Oura is asked whether it holds any day after
+ * `last`; offline, or when the API could not be reached, both causes are named.
+ */
+async function staleDataCheck(last: string, hours: number, hasNewer: ((from: string, to: string) => Promise<boolean>) | undefined, today: string): Promise<DoctorCheck> {
+  const base = `Most recent data is from ${last}; that day ended over ${Math.floor(hours)} hours ago (the limit is ${STALE_AFTER_HOURS} hours).`;
+  const newer = hasNewer === undefined ? undefined : await hasNewer(shiftDay(last, 1), today).catch(() => undefined);
+  if (newer === true) {
+    return { id: 'data', status: 'warn', detail: `${base} Oura has newer days.`, fix: 'oura-cli sync' };
+  }
+  if (newer === false) {
+    return {
+      id: 'data', status: 'warn',
+      detail: `${base} Oura has nothing newer, so the ring has not uploaded since then.`,
+      fix: 'Open the Oura app so the ring uploads its data, then run `oura-cli sync`.',
+    };
+  }
+  return {
+    id: 'data', status: 'warn',
+    detail: `${base} Either Oura has newer days, or the ring has not uploaded since then.`,
+    fix: 'Run `oura-cli sync`; if it adds nothing, open the Oura app so the ring uploads its data.',
+  };
 }
 
 function latestDataDay(db: Database): string | null {

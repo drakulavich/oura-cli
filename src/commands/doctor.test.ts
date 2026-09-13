@@ -62,8 +62,8 @@ describe('doctor runChecks', () => {
 
     const dataCheck = result.checks.find(c => c.id === 'data')!;
     expect(dataCheck.status).toBe('warn');
-    expect(dataCheck.detail).toBe('Most recent data is from 2026-08-25; that day ended over 108 hours ago (the limit is 36).');
-    expect(result.nextStep).toBe('oura-cli sync');
+    expect(dataCheck.detail).toContain('Most recent data is from 2026-08-25; that day ended over 108 hours ago (the limit is 36 hours).');
+    expect(result.nextStep).toContain('oura-cli sync');
   });
 
   // #114: on 2026-09-12 a cache whose newest day was 2026-09-10 passed as "current" while `report`
@@ -87,8 +87,8 @@ describe('doctor runChecks', () => {
 
       const past = await dataCheck({ openDb: () => ({ db: cacheEndingOn('2026-08-28'), path: ':memory:' }), now: '2026-08-30T12:00:01Z' });
       expect(past.status).toBe('warn');
-      expect(past.fix).toBe('oura-cli sync');
-      expect(past.detail).toBe('Most recent data is from 2026-08-28; that day ended over 36 hours ago (the limit is 36).');
+      expect(past.fix).toContain('oura-cli sync');
+      expect(past.detail).toContain('Most recent data is from 2026-08-28; that day ended over 36 hours ago (the limit is 36 hours).');
       expect(Object.keys(past)).toEqual(['id', 'status', 'detail', 'fix']); // the published field order, unchanged since 0.7.1
     });
 
@@ -116,6 +116,73 @@ describe('doctor runChecks', () => {
       expect(la.status).toBe('ok');
       const utc = await dataCheck({ openDb: () => ({ db: cacheEndingOn('2026-08-28'), path: ':memory:' }), now: '2026-08-30T18:00:00Z', tz: 'UTC' });
       expect(utc.status).toBe('warn');
+    });
+  });
+
+  // #127: after five live syncs that added nothing, doctor still said "oura-cli sync". The cache
+  // matched the API; the ring had not uploaded. Live, doctor now asks Oura whether it holds a newer day.
+  describe('a stale cache: is Oura behind the ring, or the cache behind Oura? (#127)', () => {
+    function stale(): Database {
+      const db = new Database(':memory:');
+      ensureSchema(db);
+      db.query('INSERT OR REPLACE INTO daily_sleep VALUES (?,?,?,?,?)').run('id1', '2026-08-25', 80, '{}', '2026-08-25T00:00:00Z');
+      return db;
+    }
+    /** A fake API that answers the token probe and then `newer` for any window after 2026-08-25, recording every request. */
+    function api(newer: unknown[]) {
+      const calls: Array<{ endpoint: string; query: Record<string, string> }> = [];
+      const createClient = () => ({
+        fetch: async (endpoint: string, query: Record<string, string>) => {
+          calls.push({ endpoint, query });
+          return query.start_date === '2026-08-30' ? [] : newer; // the token probe asks for today alone
+        },
+      });
+      return { calls, createClient };
+    }
+
+    it('keeps "oura-cli sync" as the fix when Oura has days the cache lacks', async () => {
+      const { calls, createClient } = api([{ day: '2026-08-29' }]);
+      const result = await runChecks(makeDeps({ offline: false, createClient, openDb: () => ({ db: stale(), path: ':memory:' }) }));
+      const data = result.checks.find(c => c.id === 'data')!;
+      expect(data.status).toBe('warn');
+      expect(data.detail).toContain('Oura has newer days.');
+      expect(data.fix).toBe('oura-cli sync');
+      expect(result.nextStep).toBe('oura-cli sync');
+      // The window asked for starts the day after the newest cached day and ends today.
+      expect(calls.slice(1).map(c => c.query)).toEqual([{ start_date: '2026-08-26', end_date: '2026-08-30' }]);
+    });
+
+    it('names the ring, not sync, when Oura has nothing newer either', async () => {
+      const { calls, createClient } = api([]);
+      const result = await runChecks(makeDeps({ offline: false, createClient, openDb: () => ({ db: stale(), path: ':memory:' }) }));
+      const data = result.checks.find(c => c.id === 'data')!;
+      expect(data.detail).toContain('Oura has nothing newer, so the ring has not uploaded since then.');
+      expect(data.fix).toBe('Open the Oura app so the ring uploads its data, then run `oura-cli sync`.');
+      expect(result.nextStep).toBe(data.fix!);
+      // Every daily endpoint the freshness check reads was consulted before concluding "nothing newer".
+      expect(calls.slice(1).map(c => c.endpoint)).toEqual(['daily_sleep', 'daily_readiness', 'daily_activity']);
+    });
+
+    it('names both causes when it cannot ask: offline, or the probe fails', async () => {
+      const offline = await runChecks(makeDeps({ openDb: () => ({ db: stale(), path: ':memory:' }) }));
+      const data = offline.checks.find(c => c.id === 'data')!;
+      expect(data.detail).toContain('Either Oura has newer days, or the ring has not uploaded since then.');
+      expect(data.fix).toBe('Run `oura-cli sync`; if it adds nothing, open the Oura app so the ring uploads its data.');
+
+      let n = 0;
+      const failing = () => ({ fetch: async () => { if (n++ === 0) return []; throw new Error('boom'); } });
+      const live = await runChecks(makeDeps({ offline: false, createClient: failing, openDb: () => ({ db: stale(), path: ':memory:' }) }));
+      expect(live.checks.find(c => c.id === 'token-valid')!.status).toBe('ok');
+      expect(live.checks.find(c => c.id === 'data')!.detail).toContain('Either Oura has newer days');
+    });
+
+    it('asks Oura nothing beyond the token probe when the cache is current', async () => {
+      const { calls, createClient } = api([{ day: 'x' }]);
+      const db = new Database(':memory:');
+      ensureSchema(db);
+      db.query('INSERT OR REPLACE INTO daily_sleep VALUES (?,?,?,?,?)').run('id1', '2026-08-30', 80, '{}', '2026-08-30T00:00:00Z');
+      await runChecks(makeDeps({ offline: false, createClient, openDb: () => ({ db, path: ':memory:' }) }));
+      expect(calls).toHaveLength(1);
     });
   });
 
