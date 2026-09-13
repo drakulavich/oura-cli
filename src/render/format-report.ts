@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import type { ReportData } from '../db/report.js';
 import type { OutputFormat } from '../lib/format-resolve.js';
 import { padLeft } from '../lib/pad.js';
-import { rule } from './rule.js';
+import { RULE, finish } from './rule.js';
 
 function colorizeScore(n: number): (s: string) => string {
   if (n >= 85) return chalk.green;
@@ -132,27 +132,24 @@ export function formatReport(data: ReportData, format: OutputFormat, period: 'we
   if (period === 'week') {
     // Daily table — 7 rows
     lines.push(chalk.bold('  Last 7 Days:'));
-    lines.push(rule(52));
-    lines.push(`  ${'Day'.padEnd(10)} ${'Sleep'.padStart(6)} ${'Ready'.padStart(6)} ${'Active'.padStart(7)} ${'Steps'.padStart(8)}`);
-    lines.push(rule(52));
+    // Rules as wide as the table itself: a fixed 52 sat under a 43-column table (pre-0.8.0 review).
+    const table = [RULE, `  ${'Day'.padEnd(10)} ${'Sleep'.padStart(6)} ${'Ready'.padStart(6)} ${'Active'.padStart(7)} ${'Steps'.padStart(8)}`, RULE];
     for (const d of data.days) {
-      lines.push(`  ${(d.partial ? d.dayLabel + '*' : d.dayLabel).padEnd(10)} ${scoreCell(d.sleep, 6)} ${scoreCell(d.readiness, 6)} ${scoreCell(d.activity, 7)} ${stepsCell(d.steps, 8)}`);
+      table.push(`  ${(d.partial ? d.dayLabel + '*' : d.dayLabel).padEnd(10)} ${scoreCell(d.sleep, 6)} ${scoreCell(d.readiness, 6)} ${scoreCell(d.activity, 7)} ${stepsCell(d.steps, 8)}`);
     }
-    lines.push('');
+    lines.push(...finish(table), '');
   } else {
     // Monthly — weekly buckets table
     lines.push(chalk.bold('  Last 30 Days:'));
     // 21: a labelled stub is up to 20 characters, "2026-08-13 (2 days)*".
-    lines.push(rule(69));
-    lines.push(`  ${'Week of'.padEnd(21)} ${'Sleep'.padStart(6)} ${'Ready'.padStart(6)} ${'Active'.padStart(7)} ${'Steps'.padStart(10)}`);
-    lines.push(rule(69));
+    const table = [RULE, `  ${'Week of'.padEnd(21)} ${'Sleep'.padStart(6)} ${'Ready'.padStart(6)} ${'Active'.padStart(7)} ${'Steps'.padStart(10)}`, RULE];
     for (const b of buckets) {
       const avgSleepInt = b.avgSleep !== null ? Math.round(b.avgSleep) : null;
       const avgReadyInt = b.avgReadiness !== null ? Math.round(b.avgReadiness) : null;
       const avgActiveInt = b.avgActivity !== null ? Math.round(b.avgActivity) : null;
-      lines.push(`  ${bucketLabel(b).padEnd(21)} ${scoreCell(avgSleepInt, 6)} ${scoreCell(avgReadyInt, 6)} ${scoreCell(avgActiveInt, 7)} ${stepsCell(b.totalSteps, 10)}`);
+      table.push(`  ${bucketLabel(b).padEnd(21)} ${scoreCell(avgSleepInt, 6)} ${scoreCell(avgReadyInt, 6)} ${scoreCell(avgActiveInt, 7)} ${stepsCell(b.totalSteps, 10)}`);
     }
-    lines.push('');
+    lines.push(...finish(table), '');
   }
 
   // Averages

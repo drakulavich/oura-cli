@@ -4,7 +4,7 @@ import { formatDaySummary, formatWeekTable, formatTrends, formatStats, formatImp
 import type { DaySummary, TrendRow, DbStats } from '../db/queries.js';
 import type { ImportResult } from '../db/sync.js';
 import { formatDoctorTable } from './doctor-table.js';
-import { rule } from './rule.js';
+import { finish, rule, RULE } from './rule.js';
 
 // Strip ANSI escape codes to assert on *visible* text, regardless of chalk level.
 const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, '');
@@ -727,10 +727,24 @@ describe('rules and whitespace in the text views (#61)', () => {
     expect(lines.some(l => l.endsWith('stressful'))).toBe(true);
   });
 
+  it('sizes each view\'s rule to its widest line, so trends and stats rows never overhang their rule', () => {
+    const wideTrends: TrendRow[] = [{ label: 'Sleep score', avg: 80000, min: 70000, max: 90000, count: 365 }];
+    for (const out of [formatTrends(wideTrends, 365, 'table'), formatStats(stats, 'table'), formatDaySummary(day, 'table'),
+      formatDoctorTable({ ok: false, nextStep: 'x', checks: [{ id: 'data', status: 'warn', detail: 'Most recent data is from 2026-09-10; that day ended over 57 hours ago (the limit is 36).' }] })]) {
+      const lines = stripAnsi(out).split('\n');
+      const rules = lines.filter(l => /^  [─═]+$/.test(l));
+      const widest = Math.max(...lines.filter(l => !/^  [─═]+$/.test(l)).map(l => l.length));
+      expect(rules.length).toBeGreaterThan(0);
+      for (const r of rules) expect(r.length).toBe(widest);
+    }
+    expect(finish(['  abcdef', RULE, '  ab'], 80)).toEqual(['  abcdef', rule(6, '─', 80), '  ab']);
+    expect(finish(['  abcdef', RULE], 5)).toEqual(['  abcdef', rule(3, '─', 5)]); // capped by the screen
+  });
+
   it('caps a rule at the screen width on a terminal, keeps the indent inside it, and draws it whole on a pipe', () => {
     expect(stripAnsi(rule(56, '─', 40))).toBe('  ' + '─'.repeat(38));
     expect(stripAnsi(rule(56, '─', 80))).toBe('  ' + '─'.repeat(56));
-    expect(stripAnsi(rule(56, '═', 1))).toBe('  ');
+    expect(rule(56, '═', 1)).toBe(''); // no room for a glyph: an empty line, not two trailing spaces
     // No terminal (a pipe, and the test runner): a 130-column `db rows` table keeps its 130-column rule.
     expect(stripAnsi(rule(130))).toBe('  ' + '─'.repeat(130));
   });
