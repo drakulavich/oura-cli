@@ -40,9 +40,11 @@ export function formatDaySummary(summary: DaySummary, format: OutputFormat, empt
     ].join('\n');
   }
 
+  // The same `*` the week table and `report` put on this day: without it, drilling from a marked
+  // week row into the day lost the mark, though the JSON carried `partial` all along (#113).
   const lines: string[] = [
     '',
-    chalk.bold(`  ${summary.day}`),
+    chalk.bold(`  ${summary.partial ? `${summary.day}*` : summary.day}`),
     chalk.gray('─'.repeat(50)),
     `  Sleep:     ${scoreColor(summary.sleep_score)}    Readiness: ${scoreColor(summary.readiness_score)}    Activity: ${scoreColor(summary.activity_score)}`,
     `  Steps:     ${summary.steps ?? chalk.gray('—')}`,
@@ -60,9 +62,13 @@ export function formatDaySummary(summary: DaySummary, format: OutputFormat, empt
     lines.push(`  Sleep:     ${fmtHours(summary.sleep_hours)} total | ${fmtHours(summary.deep_hours)} deep | ${fmtHours(summary.rem_hours)} REM`);
     lines.push(`  HRV:       ${summary.avg_hrv ?? '—'}    Lowest HR: ${summary.lowest_hr ?? '—'}    Efficiency: ${summary.efficiency ?? '—'}%`);
   }
+  if (summary.partial) lines.push('', PARTIAL_NOTE);
 
   return lines.join('\n');
 }
+
+/** The one explanation of the `*` mark, shared by the day and week views so they cannot drift apart. */
+export const PARTIAL_NOTE = '  * activity totals are not final.';
 
 const SUMMARY_INDENT = 4;
 const SUMMARY_GAP = 2;
@@ -128,7 +134,7 @@ export function formatWeekTable(days: DaySummary[], format: OutputFormat, emptyH
     `${padRight(d.partial ? `${d.day}*` : d.day, 12)} ${padLeft(scoreColor(d.sleep_score), 6)} ${padLeft(scoreColor(d.readiness_score), 6)} ` +
     `${padLeft(scoreColor(d.activity_score), 9)} ${padLeft(String(d.steps ?? '—'), 7)} ${padRight(d.stress ?? '—', 10)}`
   );
-  const note = days.some(d => d.partial) ? ['  * still accumulating; its activity totals are not final.'] : [];
+  const note = days.some(d => d.partial) ? [PARTIAL_NOTE] : [];
   return ['\n  Last 7 Days', sep, `  ${header}`, sep, ...rows.map(r => `  ${r}`), ...note].join('\n');
 }
 
