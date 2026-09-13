@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
-import { OuraClient, retryDelayMs, MAX_RETRY_AFTER_MS, RETRY_LIMIT } from './client.js';
+import { OuraClient, retryDelayMs, MAX_RETRY_AFTER_MS, MAX_TOTAL_WAIT_MS, RETRY_LIMIT } from './client.js';
 import { CliError } from '../lib/errors.js';
 
 const realFetch = globalThis.fetch;
@@ -397,5 +397,76 @@ describe('rate limiting and progress (#45)', () => {
     await client.fetch('heartrate', { start_datetime: 'a', end_datetime: 'b' });
     // A 429 is not a page; the retry that succeeds is.
     expect(seen).toEqual([{ endpoint: 'heartrate', rows: 2 }, { endpoint: 'heartrate', rows: 0 }, { endpoint: 'heartrate', rows: 1 }]);
+  });
+});
+
+describe('the 429 wait is bounded per command, and transport faults are classified (pre-0.8.0 S2)', () => {
+  beforeEach(() => { process.env.OURA_TOKEN = 'test-token'; });
+  afterEach(() => { globalThis.fetch = realFetch; delete process.env.OURA_TOKEN; });
+
+  function always429(retryAfter: string): number[] {
+    const calls: number[] = [];
+    globalThis.fetch = (async () => {
+      calls.push(1);
+      return new Response('slow down', { status: 429, headers: { 'Retry-After': retryAfter } });
+    }) as unknown as typeof globalThis.fetch;
+    return calls;
+  }
+
+  it('stops retrying once the command has waited MAX_TOTAL_WAIT_MS in total, across pages and pieces', async () => {
+    // Retry-After 60 s: one page may wait 3 × 60 s = 180 s = the whole budget. The next page gets no retry.
+    const calls = always429('60');
+    const waits: number[] = [];
+    const client = new OuraClient({ sleep: async ms => { waits.push(ms); } });
+    const first = await client.fetch('heartrate', { start_datetime: 'a', end_datetime: 'b' }).catch(e => e as CliError);
+    expect((first as CliError).hint).toContain('waited 180 s on 429 answers (the most it will is 180 s)');
+    expect(waits).toEqual([60_000, 60_000, 60_000]);
+    const second = await client.fetch('heartrate', { start_datetime: 'c', end_datetime: 'd' }).catch(e => e as CliError);
+    expect((second as CliError).code).toBe('API_ERROR');
+    expect((second as CliError).hint).toContain('retried 0 times');
+    expect(waits).toHaveLength(3);            // no further sleep
+    expect(calls).toHaveLength(4 + 1);        // 1 + 3 retries, then a single request for the second page
+    expect(MAX_TOTAL_WAIT_MS).toBe(180_000);
+  });
+
+  it('announces every wait through onRetry, with the endpoint, the wait and the attempt', async () => {
+    always429('2');
+    const seen: unknown[] = [];
+    const client = new OuraClient({ sleep: async () => {}, onRetry: r => seen.push(r) });
+    await client.fetch('daily_sleep', { start_date: '2026-05-01' }).catch(() => undefined);
+    expect(seen).toEqual([
+      { endpoint: 'daily_sleep', waitMs: 2_000, attempt: 0 },
+      { endpoint: 'daily_sleep', waitMs: 2_000, attempt: 1 },
+      { endpoint: 'daily_sleep', waitMs: 2_000, attempt: 2 },
+    ]);
+  });
+
+  it('honours the first of two Retry-After headers instead of falling back to the backoff, dates included', () => {
+    const now = Date.parse('2026-09-13T10:00:00Z');
+    expect(retryDelayMs('5, 10', 0, now)).toBe(5_000);
+    expect(retryDelayMs(' 7 ', 0, now)).toBe(7_000);
+    expect(retryDelayMs('Sun, 13 Sep 2026 10:00:30 GMT, Sun, 13 Sep 2026 10:01:00 GMT', 0, now)).toBe(30_000);
+    expect(retryDelayMs('Sun, 13 Sep 2026 10:00:30 GMT', 0, now)).toBe(30_000);
+    expect(retryDelayMs('abc, 5', 0, now)).toBe(1_000); // neither reading parses: backoff
+  });
+
+  it('redacts the literal token from an error body even when it is not behind "Bearer"', async () => {
+    process.env.OURA_TOKEN = 'pat-abcdefghijklmnop';
+    mockFetch({ status: 429, body: 'denied for token=pat-abcdefghijklmnop&x=1' });
+    const err = await new OuraClient({ sleep: async () => {} }).fetch('daily_sleep', { start_date: '2026-05-01' }).catch(e => e as CliError);
+    expect((err as CliError).message).toBe('Oura API 429: denied for token=[REDACTED]&x=1');
+  });
+
+  it('turns a transport failure into API_ERROR with a hint rather than an UNKNOWN', async () => {
+    let n = 0;
+    globalThis.fetch = (async () => {
+      if (n++ === 0) return new Response(JSON.stringify({ data: [1], next_token: 'p2' }), { status: 200 });
+      throw new TypeError('fetch failed');
+    }) as unknown as typeof globalThis.fetch;
+    const err = await new OuraClient().fetch('daily_sleep', { start_date: '2026-05-01' }).catch(e => e as unknown);
+    expect(err).toBeInstanceOf(CliError);
+    expect((err as CliError).code).toBe('API_ERROR');
+    expect((err as CliError).message).toBe('Could not reach the Oura API: fetch failed');
+    expect((err as CliError).hint).toContain('network');
   });
 });

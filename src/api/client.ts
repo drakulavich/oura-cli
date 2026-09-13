@@ -21,17 +21,31 @@ const MAX_PAGES = 10_000;
 export const RETRY_LIMIT = 3;
 /** The longest single wait, whatever `Retry-After` asks for: past a minute the user should decide. */
 export const MAX_RETRY_AFTER_MS = 60_000;
+/**
+ * The most one command waits on 429 answers in total. The per-page limit alone let a 77-page
+ * `fetch hr` sleep for hours, one bounded wait at a time; past this the command fails and says so.
+ */
+export const MAX_TOTAL_WAIT_MS = 3 * 60_000;
 const BACKOFF_MS = [1_000, 2_000, 4_000] as const;
 
 /**
  * Milliseconds to wait before retry number `attempt` (0-based). `Retry-After` may be seconds or an
- * HTTP date; anything else, or nothing, falls back to a doubling backoff.
+ * HTTP date; anything else, or nothing, falls back to a doubling backoff. Two headers arrive joined
+ * as "5, 10"; the first is the one to honour.
  */
 export function retryDelayMs(retryAfter: string | null, attempt: number, now = Date.now()): number {
   let ms = Number.NaN;
   if (retryAfter !== null) {
-    const seconds = Number(retryAfter);
-    ms = Number.isFinite(seconds) ? seconds * 1_000 : Date.parse(retryAfter) - now;
+    // Two headers arrive joined with a comma, and an HTTP date carries commas of its own
+    // ("Sun, 13 Sep 2026 10:00:30 GMT"), so the readings are: the whole value, the first HTTP date
+    // in it, and the first comma-separated part. Seconds first, then dates.
+    const whole = retryAfter.trim();
+    const firstPart = whole.split(',')[0]!.trim();
+    const firstDate = whole.match(/^[A-Za-z]{3}, [^,]*? GMT/)?.[0] ?? '';
+    const seconds = [whole, firstPart].filter(r => r !== '').map(Number).find(Number.isFinite);
+    const date = [whole, firstDate, firstPart].map(Date.parse).find(Number.isFinite);
+    if (seconds !== undefined) ms = seconds * 1_000;
+    else if (date !== undefined) ms = date - now;
   }
   if (!Number.isFinite(ms) || ms <= 0) ms = BACKOFF_MS[Math.min(attempt, BACKOFF_MS.length - 1)]!;
   return Math.min(ms, MAX_RETRY_AFTER_MS);
@@ -43,11 +57,21 @@ export interface PageEvent {
   rows: number;
 }
 
+export interface RetryEvent {
+  endpoint: OuraEndpoint;
+  /** How long the client is about to wait before asking for the page again. */
+  waitMs: number;
+  /** 0 for the first retry of this page. */
+  attempt: number;
+}
+
 export interface OuraClientOptions {
   tokenPath?: string;
   token?: string;
-  /** Called as each page arrives; `fetch` uses it to show progress on a terminal (#45). */
+  /** Called as each page arrives; `fetch` and `sync` use it to show progress on a terminal (#45). */
   onPage?: (page: PageEvent) => void;
+  /** Called before each wait on a 429, so the wait is not silence indistinguishable from a hang. */
+  onRetry?: (retry: RetryEvent) => void;
   /** Waits before a retry. Injectable so tests do not sleep. */
   sleep?: (ms: number) => Promise<void>;
 }
@@ -55,10 +79,14 @@ export interface OuraClientOptions {
 export class OuraClient {
   private token: string;
   private onPage: ((page: PageEvent) => void) | undefined;
+  private onRetry: ((retry: RetryEvent) => void) | undefined;
   private sleep: (ms: number) => Promise<void>;
+  /** Milliseconds this client has spent waiting on 429 answers; bounded by MAX_TOTAL_WAIT_MS. */
+  private waitedMs = 0;
 
   constructor(options: OuraClientOptions = {}) {
     this.onPage = options.onPage;
+    this.onRetry = options.onRetry;
     this.sleep = options.sleep ?? (ms => new Promise(resolve => setTimeout(resolve, ms)));
     const { token, source } = resolveToken(options.token, options.tokenPath);
     if (!token) {
@@ -98,24 +126,43 @@ export class OuraClient {
     return rows;
   }
 
+  /** One GET with the token; a transport failure (DNS, refused, reset) becomes an API_ERROR with a hint, not an UNKNOWN. */
+  private async request(url: string): Promise<Response> {
+    try {
+      return await fetch(url, { headers: { Authorization: `Bearer ${this.token}` } });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new CliError('API_ERROR', `Could not reach the Oura API: ${msg}`, 'Check the network connection and try again.');
+    }
+  }
+
   private async getPage<T>(endpoint: OuraEndpoint, url: string): Promise<{ data: T[]; next_token: string | null }> {
-    let response = await fetch(url, { headers: { Authorization: `Bearer ${this.token}` } });
-    // The same page again after the wait the API asked for: a 429 is the API pacing us, not refusing us.
-    for (let attempt = 0; response.status === 429 && attempt < RETRY_LIMIT; attempt++) {
+    let response = await this.request(url);
+    // The same page again after the wait the API asked for: a 429 is the API pacing us, not refusing
+    // us. Bounded twice: RETRY_LIMIT waits per page, MAX_TOTAL_WAIT_MS of waiting per command.
+    let retries = 0;
+    for (; response.status === 429 && retries < RETRY_LIMIT; retries++) {
+      const waitMs = retryDelayMs(response.headers.get('retry-after'), retries);
+      if (this.waitedMs + waitMs > MAX_TOTAL_WAIT_MS) break;
       await response.body?.cancel(); // the 429 body is not read; release the stream rather than hold it to GC
-      await this.sleep(retryDelayMs(response.headers.get('retry-after'), attempt));
-      response = await fetch(url, { headers: { Authorization: `Bearer ${this.token}` } });
+      this.waitedMs += waitMs;
+      this.onRetry?.({ endpoint, waitMs, attempt: retries });
+      await this.sleep(waitMs);
+      response = await this.request(url);
     }
 
     if (!response.ok) {
       const rawBody = await response.text();
-      const redacted = redactSecrets(rawBody);
+      // The body is the API's text, and it has quoted the request back before: the literal token goes too.
+      const redacted = redactSecrets(rawBody).split(this.token).join('[REDACTED]');
       const body = redacted.length > 200 ? redacted.slice(0, 200) + '… (truncated)' : redacted;
       if (response.status === 401 || response.status === 403) {
         throw new CliError('TOKEN_INVALID', `Oura API ${response.status}: ${body}`, 'Run `oura-cli login` with a fresh Personal Access Token, or check OURA_TOKEN.');
       }
       if (response.status === 429) {
-        throw new CliError('API_ERROR', `Oura API 429: ${body}`, `Rate limited; the page was retried ${RETRY_LIMIT} times. Wait a few minutes and run the command again, or ask for a shorter range.`);
+        const waited = Math.round(this.waitedMs / 1_000);
+        throw new CliError('API_ERROR', `Oura API 429: ${body}`,
+          `Rate limited; this page was retried ${retries} time${retries === 1 ? '' : 's'} and the command has waited ${waited} s on 429 answers (the most it will is ${MAX_TOTAL_WAIT_MS / 1_000} s). Wait a few minutes and run it again, or ask for a shorter range.`);
       }
       throw new CliError('API_ERROR', `Oura API ${response.status}: ${body}`);
     }

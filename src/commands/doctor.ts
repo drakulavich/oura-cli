@@ -34,7 +34,8 @@ export async function runChecks(deps: DoctorDeps): Promise<DoctorResult> {
         checks.push({ id: 'token-valid', status: 'fail', detail: err.message, fix: 'oura-cli login' });
       } else {
         const msg = err instanceof Error ? err.message : String(err);
-        checks.push({ id: 'token-valid', status: 'warn', detail: `Could not reach the Oura API: ${msg}` });
+        // A warn with no fix left `nextStep` null under `ok: false`, which read as "something is wrong, nothing to do".
+        checks.push({ id: 'token-valid', status: 'warn', detail: `Could not reach the Oura API: ${msg}`, fix: 'Check the network connection and run `oura-cli doctor` again in a few minutes.' });
       }
     }
   }
@@ -79,8 +80,9 @@ export async function runChecks(deps: DoctorDeps): Promise<DoctorResult> {
       const hours = hoursSinceDayEnded(last, deps.now, deps.tz);
       if (hours > STALE_AFTER_HOURS) {
         checks.push({
-          id: 'data', status: 'warn', fix: 'oura-cli sync',
+          id: 'data', status: 'warn',
           detail: `Most recent data is from ${last}; that day ended over ${Math.floor(hours)} hours ago (the limit is ${STALE_AFTER_HOURS}).`,
+          fix: 'oura-cli sync',
         });
       } else {
         checks.push({ id: 'data', status: 'ok', detail: `Data current through ${last}.` });

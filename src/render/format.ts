@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import { padLeft, padRight, visibleWidth } from '../lib/pad.js';
 import { terminalWidth } from '../lib/terminal.js';
-import { rule } from './rule.js';
+import { DOUBLE_RULE, RULE, finish, rule } from './rule.js';
 import type { DaySummary, TrendRow, DbStats } from '../db/queries.js';
 import { COLLECTIONS } from '../collections/index.js';
 import type { ImportResult } from '../db/sync.js';
@@ -32,13 +32,13 @@ export function formatDaySummary(summary: DaySummary, format: OutputFormat, empt
   if (format === 'json') return JSON.stringify(summary, null, 2);
 
   if (emptyHint && isEmptyDay(summary)) {
-    return [
+    return finish([
       '',
       chalk.bold(`  ${summary.day}`),
-      rule(50),
+      RULE,
       `  No Oura data for ${summary.day} yet.`,
       `  ${emptyHint}`,
-    ].join('\n');
+    ]).join('\n');
   }
 
   // The same `*` the week table and `report` put on this day: without it, drilling from a marked
@@ -46,7 +46,7 @@ export function formatDaySummary(summary: DaySummary, format: OutputFormat, empt
   const lines: string[] = [
     '',
     chalk.bold(`  ${summary.partial ? `${summary.day}*` : summary.day}`),
-    rule(50),
+    RULE,
     `  Sleep:     ${scoreColor(summary.sleep_score)}    Readiness: ${scoreColor(summary.readiness_score)}    Activity: ${scoreColor(summary.activity_score)}`,
     `  Steps:     ${summary.steps ?? chalk.gray('—')}`,
   ];
@@ -65,7 +65,7 @@ export function formatDaySummary(summary: DaySummary, format: OutputFormat, empt
   }
   if (summary.partial) lines.push('', PARTIAL_NOTE);
 
-  return lines.join('\n');
+  return finish(lines).join('\n');
 }
 
 /** The one explanation of the `*` mark, shared by the day and week views so they cannot drift apart. */
@@ -153,14 +153,14 @@ export function formatTrends(trends: TrendRow[], days: number, format: OutputFor
   const lines = [
     '',
     chalk.bold(`  Trends: last ${days} days`),
-    rule(50),
+    RULE,
   ];
   // A header over nothing read like a crash (#85); say what is missing, as the day and week views do.
   if (emptyHint && trends.length === 0) lines.push(`  No Oura data for the last ${days} days yet.`, `  ${emptyHint}`);
   for (const t of trends) {
     lines.push(`  ${t.label.padEnd(15)} avg: ${String(t.avg).padStart(5)}  min: ${String(t.min).padStart(5)}  max: ${String(t.max).padStart(5)}  (${t.count} days)`);
   }
-  return lines.join('\n');
+  return finish(lines).join('\n');
 }
 
 export function formatStats(stats: DbStats, format: OutputFormat, emptyHint?: string): string {
@@ -169,11 +169,11 @@ export function formatStats(stats: DbStats, format: OutputFormat, emptyHint?: st
   const lines = [
     '',
     chalk.bold('  Database Statistics'),
-    rule(50, '═'),
+    DOUBLE_RULE,
   ];
   // Seventeen lines of "0 rows" said the same thing less clearly (#85).
   if (emptyHint && stats.tables.every(t => t.rows === 0)) {
-    return [...lines, '  No Oura data in the database yet.', `  ${emptyHint}`].join('\n');
+    return finish([...lines, '  No Oura data in the database yet.', `  ${emptyHint}`]).join('\n');
   }
   // Both names, as the sync lines print them: one collection was reaching the user under three names
   // in a single session — `sleep-periods` in the summary, `sleep_model` here (#72).
@@ -199,5 +199,5 @@ export function formatStats(stats: DbStats, format: OutputFormat, emptyHint?: st
   if (stats.records.bestSleep) {
     lines.push(`  Best sleep:  ${stats.records.bestSleep.score} on ${stats.records.bestSleep.day}`);
   }
-  return lines.join('\n');
+  return finish(lines).join('\n');
 }

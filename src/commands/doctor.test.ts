@@ -89,6 +89,7 @@ describe('doctor runChecks', () => {
       expect(past.status).toBe('warn');
       expect(past.fix).toBe('oura-cli sync');
       expect(past.detail).toBe('Most recent data is from 2026-08-28; that day ended over 36 hours ago (the limit is 36).');
+      expect(Object.keys(past)).toEqual(['id', 'status', 'detail', 'fix']); // the published field order, unchanged since 0.7.1
     });
 
     it('reproduces the S1 case: two days behind today is stale, whatever the time of day', async () => {
@@ -141,6 +142,10 @@ describe('doctor runChecks', () => {
 
     const tokenValid = result.checks.find(c => c.id === 'token-valid')!;
     expect(tokenValid.status).toBe('warn');
+    // S2 before 0.8.0: `ok: false` with `nextStep: null` read as "something is wrong, nothing to do".
+    expect(tokenValid.fix).toContain('oura-cli doctor');
+    expect(result.ok).toBe(false);
+    expect(result.nextStep).toBe(tokenValid.fix!);
   });
 
   it('fails token validation on an explicit TOKEN_INVALID error and points at login', async () => {
@@ -180,11 +185,10 @@ describe('doctor runChecks', () => {
   });
 
   it('does not recommend sync as the next step when the reason there is no local data is the same unreachable API', async () => {
-    // token-valid warns with no fix (network unreachable). data also warns,
-    // with fix 'oura-cli sync' — but sync needs the same unreachable API, so
-    // recommending it here would send the user to a command guaranteed to
-    // fail for the same reason doctor just diagnosed. nextStep must stop at
-    // the first non-ok check (token-valid) rather than skip past it.
+    // token-valid warns (network unreachable). data also warns, with fix 'oura-cli sync' — but sync
+    // needs the same unreachable API, so recommending it here would send the user to a command
+    // guaranteed to fail for the same reason doctor just diagnosed. nextStep must stop at the first
+    // non-ok check (token-valid) rather than skip past it: its own fix, never `oura-cli sync`.
     const result = await runChecks(makeDeps({
       offline: false,
       createClient: () => ({ fetch: async () => { throw new Error('network unreachable'); } }),
@@ -192,8 +196,8 @@ describe('doctor runChecks', () => {
 
     const tokenValid = result.checks.find(c => c.id === 'token-valid')!;
     expect(tokenValid.status).toBe('warn');
-    expect(tokenValid.fix).toBeUndefined();
-    expect(result.nextStep).toBeNull();
+    expect(result.nextStep).toBe(tokenValid.fix!);
+    expect(result.nextStep).not.toContain('sync');
     expect(result.ok).toBe(false);
   });
 
