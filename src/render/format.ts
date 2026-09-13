@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import { padLeft, padRight, visibleWidth } from '../lib/pad.js';
 import { terminalWidth } from '../lib/terminal.js';
+import { rule } from './rule.js';
 import type { DaySummary, TrendRow, DbStats } from '../db/queries.js';
 import { COLLECTIONS } from '../collections/index.js';
 import type { ImportResult } from '../db/sync.js';
@@ -34,7 +35,7 @@ export function formatDaySummary(summary: DaySummary, format: OutputFormat, empt
     return [
       '',
       chalk.bold(`  ${summary.day}`),
-      chalk.gray('─'.repeat(50)),
+      rule(50),
       `  No Oura data for ${summary.day} yet.`,
       `  ${emptyHint}`,
     ].join('\n');
@@ -45,7 +46,7 @@ export function formatDaySummary(summary: DaySummary, format: OutputFormat, empt
   const lines: string[] = [
     '',
     chalk.bold(`  ${summary.partial ? `${summary.day}*` : summary.day}`),
-    chalk.gray('─'.repeat(50)),
+    rule(50),
     `  Sleep:     ${scoreColor(summary.sleep_score)}    Readiness: ${scoreColor(summary.readiness_score)}    Activity: ${scoreColor(summary.activity_score)}`,
     `  Steps:     ${summary.steps ?? chalk.gray('—')}`,
   ];
@@ -69,6 +70,12 @@ export function formatDaySummary(summary: DaySummary, format: OutputFormat, empt
 
 /** The one explanation of the `*` mark, shared by the day and week views so they cannot drift apart. */
 export const PARTIAL_NOTE = '  * activity totals are not final.';
+
+/**
+ * Why today can be empty right after a successful sync. Shared by `db today` and the panel `sync`
+ * prints last, which used to show bare dashes with no explanation at all (#61).
+ */
+export const PUBLISH_DELAY_NOTE = "Oura publishes a day's summary after that night's sleep syncs from the ring.";
 
 const SUMMARY_INDENT = 4;
 const SUMMARY_GAP = 2;
@@ -124,16 +131,18 @@ export function formatWeekTable(days: DaySummary[], format: OutputFormat, emptyH
     ].join('\n');
   }
 
-  const header = `${'Day'.padEnd(12)} ${'Sleep'.padStart(6)} ${'Ready'.padStart(6)} ${'Activity'.padStart(9)} ${'Steps'.padStart(7)} ${'Stress'.padEnd(10)}`;
-  const sep = chalk.gray('─'.repeat(56));
+  // The last column is left unpadded: it lined nothing up and left up to nine trailing spaces on
+  // every row (#61).
+  const header = `${'Day'.padEnd(12)} ${'Sleep'.padStart(6)} ${'Ready'.padStart(6)} ${'Activity'.padStart(9)} ${'Steps'.padStart(7)} Stress`;
   // padLeft, not padStart: scoreColor returns a chalk-wrapped string whose length counts the
   // escapes, so the built-in pads by nothing at all on a colour terminal.
   // Same mark `report` uses, for the same reason: this day's activity totals are still growing, so
   // its steps are not comparable with the rows above it (#75).
   const rows = days.map(d =>
     `${padRight(d.partial ? `${d.day}*` : d.day, 12)} ${padLeft(scoreColor(d.sleep_score), 6)} ${padLeft(scoreColor(d.readiness_score), 6)} ` +
-    `${padLeft(scoreColor(d.activity_score), 9)} ${padLeft(String(d.steps ?? '—'), 7)} ${padRight(d.stress ?? '—', 10)}`
+    `${padLeft(scoreColor(d.activity_score), 9)} ${padLeft(String(d.steps ?? '—'), 7)} ${d.stress ?? '—'}`
   );
+  const sep = rule(Math.max(visibleWidth(header), ...rows.map(visibleWidth)));
   const note = days.some(d => d.partial) ? [PARTIAL_NOTE] : [];
   return ['\n  Last 7 Days', sep, `  ${header}`, sep, ...rows.map(r => `  ${r}`), ...note].join('\n');
 }
@@ -144,7 +153,7 @@ export function formatTrends(trends: TrendRow[], days: number, format: OutputFor
   const lines = [
     '',
     chalk.bold(`  Trends: last ${days} days`),
-    chalk.gray('─'.repeat(50)),
+    rule(50),
   ];
   // A header over nothing read like a crash (#85); say what is missing, as the day and week views do.
   if (emptyHint && trends.length === 0) lines.push(`  No Oura data for the last ${days} days yet.`, `  ${emptyHint}`);
@@ -160,7 +169,7 @@ export function formatStats(stats: DbStats, format: OutputFormat, emptyHint?: st
   const lines = [
     '',
     chalk.bold('  Database Statistics'),
-    chalk.gray('═'.repeat(50)),
+    rule(50, '═'),
   ];
   // Seventeen lines of "0 rows" said the same thing less clearly (#85).
   if (emptyHint && stats.tables.every(t => t.rows === 0)) {

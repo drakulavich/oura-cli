@@ -3,6 +3,8 @@ import chalk from 'chalk';
 import { formatDaySummary, formatWeekTable, formatTrends, formatStats, formatImportSummary, PARTIAL_NOTE } from './format.js';
 import type { DaySummary, TrendRow, DbStats } from '../db/queries.js';
 import type { ImportResult } from '../db/sync.js';
+import { formatDoctorTable } from './doctor-table.js';
+import { rule } from './rule.js';
 
 // Strip ANSI escape codes to assert on *visible* text, regardless of chalk level.
 const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, '');
@@ -674,5 +676,62 @@ describe('formatStats naming and hints (#72)', () => {
     expect(out).not.toContain('No daily summaries');
     expect(out).not.toContain('Run sync first.');
     expect(out).toContain('Most steps');
+  });
+});
+
+// #61: every text view indents its body by two columns, but five of them drew their rules at
+// column 0, and the week table padded its last column into up to nine trailing spaces per row.
+describe('rules and whitespace in the text views (#61)', () => {
+  const day = makeDay();
+  const week = Array.from({ length: 7 }, (_, i) => makeDay({ day: `2026-05-0${i + 1}`, stress: i % 2 ? 'stressful' : null }));
+  const trends: TrendRow[] = [{ label: 'Sleep score', avg: 80, min: 70, max: 90, count: 7 }];
+  const stats: DbStats = {
+    tables: [{ collection: 'sleep', table: 'daily_sleep', rows: 7 }],
+    dateRange: { first: '2026-05-01', last: '2026-05-07' }, trends, records: { mostSteps: { day: '2026-05-03', steps: 12000 }, bestSleep: null },
+  };
+  const views = (): Record<string, string> => ({
+    day: formatDaySummary(day, 'table'),
+    emptyDay: formatDaySummary(makeDay({ sleep_score: null, readiness_score: null, activity_score: null, steps: null, stress: null }), 'table', 'Run sync.'),
+    week: formatWeekTable(week, 'table'),
+    trends: formatTrends(trends, 7, 'table'),
+    stats: formatStats(stats, 'table'),
+    doctor: formatDoctorTable({ ok: true, nextStep: null, checks: [{ id: 'token', status: 'ok', detail: 'Token found via OURA_TOKEN.' }] }),
+  });
+
+  it('draws every rule at the body indent, with colour on', () => {
+    withColor(() => {
+      for (const [name, out] of Object.entries(views())) {
+        const rules = stripAnsi(out).split('\n').filter(l => /[─═]/.test(l));
+        expect(rules.length, name).toBeGreaterThan(0);
+        for (const r of rules) expect(r, name).toMatch(/^  [─═]+$/);
+      }
+    });
+  });
+
+  it('indents every non-empty line by two columns and leaves no trailing whitespace', () => {
+    withColor(() => {
+      for (const [name, out] of Object.entries(views())) {
+        for (const line of stripAnsi(out).split('\n').filter(l => l !== '')) {
+          expect(line.startsWith('  '), `${name}: ${JSON.stringify(line)}`).toBe(true);
+          expect(line, name).toBe(line.trimEnd());
+        }
+      }
+    });
+  });
+
+  it('sizes the week rule to the widest row, so an unpadded stress column still fits under it', () => {
+    const lines = stripAnsi(formatWeekTable(week, 'table')).split('\n');
+    const ruleWidth = lines.find(l => l.includes('─'))!.length;
+    const widest = Math.max(...lines.filter(l => !l.includes('─')).map(l => l.length));
+    expect(ruleWidth).toBe(widest);
+    expect(lines.some(l => l.endsWith('stressful'))).toBe(true);
+  });
+
+  it('caps a rule at the screen width on a terminal, keeps the indent inside it, and draws it whole on a pipe', () => {
+    expect(stripAnsi(rule(56, '─', 40))).toBe('  ' + '─'.repeat(38));
+    expect(stripAnsi(rule(56, '─', 80))).toBe('  ' + '─'.repeat(56));
+    expect(stripAnsi(rule(56, '═', 1))).toBe('  ');
+    // No terminal (a pipe, and the test runner): a 130-column `db rows` table keeps its 130-column rule.
+    expect(stripAnsi(rule(130))).toBe('  ' + '─'.repeat(130));
   });
 });

@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import type { ReportData } from '../db/report.js';
 import type { OutputFormat } from '../lib/format-resolve.js';
 import { padLeft } from '../lib/pad.js';
+import { rule } from './rule.js';
 
 function colorizeScore(n: number): (s: string) => string {
   if (n >= 85) return chalk.green;
@@ -131,9 +132,9 @@ export function formatReport(data: ReportData, format: OutputFormat, period: 'we
   if (period === 'week') {
     // Daily table — 7 rows
     lines.push(chalk.bold('  Last 7 Days:'));
-    lines.push(chalk.gray('  ' + '─'.repeat(52)));
+    lines.push(rule(52));
     lines.push(`  ${'Day'.padEnd(10)} ${'Sleep'.padStart(6)} ${'Ready'.padStart(6)} ${'Active'.padStart(7)} ${'Steps'.padStart(8)}`);
-    lines.push(chalk.gray('  ' + '─'.repeat(52)));
+    lines.push(rule(52));
     for (const d of data.days) {
       lines.push(`  ${(d.partial ? d.dayLabel + '*' : d.dayLabel).padEnd(10)} ${scoreCell(d.sleep, 6)} ${scoreCell(d.readiness, 6)} ${scoreCell(d.activity, 7)} ${stepsCell(d.steps, 8)}`);
     }
@@ -142,9 +143,9 @@ export function formatReport(data: ReportData, format: OutputFormat, period: 'we
     // Monthly — weekly buckets table
     lines.push(chalk.bold('  Last 30 Days:'));
     // 21: a labelled stub is up to 20 characters, "2026-08-13 (2 days)*".
-    lines.push(chalk.gray('  ' + '─'.repeat(69)));
+    lines.push(rule(69));
     lines.push(`  ${'Week of'.padEnd(21)} ${'Sleep'.padStart(6)} ${'Ready'.padStart(6)} ${'Active'.padStart(7)} ${'Steps'.padStart(10)}`);
-    lines.push(chalk.gray('  ' + '─'.repeat(69)));
+    lines.push(rule(69));
     for (const b of buckets) {
       const avgSleepInt = b.avgSleep !== null ? Math.round(b.avgSleep) : null;
       const avgReadyInt = b.avgReadiness !== null ? Math.round(b.avgReadiness) : null;

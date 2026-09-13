@@ -2,7 +2,7 @@ import { importDaily } from '../db/sync.js';
 import type { SyncWindow, SyncOptions } from '../db/sync.js';
 import { getDaySummary } from '../db/queries.js';
 import { dayCompleteness } from '../db/day-complete.js';
-import { formatDaySummary, formatImportSummary } from '../render/format.js';
+import { formatDaySummary, formatImportSummary, PUBLISH_DELAY_NOTE } from '../render/format.js';
 import { CliError } from '../lib/errors.js';
 import { assertCalendarDate } from '../lib/validate.js';
 import { byName, names } from '../collections/index.js';
@@ -64,6 +64,9 @@ export function resolvePruneScope(value: unknown): SyncOptions['prune'] {
   return [...new Set(wanted)];
 }
 
+/** Under an empty today panel after a sync: the data is not late, Oura has not published it yet (#61). */
+export const TODAY_HINT_AFTER_SYNC = `${PUBLISH_DELAY_NOTE} Run \`oura-cli sync\` again later.`;
+
 export async function runSync(ctx: Ctx, window: SyncWindow = {}, options: SyncOptions = {}): Promise<Output> {
   const lines: string[] = [];
   const log = ctx.format === 'table' ? (m: string) => lines.push(m) : undefined;
@@ -71,7 +74,7 @@ export async function runSync(ctx: Ctx, window: SyncWindow = {}, options: SyncOp
   const today = getDaySummary(ctx.db!, ctx.today, dayCompleteness(ctx.db!, ctx.today));
   return {
     json: { import: importResult, today },
-    text: () => [...lines, formatImportSummary(importResult), formatDaySummary(today, 'table')].join('\n'),
+    text: () => [...lines, formatImportSummary(importResult), formatDaySummary(today, 'table', TODAY_HINT_AFTER_SYNC)].join('\n'),
   };
 }
 

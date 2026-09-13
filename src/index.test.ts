@@ -56,6 +56,19 @@ describe('errors raised before a command runs', () => {
     expect(code).toBe(1);
   });
 
+  // #61: both used to say "Run `oura-cli --help`", and a bare `db` listed nothing.
+  it('bare db and a misspelt db subcommand point at `oura-cli db --help` with the subcommand list', async () => {
+    const bare = await run('db'); // run() adds `--db :memory:`, which citty used to report as the unknown command ":memory:"
+    expect(bare.stdout).toBe('');
+    expect(envelope(bare.stderr).message).toBe('"db" needs a subcommand.');
+    expect(envelope(bare.stderr).hint).toBe('`oura-cli db` takes one of: today, date, week, trends, stats. Run `oura-cli db --help` for details.');
+    expect(bare.code).toBe(1);
+
+    const typo = await run('db', 'toady');
+    expect(envelope(typo.stderr).message).toBe('Unknown command "toady".');
+    expect(envelope(typo.stderr).hint).toContain('oura-cli db --help');
+  });
+
   it('--help and --version still render through citty', async () => {
     const help = await run('--help');
     expect(help.code).toBe(0);

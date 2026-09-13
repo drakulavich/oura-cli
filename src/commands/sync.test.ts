@@ -3,7 +3,7 @@ import { Database } from 'bun:sqlite';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { unlinkSync } from 'fs';
-import { runSync, resolveWindow, resolvePruneScope, syncCommand, syncDef, PRUNE_ALL } from './sync.js';
+import { runSync, resolveWindow, resolvePruneScope, syncCommand, syncDef, PRUNE_ALL, TODAY_HINT_AFTER_SYNC } from './sync.js';
 import { names } from '../collections/index.js';
 import { buildManifest } from './describe.js';
 import { CliError } from '../lib/errors.js';
@@ -374,14 +374,27 @@ describe('runSync', () => {
       expect(text).toMatch(/hr +0 +\(\+0\)/);
     });
 
-    it('ends with exactly formatDaySummary(today, "table")', async () => {
+    it('ends with exactly formatDaySummary(today, "table", TODAY_HINT_AFTER_SYNC)', async () => {
       installFetch(todayFixture());
       const { out, db } = await runSyncFor('table');
 
       const summary = getDaySummary(db, TODAY, dayCompleteness(db, TODAY));
       db.close();
 
-      expect(out.text().endsWith(formatDaySummary(summary, 'table'))).toBe(true);
+      expect(out.text().endsWith(formatDaySummary(summary, 'table', TODAY_HINT_AFTER_SYNC))).toBe(true);
+    });
+
+    // #61: the panel after a sync showed bare dashes for an empty today, while `db today` explained
+    // the publish delay. The first-timer saw the unexplained one.
+    it('explains an empty today instead of printing dashes, without telling the user to sync again now', async () => {
+      installFetch({});
+      const { out, db } = await runSyncFor('table');
+      db.close();
+
+      const text = out.text();
+      expect(text).toContain(`No Oura data for ${TODAY} yet.`);
+      expect(text).toContain("Oura publishes a day's summary after that night's sleep syncs from the ring.");
+      expect(text).not.toContain('to download your data');
     });
   });
 

@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import type { CheckStatus, DoctorResult } from './doctor-types.js';
+import { rule } from './rule.js';
 
 function statusSymbol(status: CheckStatus): string {
   if (status === 'ok') return chalk.green('✓');
@@ -9,7 +10,7 @@ function statusSymbol(status: CheckStatus): string {
 }
 
 export function formatDoctorTable(result: DoctorResult): string {
-  const lines = ['', chalk.bold('  Doctor'), chalk.gray('─'.repeat(50))];
+  const lines = ['', chalk.bold('  Doctor'), rule(50)];
   for (const c of result.checks) {
     lines.push(`  ${statusSymbol(c.status)} ${c.id.padEnd(12)} ${c.detail}`);
   }

@@ -1,12 +1,12 @@
 import { defineCommand } from 'citty';
 import { getDaySummary, getTrends, getStats } from '../db/queries.js';
-import { formatDaySummary, formatWeekTable, formatTrends, formatStats } from '../render/format.js';
+import { formatDaySummary, formatWeekTable, formatTrends, formatStats, PUBLISH_DELAY_NOTE } from '../render/format.js';
 import { daysBack } from '../lib/time.js';
 import { assertCalendarDate, assertPositiveInt } from '../lib/validate.js';
 import { dataCommand } from './run-command.js';
 import { dayCompleteness } from '../db/day-complete.js';
 
-const SYNC_HINT = 'Run `oura-cli sync` to download your data. Oura publishes a day\'s summary after that night\'s sleep syncs from the ring.';
+const SYNC_HINT = `Run \`oura-cli sync\` to download your data. ${PUBLISH_DELAY_NOTE}`;
 
 export const dbCommand = defineCommand({
   meta: { name: 'db', description: 'Query and manage the local SQLite database' },
