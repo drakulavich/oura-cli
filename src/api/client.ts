@@ -90,6 +90,11 @@ export class OuraClient {
     if (body.data != null && !Array.isArray(body.data)) {
       throw new CliError('API_ERROR', `Oura API returned a malformed body for ${endpoint}: expected an array under "data", got ${kindOf(body.data)}.`);
     }
-    return { data: (body.data as T[] | null | undefined) ?? [], next_token: typeof body.next_token === 'string' ? body.next_token : null };
+    // Same rule for the cursor: a non-string there is not "last page", it is a body we do not understand,
+    // and treating it as the end would report a short, exit-0 sync with rows missing.
+    if (body.next_token != null && typeof body.next_token !== 'string') {
+      throw new CliError('API_ERROR', `Oura API returned a malformed body for ${endpoint}: expected a string or null under "next_token", got ${kindOf(body.next_token)}.`);
+    }
+    return { data: (body.data as T[] | null | undefined) ?? [], next_token: body.next_token ?? null };
   }
 }

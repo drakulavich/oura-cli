@@ -665,4 +665,14 @@ describe('formatStats naming and hints (#72)', () => {
     expect(out).toContain('Run sync first.');
     expect(stripAnsi(formatStats(base, 'table'))).not.toContain('Run sync first.'); // no hint, no line
   });
+  it('says nothing when the cache has activity but no sleep yet, since trends and records follow', () => {
+    // dateRange reads daily_sleep alone. A first sync before the night's sleep summary lands has
+    // activity rows, trends and a steps record: "no daily summaries" above them would be false.
+    const activityOnly: DbStats = { ...base, trends: [{ label: 'Steps', avg: 9000, min: 8000, max: 10000, count: 2 }],
+      records: { mostSteps: { day: '2026-06-15', steps: 10000 }, bestSleep: null } };
+    const out = stripAnsi(formatStats(activityOnly, 'table', 'Run sync first.'));
+    expect(out).not.toContain('No daily summaries');
+    expect(out).not.toContain('Run sync first.');
+    expect(out).toContain('Most steps');
+  });
 });
