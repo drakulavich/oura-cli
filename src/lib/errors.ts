@@ -1,4 +1,6 @@
 import chalk from 'chalk';
+import { screenWidth } from './terminal.js';
+import { wrap } from './wrap.js';
 
 export type ErrorCode =
   | 'BAD_ARGS'
@@ -38,7 +40,7 @@ export function redactSecrets(s: string): string {
     .replace(/"token"\s*:\s*"[^"]{8,}"/g, '"token":"[REDACTED]"');
 }
 
-export function formatError(err: unknown, format: 'json' | 'table'): ErrorEnvelope {
+export function formatError(err: unknown, format: 'json' | 'table', width = screenWidth(process.stderr)): ErrorEnvelope {
   const code = err instanceof CliError ? err.code : 'UNKNOWN';
   // Redact here as well as at the API boundary: an unexpected error (e.g. from fetch) may quote a header.
   const message = redactSecrets(err instanceof Error ? err.message : String(err));
@@ -52,7 +54,9 @@ export function formatError(err: unknown, format: 'json' | 'table'): ErrorEnvelo
   }
 
   const head = chalk.red(`error: ${message}`);
-  return { kind: 'text', text: hint ? `${head}\n  hint: ${hint}` : head };
+  // A hint is prose, often a full sentence with a command in it: on a terminal it breaks between
+  // words at the screen width and continues under its own text (#130).
+  return { kind: 'text', text: hint ? [head, ...wrap(hint, width, ' '.repeat('  hint: '.length), '  hint: ')].join('\n') : head };
 }
 
 export function emitError(err: unknown, format: 'json' | 'table'): void {

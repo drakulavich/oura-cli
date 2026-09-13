@@ -79,14 +79,14 @@ export async function runSync(ctx: Ctx, window: SyncWindow = {}, options: SyncOp
 }
 
 const syncArgs = {
-  from:  { type: 'string', description: 'Re-fetch every collection from this day (YYYY-MM-DD) instead of from its last stored day' },
-  to:    { type: 'string', description: 'End of the explicit window (YYYY-MM-DD, default: today); requires --from' },
-  prune: { type: 'string', description: 'Apply removals sync kept back: --prune=hr, a list, or --prune=all' },
+  from:  { type: 'string', description: 'Re-fetch every collection from this day (YYYY-MM-DD)' },
+  to:    { type: 'string', description: 'Window end (YYYY-MM-DD, default today); needs --from' },
+  prune: { type: 'string', description: 'Apply removals sync held back: hr, a list, or all' },
 } as const satisfies ArgsDef;
 
 /** Exported apart from the command so a test can drive the args-to-options mapping through `execute`. */
 export const syncDef: DataCommandDef<typeof syncArgs> = {
-  meta: { name: 'sync', description: 'Download new Oura data into the local cache and report what each collection fetched' },
+  meta: { name: 'sync', description: 'Download new Oura data into the local cache.' },
   args: syncArgs,
   needs: { db: true, client: true },
   run: (ctx, args) => runSync(

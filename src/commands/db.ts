@@ -76,12 +76,12 @@ export const dbCommand = defineCommand({
     rows: dataCommand({
       meta: { name: 'rows', description: 'Cached rows of one collection, as stored: the local twin of `fetch`' },
       args: {
-        collection: { type: 'positional', required: true, description: `Collection: ${names().join(' | ')} (ring is a snapshot and takes no range flags)` },
+        collection: { type: 'positional', required: true, description: 'Collection name (ring is a snapshot: no range flags)' },
         day:  { type: 'string', description: 'Single day (YYYY-MM-DD). Default: today.' },
         from: { type: 'string', description: 'Range start (YYYY-MM-DD); requires --to' },
         to:   { type: 'string', description: 'Range end (YYYY-MM-DD); requires --from' },
         days: { type: 'string', description: 'Last N days ending today' },
-        limit: { type: 'string', description: 'Print at most N rows, the earliest first (a day of heart rate is hundreds)' },
+        limit: { type: 'string', description: 'At most N rows, earliest first; a day of hr is hundreds' },
       },
       needs: { db: true },
       run(ctx, args) {

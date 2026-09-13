@@ -8,6 +8,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 - `sync` on a terminal no longer reports every collection twice, nor a window no collection requested. An incremental run says `Syncing each collection from its last stored day, through <today>` instead of quoting the oldest watermark as if one request covered it; a collection gets a line of its own only when it has more to say than its counts (rows dropped, stale rows removed, rows kept back); the grid of counts, now headed `Rows fetched (+new):`, is the one summary; and `Import complete.` is gone. A first sync and an explicit `--from` keep their date range, which those runs do request. JSON output is unchanged. (#132)
+- Prose no longer overhangs an 80-column terminal. Hints and notes — the empty-cache hints under `db today`, `db week`, `db trends`, `db stats` and `db rows`, the publish-delay note after `sync`, `doctor`'s details and its `Next:` line, `report`'s `*` note, and the `hint:` under an error — break between words at the screen width and continue under their own text; on a pipe nothing wraps. Every `--help` description fits 80 columns (`healthcheck`'s ran to 227 characters), and the root banner is now "Oura Ring data, cached locally, for humans and agents." The `COLLECTION` argument of `fetch` and `db rows` no longer lists every collection on its help line; leaving it out lists them in the error's hint instead. `doctor` prints the token and database paths with `~` for the home directory. (#130)
 
 ## [0.8.2] - 2026-09-13
 

@@ -1,6 +1,6 @@
 import { defineCommand } from 'citty';
 import type { ArgsDef } from 'citty';
-import { commonArgs } from './common.js';
+import { CLI_DESCRIPTION, commonArgs } from './common.js';
 import { assertKnownArgs } from './run-command.js';
 import type { SubCommandsDef } from 'citty';
 import { buildManifest } from './describe.js';
@@ -36,7 +36,7 @@ export function buildOpenclawManifest(version: string, commands: SubCommandsDef)
     version,
     runtime: 'bun',
     bin: 'oura-cli',
-    description: 'Oura Ring CLI — query and analyze Oura Ring health data. Designed for humans and agents.',
+    description: CLI_DESCRIPTION,
     commands: m.commands.map(c => ({
       name: c.name,
       description: c.description,
@@ -50,7 +50,7 @@ export function buildOpenclawManifest(version: string, commands: SubCommandsDef)
 
 export function manifestCommand(version: string, getCommands: () => SubCommandsDef) {
   return defineCommand({
-    meta: { name: 'manifest', description: 'Print openclaw-tool-registry-compatible manifest as JSON.' },
+    meta: { name: 'manifest', description: 'Print an openclaw-tool-registry manifest as JSON.' },
     args: { ...commonArgs },
     run({ args }) {
       assertKnownArgs(commonArgs as ArgsDef, args as Record<string, unknown>);

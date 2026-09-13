@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import { padLeft, padRight, visibleWidth } from '../lib/pad.js';
 import { screenWidth } from '../lib/terminal.js';
+import { wrap } from '../lib/wrap.js';
 import type { AnyCollection, SqlValue } from '../collections/index.js';
 import type { CachedRow } from '../db/rows.js';
 import type { OutputFormat } from '../lib/format-resolve.js';
@@ -82,7 +83,7 @@ export function formatRows(
   const count = rows.length === all ? `${all} row${all === 1 ? '' : 's'}` : `${rows.length} of ${all} rows`;
   const title = chalk.bold(`  ${c.name} (${c.table}): ${count}${scope}`);
   if (rows.length === 0) {
-    return finish(['', title, RULE, `  No cached ${c.name} rows${scope}.`, `  ${emptyHint}`], max).join('\n');
+    return finish(['', title, RULE, `  No cached ${c.name} rows${scope}.`, ...wrap(emptyHint, max, INDENT)], max).join('\n');
   }
 
   const names = c.columns.map(k => k.name);

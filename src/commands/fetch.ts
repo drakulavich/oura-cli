@@ -36,9 +36,10 @@ export function assertRangeAllowed(c: AnyCollection, opts: { day?: string; from?
 }
 
 export const fetchCommand = dataCommand({
-  meta: { name: 'fetch', description: 'Fetch raw records for one Oura collection straight from the API (JSON).' },
+  meta: { name: 'fetch', description: "One collection's raw records from the API (JSON)." },
   args: {
-    collection: { type: 'positional', required: true, description: `Collection: ${names().join(' | ')} (ring is a snapshot and takes no range flags)` },
+    // No list of names here: it ran the help line to 250 columns. Leaving the argument out lists them (#130).
+    collection: { type: 'positional', required: true, description: 'Collection name (ring is a snapshot: no range flags)' },
     day:  { type: 'string', description: 'Single day (YYYY-MM-DD). Default: today.' },
     from: { type: 'string', description: 'Range start (YYYY-MM-DD); requires --to' },
     to:   { type: 'string', description: 'Range end (YYYY-MM-DD); requires --from' },

@@ -1,7 +1,8 @@
 import chalk from 'chalk';
 import { padLeft, padRight, visibleWidth } from '../lib/pad.js';
-import { terminalWidth } from '../lib/terminal.js';
-import { DOUBLE_RULE, RULE, finish, rule } from './rule.js';
+import { screenWidth, terminalWidth } from '../lib/terminal.js';
+import { wrap } from '../lib/wrap.js';
+import { DOUBLE_RULE, INDENT, RULE, finish, rule } from './rule.js';
 import type { DaySummary, TrendRow, DbStats } from '../db/queries.js';
 import { COLLECTIONS } from '../collections/index.js';
 import type { ImportResult } from '../db/sync.js';
@@ -28,7 +29,9 @@ function isEmptyDay(s: DaySummary): boolean {
     s.avg_hrv === null && s.lowest_hr === null && s.efficiency === null;
 }
 
-export function formatDaySummary(summary: DaySummary, format: OutputFormat, emptyHint?: string): string {
+// `max`: the screen width, which the tests pass since they never run on one. Hints are prose and
+// break between words at it; on a pipe (undefined) nothing wraps (#130). Same for the views below.
+export function formatDaySummary(summary: DaySummary, format: OutputFormat, emptyHint?: string, max = screenWidth()): string {
   if (format === 'json') return JSON.stringify(summary, null, 2);
 
   if (emptyHint && isEmptyDay(summary)) {
@@ -37,8 +40,8 @@ export function formatDaySummary(summary: DaySummary, format: OutputFormat, empt
       chalk.bold(`  ${summary.day}`),
       RULE,
       `  No Oura data for ${summary.day} yet.`,
-      `  ${emptyHint}`,
-    ]).join('\n');
+      ...wrap(emptyHint, max, INDENT),
+    ], max).join('\n');
   }
 
   // The same `*` the week table and `report` put on this day: without it, drilling from a marked
@@ -65,7 +68,7 @@ export function formatDaySummary(summary: DaySummary, format: OutputFormat, empt
   }
   if (summary.partial) lines.push('', PARTIAL_NOTE);
 
-  return finish(lines).join('\n');
+  return finish(lines, max).join('\n');
 }
 
 /** The one explanation of the `*` mark, shared by the day and week views so they cannot drift apart. */
@@ -122,14 +125,14 @@ export function formatImportSummary(result: ImportResult, width = terminalWidth(
   return [head, ...rowsOf(cells, columns)].join('\n');
 }
 
-export function formatWeekTable(days: DaySummary[], format: OutputFormat, emptyHint?: string): string {
+export function formatWeekTable(days: DaySummary[], format: OutputFormat, emptyHint?: string, max = screenWidth()): string {
   if (format === 'json') return JSON.stringify(days, null, 2);
 
   if (emptyHint && days.length > 0 && days.every(isEmptyDay)) {
     return [
       '',
       '  No Oura data for the last 7 days yet.',
-      `  ${emptyHint}`,
+      ...wrap(emptyHint, max, INDENT),
     ].join('\n');
   }
 
@@ -144,12 +147,12 @@ export function formatWeekTable(days: DaySummary[], format: OutputFormat, emptyH
     `${padRight(d.partial ? `${d.day}*` : d.day, 12)} ${padLeft(scoreColor(d.sleep_score), 6)} ${padLeft(scoreColor(d.readiness_score), 6)} ` +
     `${padLeft(scoreColor(d.activity_score), 9)} ${padLeft(String(d.steps ?? '—'), 7)} ${d.stress ?? '—'}`
   );
-  const sep = rule(Math.max(visibleWidth(header), ...rows.map(visibleWidth)));
+  const sep = rule(Math.max(visibleWidth(header), ...rows.map(visibleWidth)), '─', max);
   const note = days.some(d => d.partial) ? [PARTIAL_NOTE] : [];
   return ['\n  Last 7 Days', sep, `  ${header}`, sep, ...rows.map(r => `  ${r}`), ...note].join('\n');
 }
 
-export function formatTrends(trends: TrendRow[], days: number, format: OutputFormat, emptyHint?: string): string {
+export function formatTrends(trends: TrendRow[], days: number, format: OutputFormat, emptyHint?: string, max = screenWidth()): string {
   if (format === 'json') return JSON.stringify(trends, null, 2);
 
   const lines = [
@@ -158,14 +161,14 @@ export function formatTrends(trends: TrendRow[], days: number, format: OutputFor
     RULE,
   ];
   // A header over nothing read like a crash (#85); say what is missing, as the day and week views do.
-  if (emptyHint && trends.length === 0) lines.push(`  No Oura data for the last ${days} days yet.`, `  ${emptyHint}`);
+  if (emptyHint && trends.length === 0) lines.push(`  No Oura data for the last ${days} days yet.`, ...wrap(emptyHint, max, INDENT));
   for (const t of trends) {
     lines.push(`  ${t.label.padEnd(15)} avg: ${String(t.avg).padStart(5)}  min: ${String(t.min).padStart(5)}  max: ${String(t.max).padStart(5)}  (${t.count} days)`);
   }
-  return finish(lines).join('\n');
+  return finish(lines, max).join('\n');
 }
 
-export function formatStats(stats: DbStats, format: OutputFormat, emptyHint?: string): string {
+export function formatStats(stats: DbStats, format: OutputFormat, emptyHint?: string, max = screenWidth()): string {
   if (format === 'json') return JSON.stringify(stats, null, 2);
 
   const lines = [
@@ -175,7 +178,7 @@ export function formatStats(stats: DbStats, format: OutputFormat, emptyHint?: st
   ];
   // Seventeen lines of "0 rows" said the same thing less clearly (#85).
   if (emptyHint && stats.tables.every(t => t.rows === 0)) {
-    return finish([...lines, '  No Oura data in the database yet.', `  ${emptyHint}`]).join('\n');
+    return finish([...lines, '  No Oura data in the database yet.', ...wrap(emptyHint, max, INDENT)], max).join('\n');
   }
   // Both names, as the sync lines print them: one collection was reaching the user under three names
   // in a single session — `sleep-periods` in the summary, `sleep_model` here (#72).
@@ -188,7 +191,7 @@ export function formatStats(stats: DbStats, format: OutputFormat, emptyHint?: st
   // sleep summary has activity trends and a steps record to show.
   const noDailyData = stats.dateRange.first === null && stats.trends.length === 0
     && stats.records.mostSteps === null && stats.records.bestSleep === null;
-  if (emptyHint && noDailyData) lines.push('', '  No daily summaries in the database yet.', `  ${emptyHint}`);
+  if (emptyHint && noDailyData) lines.push('', '  No daily summaries in the database yet.', ...wrap(emptyHint, max, INDENT));
   if (stats.dateRange.first) {
     lines.push(`\n  Date range: ${stats.dateRange.first} → ${stats.dateRange.last}`);
   }
@@ -201,5 +204,5 @@ export function formatStats(stats: DbStats, format: OutputFormat, emptyHint?: st
   if (stats.records.bestSleep) {
     lines.push(`  Best sleep:  ${stats.records.bestSleep.score} on ${stats.records.bestSleep.day}`);
   }
-  return finish(lines).join('\n');
+  return finish(lines, max).join('\n');
 }

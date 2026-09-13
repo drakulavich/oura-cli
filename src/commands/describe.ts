@@ -125,7 +125,7 @@ export function buildManifest(version: string, commands: SubCommandsDef): Manife
 
 export function describeCommand(version: string, getCommands: () => SubCommandsDef) {
   return defineCommand({
-    meta: { name: 'describe', description: 'Emit a machine-readable manifest of commands, args, and outputs.' },
+    meta: { name: 'describe', description: 'Machine-readable manifest of commands and outputs.' },
     args: { ...commonArgs },
     run({ args }) {
       assertKnownArgs(commonArgs as ArgsDef, args as Record<string, unknown>);

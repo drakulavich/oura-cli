@@ -78,7 +78,7 @@ export const loginCommand = defineCommand({
   args: {
     ...commonArgs,
     token:      { type: 'string',  description: 'Pass token non-interactively (e.g. for scripts)' },
-    path:       { type: 'string',  description: 'Where to save the token (default: $OURA_TOKEN_PATH or ~/.oura-token)' },
+    path:       { type: 'string',  description: 'Token file (default: $OURA_TOKEN_PATH or ~/.oura-token)' },
   },
   async run({ args }) {
     try {

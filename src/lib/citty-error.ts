@@ -63,6 +63,9 @@ export function commandTokens(rawArgs: readonly string[]): string[] {
  * instead of the generic --help pointer (see src/index.ts). `parents` names the commands
  * that take a subcommand, so `oura-cli db` and `oura-cli db toady` are pointed at
  * `oura-cli db --help` and its subcommand list rather than at the root help (#61).
+ * `positionalHints` maps a required positional's name (as citty prints it, `COLLECTION`) to the
+ * hint for leaving it out: the values it takes, which do not fit the one-line description
+ * `--help` would otherwise send the user to (#130).
  *
  * The unknown-command name is recovered from citty's message text ("Unknown command <name>",
  * with the name in cyan). The end-to-end cases in src/index.test.ts run the real citty, so a
@@ -73,6 +76,7 @@ export function fromCittyError(
   removedCommandHints: Readonly<Record<string, string>> = {},
   rawArgs: readonly string[] = [],
   parents: ParentCommands = {},
+  positionalHints: Readonly<Record<string, string>> = {},
 ): unknown {
   const code = (err as { code?: unknown } | null)?.code;
   if (typeof code !== 'string') return err;
@@ -113,8 +117,13 @@ export function fromCittyError(
         : parentHelp ?? 'Run `oura-cli --help` for the list of commands.';
       return new CliError('BAD_ARGS', `Unknown command "${name}".`, hint);
     }
-    case 'EARG':
-      return new CliError('BAD_ARGS', message.endsWith('.') ? message : `${message}.`, 'Run the command with --help to see its arguments.');
+    case 'EARG': {
+      const positional = /^Missing required positional argument: (\S+?)\.?$/.exec(message)?.[1];
+      const hint = positional !== undefined && Object.hasOwn(positionalHints, positional)
+        ? positionalHints[positional]!
+        : 'Run the command with --help to see its arguments.';
+      return new CliError('BAD_ARGS', message.endsWith('.') ? message : `${message}.`, hint);
+    }
     case 'E_NO_COMMAND':
       return parentHelp === undefined
         ? new CliError('BAD_ARGS', 'No command specified.', 'Run `oura-cli --help` for the list of commands.')
