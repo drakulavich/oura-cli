@@ -289,10 +289,19 @@ describe('a malformed response body (#112)', () => {
     }
   });
 
-  it('still treats a missing or null "data" as an empty page, and a non-string next_token as the last page', async () => {
-    mockFetch({ status: 200, body: '{"next_token": 7}' });
+  it('still treats a missing or null "data" as an empty page', async () => {
+    mockFetch({ status: 200, body: '{"next_token": null}' });
     expect(await new OuraClient().fetch('heartrate', {})).toEqual([]);
     mockFetch({ status: 200, body: '{"data": null}' });
     expect(await new OuraClient().fetch('heartrate', {})).toEqual([]);
+  });
+
+  it('rejects a non-string next_token rather than reading it as the last page', async () => {
+    // Ending pagination there would be a short sync at exit 0 with rows missing: the wrong-count
+    // failure this fix is about, on the other field (review of #119).
+    const err = await failure('{"data": [], "next_token": 7}');
+    expect(err.code).toBe('API_ERROR');
+    expect(err.message).toContain('next_token');
+    expect(err.message).toContain('a number');
   });
 });
