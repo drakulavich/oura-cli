@@ -11,14 +11,20 @@ export interface OpenclawManifest {
   runtime: 'bun';
   bin: string;
   description: string;
-  commands: { name: string; description: string; examples: string[] }[];
+  commands: {
+    name: string;
+    description: string;
+    examples: string[];
+    /** Present for a command that takes a subcommand (`db`), so `db rows` is discoverable here too (#122). */
+    subcommands?: { name: string; description: string }[];
+  }[];
   envVars: string[];
   healthcheck: { command: string; expects: Record<string, string> };
 }
 
 const EXAMPLES: Record<string, string[]> = {
   fetch:  ['oura-cli fetch sleep', 'oura-cli fetch hr --days 7', 'oura-cli fetch workout --from 2026-05-01 --to 2026-05-31'],
-  db:     ['oura-cli db today', 'oura-cli db week --format json'],
+  db:     ['oura-cli db today', 'oura-cli db week --format json', 'oura-cli db rows tags --days 30'],
   report: ['oura-cli report --period week'],
   doctor: ['oura-cli doctor --offline'],
 };
@@ -35,6 +41,7 @@ export function buildOpenclawManifest(version: string, commands: SubCommandsDef)
       name: c.name,
       description: c.description,
       examples: EXAMPLES[c.name] ?? [`oura-cli ${c.name}`],
+      ...(c.subcommands ? { subcommands: c.subcommands.map(s => ({ name: s.name, description: s.description })) } : {}),
     })),
     envVars: ['OURA_TOKEN', 'OURA_TOKEN_PATH', 'OURA_DB_PATH', 'OURA_TZ'],
     healthcheck: { command: 'healthcheck', expects: { ok: 'boolean', version: 'string', latencyMs: 'number', error: 'string, present only when ok is false' } },

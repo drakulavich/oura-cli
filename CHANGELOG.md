@@ -6,6 +6,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- `manifest` lists the subcommands of `db` (`today`, `date`, `week`, `trends`, `stats`, `rows`) with their descriptions, and a `db rows` example, so the OpenClaw registry shape no longer hides five sixths of what `db` does; `describe` already listed them. (#122)
+
 ### Fixed
 - The two `--format` errors carry a hint like every other error path (`Valid values: table, json.`), and a bare `--format` with no value says so (`--format has no value`) instead of reporting an unknown value `""`. (#121)
 

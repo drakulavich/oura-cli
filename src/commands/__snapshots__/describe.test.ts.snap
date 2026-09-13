@@ -317,8 +317,35 @@ exports[`buildOpenclawManifest matches the snapshot 1`] = `
       "examples": [
         "oura-cli db today",
         "oura-cli db week --format json",
+        "oura-cli db rows tags --days 30",
       ],
       "name": "db",
+      "subcommands": [
+        {
+          "description": "Today's summary from local database",
+          "name": "today",
+        },
+        {
+          "description": "Summary for specific date from local database",
+          "name": "date",
+        },
+        {
+          "description": "Last 7 days from local database",
+          "name": "week",
+        },
+        {
+          "description": "Score and metric trends over N days (default: 30)",
+          "name": "trends",
+        },
+        {
+          "description": "Row counts, date range, and record highs from local database",
+          "name": "stats",
+        },
+        {
+          "description": "Cached rows of one collection, as stored: the local twin of \`fetch\`",
+          "name": "rows",
+        },
+      ],
     },
     {
       "description": "Generate a narrative health report from local data.",
@@ -763,8 +790,35 @@ exports[`the published contract, over the real registry manifest: matches the sn
       "examples": [
         "oura-cli db today",
         "oura-cli db week --format json",
+        "oura-cli db rows tags --days 30",
       ],
       "name": "db",
+      "subcommands": [
+        {
+          "description": "Today's summary from local database",
+          "name": "today",
+        },
+        {
+          "description": "Summary for specific date from local database",
+          "name": "date",
+        },
+        {
+          "description": "Last 7 days from local database",
+          "name": "week",
+        },
+        {
+          "description": "Score and metric trends over N days (default: 30)",
+          "name": "trends",
+        },
+        {
+          "description": "Row counts, date range, and record highs from local database",
+          "name": "stats",
+        },
+        {
+          "description": "Cached rows of one collection, as stored: the local twin of \`fetch\`",
+          "name": "rows",
+        },
+      ],
     },
     {
       "description": "Generate a narrative health report from local data.",
