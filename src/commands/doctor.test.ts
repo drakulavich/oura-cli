@@ -21,6 +21,8 @@ function makeDeps(overrides: Partial<DoctorDeps> = {}): DoctorDeps {
     createClient: () => ({ fetch: async () => [] }),
     offline: true,
     today: '2026-08-30',
+    now: '2026-08-30T12:00:00Z',
+    tz: 'UTC',
     ...overrides,
   };
 }
@@ -50,7 +52,7 @@ describe('doctor runChecks', () => {
     expect(result.ok).toBe(false);
   });
 
-  it('warns when the most recent data is more than two days stale', async () => {
+  it('warns when the most recent data is days stale', async () => {
     const db = new Database(':memory:');
     ensureSchema(db);
     db.query('INSERT OR REPLACE INTO daily_sleep VALUES (?,?,?,?,?)')
@@ -60,7 +62,60 @@ describe('doctor runChecks', () => {
 
     const dataCheck = result.checks.find(c => c.id === 'data')!;
     expect(dataCheck.status).toBe('warn');
+    expect(dataCheck.detail).toBe('Most recent data is from 2026-08-25; that day ended over 108 hours ago (the limit is 36).');
     expect(result.nextStep).toBe('oura-cli sync');
+  });
+
+  // #114: on 2026-09-12 a cache whose newest day was 2026-09-10 passed as "current" while `report`
+  // marked that day as still accumulating. Staleness is now measured in hours from the end of the
+  // newest day, and the limit is STALE_AFTER_HOURS (36).
+  describe('data staleness is measured from the end of the newest day (#114)', () => {
+    function cacheEndingOn(day: string): Database {
+      const db = new Database(':memory:');
+      ensureSchema(db);
+      db.query('INSERT OR REPLACE INTO daily_sleep VALUES (?,?,?,?,?)').run('id1', day, 80, '{}', `${day}T00:00:00Z`);
+      return db;
+    }
+    const dataCheck = async (deps: Partial<DoctorDeps>) =>
+      (await runChecks(makeDeps(deps))).checks.find(c => c.id === 'data')!;
+
+    it('is still current exactly 36 hours after the newest day ended, and stale one second later', async () => {
+      // 2026-08-28 ends at 2026-08-29T00:00Z; 36 hours later is 2026-08-30T12:00Z.
+      const atLimit = await dataCheck({ openDb: () => ({ db: cacheEndingOn('2026-08-28'), path: ':memory:' }), now: '2026-08-30T12:00:00Z' });
+      expect(atLimit.status).toBe('ok');
+      expect(atLimit.detail).toBe('Data current through 2026-08-28.');
+
+      const past = await dataCheck({ openDb: () => ({ db: cacheEndingOn('2026-08-28'), path: ':memory:' }), now: '2026-08-30T12:00:01Z' });
+      expect(past.status).toBe('warn');
+      expect(past.fix).toBe('oura-cli sync');
+      expect(past.detail).toBe('Most recent data is from 2026-08-28; that day ended over 36 hours ago (the limit is 36).');
+    });
+
+    it('reproduces the S1 case: two days behind today is stale, whatever the time of day', async () => {
+      const morning = await dataCheck({ openDb: () => ({ db: cacheEndingOn('2026-09-10'), path: ':memory:' }), today: '2026-09-12', now: '2026-09-12T20:00:00Z' });
+      expect(morning.status).toBe('warn');
+    });
+
+    it('does not warn while the newest day is yesterday: one missed night is ordinary ring lag', async () => {
+      const check = await dataCheck({ openDb: () => ({ db: cacheEndingOn('2026-08-29'), path: ':memory:' }), now: '2026-08-30T23:59:00Z' });
+      expect(check.status).toBe('ok');
+    });
+
+    it('refuses an unparsable now instead of calling the cache current', async () => {
+      // NaN compares false against the limit; the previous code would have printed "Data current through".
+      const err = await runChecks(makeDeps({ openDb: () => ({ db: cacheEndingOn('2026-08-28'), path: ':memory:' }), now: 'yesterday' })).catch(e => e as Error);
+      expect(err).toBeInstanceOf(Error);
+      expect((err as Error).message).toContain('cannot place "yesterday"');
+    });
+
+    it('bounds the day in the cache timezone, not UTC', async () => {
+      // 2026-08-28 in Los Angeles ends at 2026-08-29T07:00Z; 2026-08-30T18:00Z is 35 hours later (ok),
+      // while the same instant is 42 hours past a UTC midnight (would be stale).
+      const la = await dataCheck({ openDb: () => ({ db: cacheEndingOn('2026-08-28'), path: ':memory:' }), now: '2026-08-30T18:00:00Z', tz: 'America/Los_Angeles' });
+      expect(la.status).toBe('ok');
+      const utc = await dataCheck({ openDb: () => ({ db: cacheEndingOn('2026-08-28'), path: ':memory:' }), now: '2026-08-30T18:00:00Z', tz: 'UTC' });
+      expect(utc.status).toBe('warn');
+    });
   });
 
   it('reports all-ok with no next step when the token, db, and data are all healthy', async () => {
