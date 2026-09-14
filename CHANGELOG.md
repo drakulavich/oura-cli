@@ -6,6 +6,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- A damaged cache is explained where it bites. `db today` and every other read used to answer "database disk image is malformed" with a hint about the path and whether oura-cli created the file; the hint now says the file is damaged and how to rebuild it, the same words `doctor` uses. `doctor`'s integrity row prints the one problem `quick_check` found instead of the pragma's multi-line dump, which spilled to column 0 and broke the table. README's "If something looks wrong" table has a row for it. (#134)
+
 ## [0.8.3] - 2026-09-13
 
 ### Fixed

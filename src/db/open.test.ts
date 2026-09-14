@@ -1,8 +1,8 @@
 import { describe, it, expect, afterEach, afterAll } from 'bun:test';
 import { CliError } from '../lib/errors.js';
-import { mkdtempSync, writeFileSync, rmSync, statSync, mkdirSync, chmodSync } from 'fs';
+import { mkdtempSync, writeFileSync, rmSync, statSync, mkdirSync, chmodSync, openSync, writeSync, closeSync } from 'fs';
 import { Database } from 'bun:sqlite';
-import { openDatabase, getDbPath, ensureSchema, asDbError, type Migration } from './open.js';
+import { openDatabase, getDbPath, ensureSchema, asDbError, REBUILD_HINT, type Migration } from './open.js';
 import { unlinkSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -172,6 +172,32 @@ describe('openDatabase errors', () => {
     expect(err).toBeInstanceOf(CliError);
     expect((err as CliError).code).toBe('DB_ERROR');
     expect((err as CliError).hint).toContain('directory');
+  });
+
+  it('names the recovery, not the path, when a query finds the file malformed (#134)', () => {
+    // A real damaged b-tree, the way the exploratory session made one: a page zeroed mid-file.
+    const path = join(dir, 'damaged.db');
+    const seed = new Database(path);
+    ensureSchema(seed);
+    const insert = seed.query("INSERT INTO heartrate (timestamp, bpm, source, day) VALUES (?, 60, 'awake', '2026-01-01')");
+    seed.transaction(() => { for (let i = 0; i < 400; i++) insert.run(`2026-01-01T${String(Math.floor(i / 60)).padStart(2, '0')}:${String(i % 60).padStart(2, '0')}:00+00:00`); })();
+    seed.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+    seed.close();
+    const fd = openSync(path, 'r+');
+    writeSync(fd, Buffer.alloc(16384), 0, 16384, 8192);
+    closeSync(fd);
+
+    const db = openDatabase(path);
+    let err: CliError | undefined;
+    // The zeroed pages hold the small tables' roots; the heartrate scan itself still answers.
+    try { db.query("SELECT score FROM daily_sleep WHERE day = '2026-01-01'").get(); } catch (e) { err = asDbError(e); }
+    db.close();
+    expect(err).toBeInstanceOf(CliError);
+    expect(err!.message).toContain('malformed');
+    expect(err!.code).toBe('DB_ERROR');
+    expect(err!.hint).toContain('damaged');
+    expect(err!.hint).toContain(REBUILD_HINT);
+    expect(err!.hint).not.toContain('Check the path');
   });
 
   it('reports an unusable path (parent is a regular file) as DB_ERROR', () => {

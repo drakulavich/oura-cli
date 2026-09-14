@@ -7,6 +7,9 @@ import { requireValue } from '../lib/require-value.js';
 import { MIGRATIONS } from './migrations.js';
 
 export const DB_HINT = 'Check the path in --db / OURA_DB_PATH and that the file is a SQLite database oura-cli created.';
+/** How a damaged cache is recovered: the same words under a DB_ERROR and in doctor's integrity check (#134). */
+export const REBUILD_HINT = 'Delete the cache file (--db / OURA_DB_PATH) and run `oura-cli sync` to rebuild it.';
+const CORRUPT_HINT = `The cache file is damaged. ${REBUILD_HINT} \`oura-cli doctor\` shows what is wrong with it.`;
 const BUSY_HINT = 'Another oura-cli process is using this database; wait for it to finish and retry.';
 const PERMISSION_HINT = 'Check that you can write both the file and the directory holding it — SQLite creates -wal and -shm files alongside the database.';
 /** How long a statement waits for a lock held by another process before failing with SQLITE_BUSY. */
@@ -17,6 +20,10 @@ const WAL_SWITCH_WAIT_MS = 25;
 
 function hintFor(detail: string): string {
   if (/database is locked|SQLITE_BUSY/i.test(detail)) return BUSY_HINT;
+  // "database disk image is malformed" is SQLite's word for a damaged file. The generic hint sent
+  // the user to check the path and whether oura-cli created the file, both fine; the recovery was
+  // only in doctor's output (#134).
+  if (/malformed|SQLITE_CORRUPT/i.test(detail)) return CORRUPT_HINT;
   // SQLite reports a directory it cannot write as a read-only *database*, which sends the user
   // looking at a file that is fine: WAL and SHM are new files created next to it.
   if (/readonly database|read-only|EACCES|permission denied|unable to open database file/i.test(detail)) return PERMISSION_HINT;

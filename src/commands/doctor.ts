@@ -1,6 +1,6 @@
-import { openDatabase, ensureSchema, getDbPath } from '../db/open.js';
-import { homePath } from '../lib/home-path.js';
+import { openDatabase, ensureSchema, getDbPath, REBUILD_HINT } from '../db/open.js';
 import type { Database } from '../db/open.js';
+import { homePath } from '../lib/home-path.js';
 import { OuraClient } from '../api/client.js';
 import { resolveToken } from '../api/token.js';
 import { CliError, exitCodeFor } from '../lib/errors.js';
@@ -70,7 +70,7 @@ export async function runChecks(deps: DoctorDeps): Promise<DoctorResult> {
     const damage = quickCheck(db);
     checks.push(damage === null
       ? { id: 'integrity', status: 'ok', detail: 'Database passes SQLite quick_check.' }
-      : { id: 'integrity', status: 'fail', detail: `Database is damaged: ${damage}`, fix: 'Delete the cache file (--db / OURA_DB_PATH) and run `oura-cli sync` to rebuild it.' });
+      : { id: 'integrity', status: 'fail', detail: `Database is damaged: ${damage}`, fix: REBUILD_HINT });
 
     // A damaged file answers a query with an exception; the integrity check above has already
     // said so, and doctor must still finish rather than crash on its way to the summary.
@@ -82,7 +82,7 @@ export async function runChecks(deps: DoctorDeps): Promise<DoctorResult> {
       readFailed = err instanceof Error ? err.message : String(err);
     }
     if (readFailed !== undefined) {
-      checks.push({ id: 'data', status: 'fail', detail: `Cannot read the cache: ${readFailed}`, fix: 'Delete the cache file (--db / OURA_DB_PATH) and run `oura-cli sync` to rebuild it.' });
+      checks.push({ id: 'data', status: 'fail', detail: `Cannot read the cache: ${readFailed}`, fix: REBUILD_HINT });
     } else if (!last) {
       checks.push({ id: 'data', status: 'warn', detail: 'No data in the local cache yet.', fix: 'oura-cli sync' });
     } else {
@@ -114,12 +114,18 @@ export async function runChecks(deps: DoctorDeps): Promise<DoctorResult> {
   return { ok, checks, nextStep };
 }
 
-/** The first problem `PRAGMA quick_check` reports, or null when the file is intact. */
+/**
+ * The first problem `PRAGMA quick_check` reports, or null when the file is intact. One line: the
+ * pragma's single row opens with a "*** in database main ***" banner and lists problems one per
+ * line, and printed whole it spilled to column 0 and broke the check table (#134).
+ */
 function quickCheck(db: Database): string | null {
   try {
     const rows = db.query('PRAGMA quick_check(1)').all() as Array<Record<string, string>>;
     const first = rows[0] === undefined ? 'ok' : Object.values(rows[0])[0] ?? 'ok';
-    return first === 'ok' ? null : first;
+    if (first === 'ok') return null;
+    const problems = first.split('\n').map(l => l.trim()).filter(l => l !== '' && !l.startsWith('***'));
+    return problems[0] ?? first.trim();
   } catch (err) {
     // A file too damaged to answer the pragma is exactly what this check is for.
     return err instanceof Error ? err.message : String(err);
