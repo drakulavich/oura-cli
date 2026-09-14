@@ -34,9 +34,6 @@ jobs:
         if: ${{ always() && hashFiles('test-results/junit.xml') != '' }}
         run: bunx @flakiness/junit-xml test-results/junit.xml --category bun --flakiness-project Laputa/oura-cli
 
-      - name: Build
-        run: bun run build
-
       - name: npm audit (high+)
         run: |
           if command -v npm >/dev/null; then
