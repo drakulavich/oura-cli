@@ -92,6 +92,10 @@ describe('formatDaySummary', () => {
   it('shows the SpO2 line only when spo2 is non-null (including 0)', () => {
     expect(stripAnsi(formatDaySummary(makeDay({ spo2: null }), 'table'))).not.toContain('SpO2:');
     expect(stripAnsi(formatDaySummary(makeDay({ spo2: 97 }), 'table'))).toContain('SpO2:      97%');
+    // Tenths only when not zero; Oura stores three decimals (#157).
+    expect(stripAnsi(formatDaySummary(makeDay({ spo2: 97.708 }), 'table'))).toContain('SpO2:      97.7%');
+    expect(stripAnsi(formatDaySummary(makeDay({ spo2: 97.96 }), 'table'))).toContain('SpO2:      98%');
+    expect(stripAnsi(formatDaySummary(makeDay({ spo2: 96.04 }), 'table'))).toContain('SpO2:      96%');
     // spo2 === 0 is non-null, so it is still rendered.
     expect(stripAnsi(formatDaySummary(makeDay({ spo2: 0 }), 'table'))).toContain('SpO2:      0%');
   });

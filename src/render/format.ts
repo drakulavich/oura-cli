@@ -54,7 +54,9 @@ export function formatDaySummary(summary: DaySummary, format: OutputFormat, empt
     `  Steps:     ${summary.steps ?? chalk.gray('—')}`,
   ];
 
-  if (summary.spo2 !== null) lines.push(`  SpO2:      ${summary.spo2}%`);
+  // Tenths only when they are not zero: 97.708 → 97.7, 97 → 97; Oura stores three decimals and the
+  // day view printed them (#157). The JSON keeps the stored value.
+  if (summary.spo2 !== null) lines.push(`  SpO2:      ${+summary.spo2.toFixed(1)}%`);
   if (summary.temp_deviation !== null) {
     const sign = summary.temp_deviation >= 0 ? '+' : '';
     lines.push(`  Temp:      ${sign}${summary.temp_deviation}°C`);
