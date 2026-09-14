@@ -261,7 +261,11 @@ describe('Import', () => {
       await importDaily(db, recordingClient(calls), { today: '2026-06-15', tz: 'UTC' });
       db.close();
 
-      expect(queriesFor(calls, 'heartrate')[0]!.start_datetime).toBe('2026-05-31T00:00:00.000Z'); // 14 days back
+      // The tail from the watermark day, then the fortnight behind it as its own request (#135).
+      expect(queriesFor(calls, 'heartrate').map(q => [q.start_datetime, q.end_datetime])).toEqual([
+        ['2026-06-14T00:00:00.000Z', '2026-06-15T23:59:59.999Z'],
+        ['2026-05-31T00:00:00.000Z', '2026-06-13T23:59:59.999Z'],
+      ]);
       // the daily summaries keep their one-day overlap: Oura revises those, it does not append to them.
       expect(queriesFor(calls, 'daily_sleep')).toEqual([{ start_date: '2026-06-14', end_date: '2026-06-15' }]);
     });
@@ -281,7 +285,7 @@ describe('Import', () => {
       db.close();
 
       expect(result.startDate).toBe('2026-06-15');
-      expect(queriesFor(calls, 'heartrate')[0]!.start_datetime).toBe('2026-06-01T00:00:00.000Z');
+      expect(queriesFor(calls, 'heartrate')[1]!.start_datetime).toBe('2026-06-01T00:00:00.000Z');
     });
 
     it('removes a sample the API reclassified instead of keeping both rows', async () => {
@@ -497,7 +501,11 @@ describe('Import', () => {
         daily_sleep: [{ id: 's1', day: '2026-06-15', score: 80, contributors: {}, timestamp: 't' }],
         heartrate: [{ bpm: 60, source: 'awake', timestamp: '2026-06-15T10:00:00Z' }],
       };
-      const client = { fetch: async (endpoint: OuraEndpoint) => rows[endpoint] ?? [] } as unknown as OuraClient;
+      // Answers like the API: a heart-rate sample only to the request whose window holds it.
+      const client = {
+        fetch: async (endpoint: OuraEndpoint, query: Record<string, string>) => (rows[endpoint] ?? []).filter(r =>
+          endpoint !== 'heartrate' || (Date.parse((r as { timestamp: string }).timestamp) >= Date.parse(query.start_datetime!) && Date.parse((r as { timestamp: string }).timestamp) <= Date.parse(query.end_datetime!))),
+      } as unknown as OuraClient;
 
       const first = await importDaily(db, client, { today: '2026-06-15', tz: 'UTC' });
       expect(first.fetched.daily_sleep).toBe(1);

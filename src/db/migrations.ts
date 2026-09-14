@@ -211,4 +211,16 @@ CREATE INDEX IF NOT EXISTS idx_ring_battery_level_day ON ring_battery_level(day)
 ALTER TABLE daily_activity ADD COLUMN class_5_min_slots INTEGER;
     `,
   },
+  {
+    // Small facts a sync leaves for the next one: today only the local day on which each
+    // collection's lookback last ran (see src/db/lookback.ts, #135). Not a collection table, so
+    // `db stats` and the schemas never list it.
+    version: 5,
+    sql: `
+CREATE TABLE IF NOT EXISTS _sync_state (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+    `,
+  },
 ];

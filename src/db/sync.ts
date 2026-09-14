@@ -3,6 +3,7 @@ import type { OuraClient } from '../api/client.js';
 import { COLLECTIONS, fetchCollectionByPiece, hasIdentity, identityColumns, insertSql, rowValues, type Piece } from '../collections/index.js';
 import { shiftDay } from '../lib/time.js';
 import { planWindow, applyWindowPlan, type WindowPlan } from './reconcile.js';
+import { lookbackDue, lookbackRange, markLookbackRan } from './lookback.js';
 
 /** Days (inclusive) a collection's first sync covers. */
 export const BACKFILL_DAYS = 30;
@@ -130,18 +131,16 @@ export async function importDaily(
   // Snapshot collections (rangeParams 'none') have no day column and are fetched whole every run.
   const plan = COLLECTIONS.map(c => {
     const last = c.rangeParams === 'none' ? null : lastDay(db, c.table, end);
-    // Where the cache says this collection has to resume from...
+    // Where the cache says this collection has to resume from. Some collections also re-read days
+    // behind that (`syncLookbackDays`): Oura appends to days already stored, and a day left behind
+    // the watermark is never revisited. That is a separate request, made only when due (lookback.ts).
     const resume = window.from ?? last ?? backfillStart;
-    // ...and how far behind that the request actually reaches: Oura backfills some collections
-    // days late, and a day left behind the watermark is never revisited. An explicit --from
-    // replaces both.
-    const start = window.from ?? shiftDay(resume, -(last === null ? 0 : c.syncLookbackDays ?? 0));
-    return { c, last, resume, start };
+    return { c, last, resume };
   });
   const ranged = plan.filter(p => p.c.rangeParams !== 'none');
   const isFirstSync = ranged.every(p => p.last === null);
-  // Reported from `resume`, not `start`: a lookback is one collection re-reading its own tail,
-  // and quoting it here would tell a user that every sync covers a fortnight of daily summaries.
+  // Reported from `resume`: a lookback is one collection re-reading its own tail, and quoting it
+  // here would tell a user that every sync covers a fortnight of daily summaries.
   const startDate = ranged.map(p => p.resume).sort()[0]!;
 
   // An incremental run names no window: startDate is the oldest resume day across collections, and
@@ -165,8 +164,12 @@ export async function importDaily(
   const refused: Record<string, RefusalRecord> = {};
   const pruned: Record<string, RefusalRecord> = {};
   const mayPrune = (name: string) => options.prune === 'all' || (options.prune?.includes(name) ?? false);
-  for (const { c, start } of plan) {
-    const returned = await fetchCollectionByPiece(client, c, start, end, tz);
+  for (const { c, last, resume } of plan) {
+    const returned = await fetchCollectionByPiece(client, c, resume, end, tz);
+    // The lookback is its own piece, asked for after the tail so the tail can say whether it is due.
+    const lookback = lookbackRange(c, last, window.from);
+    const walkedLookback = lookback !== null && lookbackDue(db, c, returned, today);
+    if (walkedLookback) returned.push(...await fetchCollectionByPiece(client, c, lookback.start, lookback.end, tz));
     // A row without its identity cannot be keyed, and its picks may throw; drop it here and say so.
     const pieces = returned.map(piece => ({ ...piece, rows: piece.rows.filter(r => hasIdentity(c, r)) }));
     const rows = pieces.flatMap(p => p.rows);
@@ -219,6 +222,9 @@ export async function importDaily(
       for (const piece of ps) for (const r of piece.rows) stmt.run(...rowValues(c, r));
       return { windowPlan, gone: applyWindowPlan(db, c, windowPlan) };
     }).immediate(pieces);
+    // Only once the rows are stored: marked before the transaction, a run that lost them to
+    // SQLITE_BUSY would have told the same-day rerun the fortnight was done.
+    if (walkedLookback) markLookbackRan(db, c, today);
     fetched[c.table] = rows.length + missing;
     added[c.table] = windowPlan.added;
     if (gone > 0) removed[c.table] = gone;
