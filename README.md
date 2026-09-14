@@ -98,7 +98,7 @@ oura-cli report                   # weekly (default)
 oura-cli report --period month    # 30-day window with weekly buckets
 ```
 
-Reports cover daily scores, averages, deltas vs the previous window, sleep details, and a short recommendation block. A day whose activity is still accumulating — normally just today — is shown with a `*` and kept out of the activity averages and recommendations; the JSON says so via `days[].partial` and `completeThrough`. `db today`, `db date` and `db week` carry the same `partial` flag and mark the day with the same `*` and note, so the screens cannot disagree. A day is treated as closed once Oura reports a full 24 hours of five-minute activity slots for it, so a ring that stops syncing no longer freezes its last day as unfinished.
+Reports cover daily scores, averages, deltas vs the previous window, sleep details, and a short recommendation block. A day whose activity is still accumulating — normally just today — is shown with a `*` and kept out of the activity and steps averages and recommendations (sleep, readiness and SpO2 averages take every day shown, and each average line says how many days it covers); the JSON says so via `days[].partial` and `completeThrough`. `db today`, `db date` and `db week` carry the same `partial` flag and mark the day with the same `*` and note, so the screens cannot disagree. A day is treated as closed once Oura reports a full 24 hours of five-minute activity slots for it, so a ring that stops syncing no longer freezes its last day as unfinished.
 
 ### Trends and stats
 

@@ -170,9 +170,19 @@ describe('getReport spo2', () => {
     expect(spo2.avg).toBe(96.2); // (95.44 + 96.86) / 2 = 96.15 -> toFixed(1) = 96.2
     expect(spo2.min).toBe(95.4);
     expect(spo2.max).toBe(96.9);
+    expect(spo2.count).toBe(2); // the days behind the average, as averages[].count (#128)
   });
 
-  it('returns null when no spo2 rows fall in the window', () => {
+  it('counts only the days with a value, since a day whose average is NULL is not in the average', () => {
+    insertSpo2(day(1), 96.2);
+    db.query('INSERT INTO daily_spo2 (id, day, spo2_average) VALUES (?,?,NULL)').run(nextId(), day(2));
+
+    expect(getReport(db, 7, TODAY).spo2).toEqual({ avg: 96.2, min: 96.2, max: 96.2, count: 1 });
+  });
+
+  it('returns null when no spo2 rows fall in the window, and when every row in it is NULL', () => {
+    expect(getReport(db, 7, TODAY).spo2).toBeNull();
+    db.query('INSERT INTO daily_spo2 (id, day, spo2_average) VALUES (?,?,NULL)').run(nextId(), day(1));
     expect(getReport(db, 7, TODAY).spo2).toBeNull();
   });
 });

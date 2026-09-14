@@ -92,7 +92,9 @@ function bucketLabel(b: WeekBucket): string {
  * One line explaining the `*` mark: which row is not final and how far the activity averages go. The
  * monthly table has no row for a day, so there the note names the bucket that carries the mark. "Not
  * final" rather than "still accumulating": the marked day may be days in the past when the ring has
- * simply not uploaded, and the week table says the same thing in the same words (#72).
+ * simply not uploaded, and the week table says the same thing in the same words (#72). Only the
+ * activity and steps averages stop at `completeThrough`; sleep, readiness and SpO2 take every day
+ * shown, and "averages cover through" claimed otherwise (#128).
  */
 function partialDayNote(data: ReportData, bucket: WeekBucket | undefined): string | null {
   const partial = data.days.find(d => d.partial); // the rule yields at most one
@@ -100,7 +102,7 @@ function partialDayNote(data: ReportData, bucket: WeekBucket | undefined): strin
   const which = bucket ? `the week of ${bucket.weekOf}`
     : partial.day === data.weekEnd ? 'today' : partial.dayLabel;
   const covers = data.completeThrough ? `through ${data.completeThrough}` : 'no complete day yet';
-  return `* ${which}: activity totals are not final; averages cover ${covers}.`;
+  return `* ${which}: activity totals are not final; activity and steps averages cover ${covers}.`;
 }
 
 export function formatReport(data: ReportData, format: OutputFormat, period: 'week' | 'month', max = screenWidth()): string {
@@ -155,7 +157,8 @@ export function formatReport(data: ReportData, format: OutputFormat, period: 'we
     lines.push(...finish(table, max), '');
   }
 
-  // Averages
+  // Averages. Each line ends with the days it averaged, as `db trends` prints: under a marked day the
+  // activity and steps averages cover one day fewer than sleep and readiness (#128).
   lines.push(chalk.bold('  Averages (this period vs previous):'));
   for (const a of data.averages) {
     const avgStr = fmtNumber(a.avg, a.isSteps);
@@ -165,10 +168,10 @@ export function formatReport(data: ReportData, format: OutputFormat, period: 'we
       const diffStr = a.isSteps ? a.diff.toLocaleString('en-US', { maximumFractionDigits: 0 }) : a.diff.toFixed(0);
       changeStr = ` ${arrow} ${a.diff >= 0 ? '+' : ''}${diffStr}`;
     }
-    lines.push(`  ${a.label.padEnd(12)} ${chalk.bold(avgStr)}${changeStr}  (min: ${fmtNumber(a.min, a.isSteps)}, max: ${fmtNumber(a.max, a.isSteps)})`);
+    lines.push(`  ${a.label.padEnd(12)} ${chalk.bold(avgStr)}${changeStr}  (min: ${fmtNumber(a.min, a.isSteps)}, max: ${fmtNumber(a.max, a.isSteps)}, ${a.count} day${a.count === 1 ? '' : 's'})`);
   }
   if (data.spo2) {
-    lines.push(`  ${'SpO2'.padEnd(12)} ${chalk.bold(String(data.spo2.avg) + '%')}  (min: ${data.spo2.min}%, max: ${data.spo2.max}%)`);
+    lines.push(`  ${'SpO2'.padEnd(12)} ${chalk.bold(String(data.spo2.avg) + '%')}  (min: ${data.spo2.min}%, max: ${data.spo2.max}%, ${data.spo2.count} day${data.spo2.count === 1 ? '' : 's'})`);
   }
   lines.push('');
 

@@ -40,7 +40,8 @@ export interface ReportData {
     diff: number | null;
     isSteps: boolean;
   }[];
-  spo2: { avg: number; min: number; max: number } | null;
+  /** `count`: days that contributed to `avg`, as for `averages[]`; the whole window, since SpO2 is never partial. */
+  spo2: { avg: number; min: number; max: number; count: number } | null;
   patterns: {
     lowSleep: { day: string; dayLabel: string; score: number }[];
     lowReadiness: { day: string; dayLabel: string; score: number }[];
@@ -131,9 +132,10 @@ export function getReport(db: Database, days: number, today: string): ReportData
 
   // SpO2
   const sp = db.query(
-    'SELECT AVG(spo2_average) as avg, MIN(spo2_average) as min, MAX(spo2_average) as max, COUNT(*) as cnt FROM daily_spo2 WHERE day BETWEEN ? AND ?'
+    // COUNT(spo2_average), not COUNT(*): AVG skips a NULL average, so the count must too (review of #128).
+    'SELECT AVG(spo2_average) as avg, MIN(spo2_average) as min, MAX(spo2_average) as max, COUNT(spo2_average) as cnt FROM daily_spo2 WHERE day BETWEEN ? AND ?'
   ).get(weekStart, weekEnd) as { avg: number | null; min: number | null; max: number | null; cnt: number };
-  const spo2 = sp.cnt > 0 && sp.avg !== null ? { avg: +sp.avg.toFixed(1), min: +sp.min!.toFixed(1), max: +sp.max!.toFixed(1) } : null;
+  const spo2 = sp.cnt > 0 && sp.avg !== null ? { avg: +sp.avg.toFixed(1), min: +sp.min!.toFixed(1), max: +sp.max!.toFixed(1), count: sp.cnt } : null;
 
   // Patterns
   const lowSleep = (db.query(
