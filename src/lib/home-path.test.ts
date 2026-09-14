@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { homePath } from './home-path.js';
+import { homePath, homePathsIn } from './home-path.js';
 
 describe('homePath (#130)', () => {
   it('replaces the home directory prefix with ~', () => {
@@ -14,6 +14,13 @@ describe('homePath (#130)', () => {
 
   it('changes nothing when the home directory is unknown', () => {
     expect(homePath('/Users/x/oura.db', '')).toBe('/Users/x/oura.db');
+  });
+
+  it('shortens every home path quoted inside a sentence, and nothing else', () => {
+    expect(homePathsIn('Cannot open database /Users/x/.oura-cli/oura.db: malformed (see /Users/x/a and /Users/xy/b)', '/Users/x'))
+      .toBe('Cannot open database ~/.oura-cli/oura.db: malformed (see ~/a and /Users/xy/b)');
+    expect(homePathsIn('no paths here', '/Users/x')).toBe('no paths here');
+    expect(homePathsIn('/Users/x/a', '')).toBe('/Users/x/a');
   });
 
   it('prints the home directory itself as ~', () => {

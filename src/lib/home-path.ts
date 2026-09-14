@@ -11,3 +11,9 @@ export function homePath(path: string, home = homedir()): string {
   if (path === home) return '~';
   return path.startsWith(home + sep) ? `~${path.slice(home.length)}` : path;
 }
+
+/** `homePath` for every path quoted inside a sentence, such as an error message that names the file it could not open. */
+export function homePathsIn(text: string, home = homedir()): string {
+  if (home === '') return text;
+  return text.split(home + sep).join('~' + sep);
+}
