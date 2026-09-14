@@ -51,7 +51,7 @@
     <!-- Header -->
     <header class="header" id="header">
       <div class="container header__inner">
-        <a href="#top" class="brand" aria-label="oura-cli — home">
+        <a href="#top" class="brand" aria-label="oura-cli home">
           <svg
             class="brand__mark"
             width="32"
@@ -106,32 +106,32 @@
         <div class="container hero__inner">
           <div class="eyebrow">
             <span class="eyebrow__dot"></span>
-            <span>v0.4.4 · MIT licensed · Bun + TypeScript</span>
+            <span>v0.8.6 · MIT licensed · Bun + TypeScript</span>
           </div>
 
           <h1 class="hero__title">
             <span class="serif italic">Own your</span>
             <span class="serif italic">Oura data.</span>
-            <span class="hero__title-rest">Sleep, readiness, HRV and workouts — <span class="hl">straight to your terminal.</span></span>
+            <span class="hero__title-rest">Sleep, readiness, HRV and workouts, <span class="hl">straight to your terminal.</span></span>
           </h1>
 
           <p class="hero__sub">
             Pull your Oura Ring data from the cloud, cache it locally in SQLite, and read it on your
-            own terms. Weekly digests, daily scores, raw V2 endpoints, pipe-friendly JSON.
-            <strong>No mobile app. No dashboards. No telemetry.</strong>
+            own terms: weekly digests, daily scores, seventeen raw V2 collections, pipe-friendly JSON.
+            <strong>Without the mobile app, and without telemetry.</strong>
           </p>
 
           <!-- Terminal demo -->
-          <figure class="demo" aria-label="oura-cli demo: --version, db today, db week, report, describe">
+          <figure class="demo" aria-label="oura-cli demo: doctor, db today, db week, report, db trends, db rows, describe">
             <div class="demo__chrome" aria-hidden="true">
               <span class="demo__dot demo__dot--r"></span>
               <span class="demo__dot demo__dot--y"></span>
               <span class="demo__dot demo__dot--g"></span>
-              <span class="demo__title">oura-cli — zsh</span>
+              <span class="demo__title">oura-cli · demo data</span>
             </div>
             <img
               src="assets/demo.gif"
-              alt="Terminal recording of oura-cli running --version, db today, db week, report, and describe"
+              alt="Terminal recording of oura-cli running doctor, db today, db week, report, db trends, db rows and describe, on synthetic demo data"
               loading="lazy"
               width="1500"
               height="940"
@@ -177,8 +177,8 @@
           <!-- Stats row -->
           <ul class="stat-row" role="list">
             <li>
-              <span class="stat-num">9</span>
-              <span class="stat-label">Oura V2 endpoints</span>
+              <span class="stat-num">17</span>
+              <span class="stat-label">Oura V2 collections</span>
             </li>
             <li>
               <span class="stat-num">1</span>
@@ -205,8 +205,8 @@
               <span class="serif italic">Your ring,</span> in a single CLI.
             </h2>
             <p class="section-sub">
-              Nine endpoints, one SQLite cache. Use the high-level digests or drop down to raw Oura
-              V2 — same shape across every command.
+              Seventeen collections, one SQLite cache. Read the digests, or drop down to the raw Oura
+              V2 records with <code>fetch</code> and <code>db rows</code>.
             </p>
           </header>
 
@@ -222,14 +222,14 @@
               <h3>Offline-first SQLite cache</h3>
               <p>
                 One <code>oura-cli sync</code> lands everything in <code>~/.oura-cli/oura.db</code>.
-                Every report, trend and lookup after that hits local disk — no API call, no mobile
-                app, no internet required. Subsequent syncs pull only new days.
+                Every report, trend and lookup after that reads local disk: no API call, no mobile
+                app, no internet required. Later syncs resume each collection from its last stored day.
               </p>
               <ul class="chip-row" role="list">
                 <li>bun:sqlite</li>
                 <li>~/.oura-cli/oura.db</li>
                 <li>incremental sync</li>
-                <li>9 cached tables</li>
+                <li>17 cached tables</li>
               </ul>
             </article>
 
@@ -294,11 +294,12 @@
                   <path d="M12 21s-7-4.35-7-10a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 5.65-7 10-7 10" />
                 </svg>
               </div>
-              <h3>Sleep, readiness &amp; HR</h3>
+              <h3>Seventeen collections, two ways</h3>
               <p>
-                Every Oura V2 endpoint — daily sleep, readiness, activity, heart rate, SpO₂, stress,
-                workouts, sleep model, cardiovascular age — exposed with the same
-                <code>today | date | week</code> shape.
+                <code>fetch &lt;collection&gt;</code> reads the API, <code>db rows &lt;collection&gt;</code> reads the
+                cache, with the same range flags. Sleep, readiness, activity, heart rate, SpO₂, stress,
+                workouts, sleep periods, cardiovascular age, resilience, VO₂ max, bedtime guidance,
+                sessions, rest mode, tags, ring, battery.
               </p>
             </article>
 
@@ -312,7 +313,7 @@
               </div>
               <h3>Stable JSON envelope</h3>
               <p>
-                Errors emit a deterministic JSON shape on stderr — <code>code</code>, <code>message</code>,
+                Errors emit a deterministic JSON shape on stderr: <code>code</code>, <code>message</code>,
                 <code>hint</code>. Documented exit codes for success, user errors, auth, API, and
                 storage. Predictable for CI and agents.
               </p>
@@ -324,11 +325,12 @@
                   <path d="M12 2v4M12 18v4M2 12h4M18 12h4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
                 </svg>
               </div>
-              <h3>Auto timezone</h3>
+              <h3>A doctor that names the fix</h3>
               <p>
-                Uses your system timezone by default, falls back to UTC. Override per-invocation
-                with <code>--tz</code> or <code>OURA_TZ</code> when you sync from a different
-                machine.
+                <code>oura-cli doctor</code> checks the token, the database, its integrity
+                (SQLite <code>quick_check</code>) and how fresh the data is, then prints one
+                <code>Next:</code> line. Online it asks Oura whether it holds newer days, so it can tell
+                "run sync" apart from "the ring has not uploaded".
               </p>
             </article>
 
@@ -355,12 +357,12 @@
                   <path d="M8 12h8M8 16h6" />
                 </svg>
               </div>
-              <h3>Bun + TypeScript, one binary</h3>
+              <h3>Bun + TypeScript, no build step</h3>
               <p>
                 Built on <a href="https://bun.sh" target="_blank" rel="noopener">Bun</a> with
                 <code>bun:sqlite</code>, <a href="https://github.com/unjs/citty" target="_blank" rel="noopener">citty</a> for CLI parsing
                 and <a href="https://github.com/chalk/chalk" target="_blank" rel="noopener">chalk</a> for output.
-                <strong>One ~100 kB dist/index.js. Zero native deps.</strong>
+                <strong>Runs straight from TypeScript source. Zero native deps.</strong>
               </p>
             </article>
 
@@ -390,7 +392,7 @@
           <header class="section-head">
             <p class="section-eyebrow">Quick start</p>
             <h2 class="section-title">
-              <span class="serif italic">Three commands</span> to your first weekly digest.
+              <span class="serif italic">Four commands</span> to your first weekly digest.
             </h2>
             <p class="section-sub">
               Requires <a href="https://bun.sh" target="_blank" rel="noopener">Bun</a> ≥ 1.0 and an
@@ -416,12 +418,14 @@ bun add -g @drakulavich/oura-cli" aria-label="Copy">
 
             <div class="step">
               <div class="step__num">02</div>
-              <h3>Paste your token</h3>
-              <p>One time. Lands at <code>~/.oura-token</code>, <code>0600</code>.</p>
+              <h3>Paste your token, check the setup</h3>
+              <p>One time. The token lands at <code>~/.oura-token</code> with <code>0600</code>.</p>
               <div class="code-block">
                 <pre><code><span class="muted">$</span> oura-cli login
-<span class="cm"># paste PAT from cloud.ouraring.com</span></code></pre>
-                <button class="copy" data-copy="oura-cli login" aria-label="Copy">
+<span class="cm"># paste PAT from cloud.ouraring.com</span>
+<span class="muted">$</span> oura-cli doctor</code></pre>
+                <button class="copy" data-copy="oura-cli login
+oura-cli doctor" aria-label="Copy">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 </button>
               </div>
@@ -430,7 +434,7 @@ bun add -g @drakulavich/oura-cli" aria-label="Copy">
             <div class="step">
               <div class="step__num">03</div>
               <h3>Sync &amp; report</h3>
-              <p>Backfill recent days, then print your week.</p>
+              <p>The first sync fetches 30 days, then print your week.</p>
               <div class="code-block">
                 <pre><code><span class="muted">$</span> oura-cli sync
 <span class="muted">$</span> oura-cli report</code></pre>
@@ -447,23 +451,22 @@ oura-cli report" aria-label="Copy">
             <div class="tabs__nav" role="tablist" aria-label="Usage examples">
               <button role="tab" class="is-active" data-tab="daily">Daily use</button>
               <button role="tab" data-tab="reports">Reports &amp; trends</button>
-              <button role="tab" data-tab="raw">Raw V2 endpoints</button>
+              <button role="tab" data-tab="raw">Raw V2 collections</button>
               <button role="tab" data-tab="pipe">Piping &amp; JSON</button>
             </div>
 
             <div class="tabs__panel is-active" data-panel="daily">
               <div class="code-block code-block--lg">
-                <pre><code><span class="cm"># Today, from local cache</span>
+                <pre><code><span class="cm"># Today, from the local cache</span>
 <span class="muted">$</span> oura-cli db today
-
-<span class="cm"># A specific day</span>
+<span class="cm"># A specific day; an empty day says which sync would fill it</span>
 <span class="muted">$</span> oura-cli db date 2026-05-10
-
-<span class="cm"># Last week at a glance — no API hit</span>
+<span class="cm"># Last week at a glance, no API hit</span>
 <span class="muted">$</span> oura-cli db week
-
 <span class="cm"># Pull the latest days into the cache</span>
-<span class="muted">$</span> oura-cli sync</code></pre>
+<span class="muted">$</span> oura-cli sync
+<span class="cm"># Token, database, integrity, freshness</span>
+<span class="muted">$</span> oura-cli doctor</code></pre>
               </div>
             </div>
 
@@ -471,13 +474,10 @@ oura-cli report" aria-label="Copy">
               <div class="code-block code-block--lg">
                 <pre><code><span class="cm"># Weekly digest (default)</span>
 <span class="muted">$</span> oura-cli report
-
 <span class="cm"># 30-day window with weekly buckets</span>
-<span class="muted">$</span> oura-cli report --format month
-
+<span class="muted">$</span> oura-cli report --period month
 <span class="cm"># Score trends across the last 30 days</span>
 <span class="muted">$</span> oura-cli db trends 30
-
 <span class="cm"># Row counts, date range, personal bests</span>
 <span class="muted">$</span> oura-cli db stats</code></pre>
               </div>
@@ -485,30 +485,24 @@ oura-cli report" aria-label="Copy">
 
             <div class="tabs__panel" data-panel="raw">
               <div class="code-block code-block--lg">
-                <pre><code><span class="cm"># Every endpoint shares the same shape: today | date | week</span>
-<span class="muted">$</span> oura-cli sleep today
-<span class="muted">$</span> oura-cli readiness date 2026-05-10
-<span class="muted">$</span> oura-cli activity week
-
-<span class="cm"># Fresh sleep detail straight from Oura</span>
-<span class="muted">$</span> oura-cli sleep week
-
-<span class="cm"># Heart rate, SpO₂, stress, workouts</span>
-<span class="muted">$</span> oura-cli hr week
-<span class="muted">$</span> oura-cli spo2 week
-<span class="muted">$</span> oura-cli stress week
-<span class="muted">$</span> oura-cli workout week</code></pre>
+                <pre><code><span class="cm"># fetch reads the API; db rows reads the cache, same flags</span>
+<span class="muted">$</span> oura-cli fetch sleep                    <span class="cm"># today</span>
+<span class="muted">$</span> oura-cli fetch hr --days 7
+<span class="muted">$</span> oura-cli fetch workout --from 2026-05-01 --to 2026-05-31
+<span class="muted">$</span> oura-cli db rows tags --days 30
+<span class="muted">$</span> oura-cli db rows battery --day 2026-09-01
+<span class="muted">$</span> oura-cli db rows hr --day 2026-09-01 --limit 20
+<span class="cm"># sleep readiness activity hr spo2 stress workout sleep-periods cv-age</span>
+<span class="cm"># resilience vo2max sleep-time session rest-mode tags ring battery</span></code></pre>
               </div>
             </div>
 
             <div class="tabs__panel" data-panel="pipe">
               <div class="code-block code-block--lg">
-                <pre><code><span class="cm"># Output auto-switches to JSON the moment you pipe</span>
-<span class="muted">$</span> oura-cli sleep week | jq <span class="str">'.[] | {day, score, hrv: .contributors.hrv_balance}'</span>
-
+                <pre><code><span class="cm"># Output switches to JSON the moment you pipe</span>
+<span class="muted">$</span> oura-cli fetch sleep --days 7 | jq <span class="str">'.[] | {day, score, deep: .contributors.deep_sleep}'</span>
 <span class="cm"># Dump 90 days of trends to a file</span>
 <span class="muted">$</span> oura-cli db trends 90 &gt; trends.json
-
 <span class="cm"># Pipe a digest into your favorite LLM</span>
 <span class="muted">$</span> oura-cli report | llm <span class="str">"Summarize my week and call out anything concerning"</span></code></pre>
               </div>
@@ -523,11 +517,12 @@ oura-cli report" aria-label="Copy">
           <header class="section-head">
             <p class="section-eyebrow">What's inside</p>
             <h2 class="section-title">
-              <span class="serif italic">Nine endpoints,</span> one SQLite file.
+              <span class="serif italic">Seventeen collections,</span> one SQLite file.
             </h2>
             <p class="section-sub">
-              Every Oura V2 endpoint lands in its own cached table. Same date range, same shape,
-              same JSON. Inspect with the <code>sqlite3</code> CLI if you want — it's your data.
+              Every collection lands in its own cached table. <code>fetch &lt;collection&gt;</code> reads
+              the API, <code>db rows &lt;collection&gt;</code> reads the cache. Inspect the file with the
+              <code>sqlite3</code> CLI if you want: it's your data.
             </p>
           </header>
 
@@ -536,61 +531,126 @@ oura-cli report" aria-label="Copy">
               <span>Endpoint</span>
               <span>Source</span>
               <span>Cached table</span>
-              <span>CLI</span>
+              <span>Collection</span>
             </div>
+
             <div class="models-table__row" role="row">
               <span class="model-name">Sleep</span>
               <span class="model-task">Oura V2 <code>daily_sleep</code></span>
               <span class="model-size">daily_sleep</span>
-              <span><code>oura-cli sleep …</code></span>
+              <span><code>sleep</code></span>
             </div>
+
             <div class="models-table__row" role="row">
               <span class="model-name">Readiness</span>
               <span class="model-task">Oura V2 <code>daily_readiness</code></span>
               <span class="model-size">daily_readiness</span>
-              <span><code>oura-cli readiness …</code></span>
+              <span><code>readiness</code></span>
             </div>
+
             <div class="models-table__row" role="row">
               <span class="model-name">Activity</span>
               <span class="model-task">Oura V2 <code>daily_activity</code></span>
               <span class="model-size">daily_activity</span>
-              <span><code>oura-cli activity …</code></span>
+              <span><code>activity</code></span>
             </div>
+
             <div class="models-table__row" role="row">
               <span class="model-name">Heart rate</span>
               <span class="model-task">Oura V2 <code>heartrate</code></span>
               <span class="model-size">heartrate</span>
-              <span><code>oura-cli hr …</code></span>
+              <span><code>hr</code></span>
             </div>
+
             <div class="models-table__row" role="row">
               <span class="model-name">SpO₂</span>
               <span class="model-task">Oura V2 <code>daily_spo2</code></span>
               <span class="model-size">daily_spo2</span>
-              <span><code>oura-cli spo2 …</code></span>
+              <span><code>spo2</code></span>
             </div>
+
             <div class="models-table__row" role="row">
               <span class="model-name">Stress</span>
               <span class="model-task">Oura V2 <code>daily_stress</code></span>
               <span class="model-size">daily_stress</span>
-              <span><code>oura-cli stress …</code></span>
+              <span><code>stress</code></span>
             </div>
+
             <div class="models-table__row" role="row">
               <span class="model-name">Workouts</span>
               <span class="model-task">Oura V2 <code>workout</code></span>
               <span class="model-size">workouts</span>
-              <span><code>oura-cli workout …</code></span>
+              <span><code>workout</code></span>
             </div>
+
             <div class="models-table__row" role="row">
-              <span class="model-name">Sleep model</span>
+              <span class="model-name">Sleep periods</span>
               <span class="model-task">Oura V2 <code>sleep</code></span>
               <span class="model-size">sleep_model</span>
-              <span><em>via report</em></span>
+              <span><code>sleep-periods</code></span>
             </div>
+
             <div class="models-table__row" role="row">
               <span class="model-name">Cardiovascular age</span>
               <span class="model-task">Oura V2 <code>cardiovascular_age</code></span>
               <span class="model-size">cardiovascular_age</span>
-              <span><em>via report</em></span>
+              <span><code>cv-age</code></span>
+            </div>
+
+            <div class="models-table__row" role="row">
+              <span class="model-name">Resilience</span>
+              <span class="model-task">Oura V2 <code>daily_resilience</code></span>
+              <span class="model-size">daily_resilience</span>
+              <span><code>resilience</code></span>
+            </div>
+
+            <div class="models-table__row" role="row">
+              <span class="model-name">VO₂ max</span>
+              <span class="model-task">Oura V2 <code>vO2_max</code></span>
+              <span class="model-size">vo2max</span>
+              <span><code>vo2max</code></span>
+            </div>
+
+            <div class="models-table__row" role="row">
+              <span class="model-name">Bedtime guidance</span>
+              <span class="model-task">Oura V2 <code>sleep_time</code></span>
+              <span class="model-size">sleep_time</span>
+              <span><code>sleep-time</code></span>
+            </div>
+
+            <div class="models-table__row" role="row">
+              <span class="model-name">Sessions</span>
+              <span class="model-task">Oura V2 <code>session</code></span>
+              <span class="model-size">sessions</span>
+              <span><code>session</code></span>
+            </div>
+
+            <div class="models-table__row" role="row">
+              <span class="model-name">Rest mode</span>
+              <span class="model-task">Oura V2 <code>rest_mode_period</code></span>
+              <span class="model-size">rest_mode_periods</span>
+              <span><code>rest-mode</code></span>
+            </div>
+
+            <div class="models-table__row" role="row">
+              <span class="model-name">Tags</span>
+              <span class="model-task">Oura V2 <code>enhanced_tag</code></span>
+              <span class="model-size">enhanced_tags</span>
+              <span><code>tags</code></span>
+            </div>
+
+            <div class="models-table__row" role="row">
+              <span class="model-name">Ring</span>
+              <span class="model-task">Oura V2 <code>ring_configuration</code></span>
+              <span class="model-size">ring_configuration</span>
+              <span><code>ring</code></span>
+            </div>
+
+            <div class="models-table__row" role="row">
+              <span class="model-name">Battery</span>
+              <span class="model-task">Oura V2 <code>ring_battery_level</code></span>
+              <span class="model-size">ring_battery_level</span>
+              <span><code>battery</code></span>
             </div>
           </div>
 
@@ -601,6 +661,7 @@ oura-cli report" aria-label="Copy">
             <a href="https://github.com/unjs/citty" target="_blank" rel="noopener">citty</a>.
             Output:
             <a href="https://github.com/chalk/chalk" target="_blank" rel="noopener">chalk</a>.
+            No build step: the CLI runs from <code>src/</code> on Bun.
           </p>
         </div>
       </section>
@@ -631,7 +692,7 @@ oura-cli report" aria-label="Copy">
             </div>
             <div class="models-table__row" role="row">
               <span class="model-name">Token file path</span>
-              <span class="model-task">—</span>
+              <span class="model-task"><code>--path</code> (login)</span>
               <span class="model-size">OURA_TOKEN_PATH</span>
               <span>~/.oura-token</span>
             </div>
@@ -650,8 +711,15 @@ oura-cli report" aria-label="Copy">
             <div class="models-table__row" role="row">
               <span class="model-name">Output format</span>
               <span class="model-task"><code>--format</code></span>
-              <span class="model-size">—</span>
+              <span class="model-size">&nbsp;</span>
               <span>auto (TTY → table)</span>
+            </div>
+
+            <div class="models-table__row" role="row">
+              <span class="model-name">Colour</span>
+              <span class="model-task"><code>--no-color</code></span>
+              <span class="model-size">NO_COLOR</span>
+              <span>on for a terminal, off when piped</span>
             </div>
           </div>
         </div>
@@ -667,7 +735,7 @@ oura-cli report" aria-label="Copy">
             </h2>
             <p class="section-sub">
               If you're driving the CLI from a script or LLM harness, the introspection surface is
-              first-class — and the output contracts are semver-stable.
+              first-class, and the output contracts follow semver.
             </p>
           </header>
 
@@ -695,8 +763,9 @@ oura-cli report" aria-label="Copy">
               </div>
               <h3><code>oura-cli healthcheck</code></h3>
               <p>
-                Returns <code>{ok, version, latencyMs}</code> for liveness probes. Wire it straight
-                into your monitoring stack or agent harness.
+                Returns <code>{ok, version, latencyMs}</code> for liveness probes: the database opens and
+                answers a query. Gate on <code>.ok</code>, not the exit code; <code>doctor</code> does the
+                deeper checks.
               </p>
             </article>
 
@@ -727,8 +796,8 @@ oura-cli report" aria-label="Copy">
               </div>
               <h3>Stable JSON schemas</h3>
               <p>
-                Schemas under <code>docs/schemas/</code> describe every output. Exit codes are
-                documented: <code>0</code> ok, <code>1</code> user, <code>2</code> auth,
+                Schemas under <code>docs/schemas/</code> cover <code>fetch &lt;collection&gt;</code>,
+                <code>doctor</code> and the <code>describe</code> manifest. Exit codes are documented: <code>0</code> ok, <code>1</code> user, <code>2</code> auth,
                 <code>3</code> API, <code>4</code> storage.
               </p>
               <a href="https://github.com/drakulavich/oura-cli/tree/main/docs/schemas" target="_blank" rel="noopener">Browse schemas →</a>
@@ -784,7 +853,7 @@ oura-cli report" aria-label="Copy">
                 </li>
                 <li>
                   <span class="sec-tag">env</span>
-                  <code>OURA_TOKEN</code> works for CI &amp; scripts — but shows up in <code>ps auxe</code> and core dumps. Prefer the file.
+                  <code>OURA_TOKEN</code> works for CI &amp; scripts, but shows up in <code>ps auxe</code> and core dumps. Prefer the file.
                 </li>
                 <li>
                   <span class="sec-tag sec-tag--warn">avoid</span>
@@ -796,7 +865,7 @@ oura-cli report" aria-label="Copy">
                 </li>
                 <li>
                   <span class="sec-tag">revoke</span>
-                  Lost device? Revoke at <a href="https://cloud.ouraring.com/personal-access-tokens" target="_blank" rel="noopener">cloud.ouraring.com</a> — not via this CLI.
+                  Lost device? Revoke at <a href="https://cloud.ouraring.com/personal-access-tokens" target="_blank" rel="noopener">cloud.ouraring.com</a>, not through this CLI.
                 </li>
               </ul>
             </div>
@@ -812,8 +881,8 @@ oura-cli report" aria-label="Copy">
               <span class="serif italic">Ready to</span> own your data?
             </h2>
             <p class="cta__sub">
-              Open source, MIT licensed, no telemetry. Star the repo, grab the binary, paste your
-              token — your weekly digest is one command away.
+              Open source, MIT licensed, no telemetry. Star the repo, install the package, paste your
+              token: your weekly digest is one command away.
             </p>
             <div class="cta__actions">
               <a
