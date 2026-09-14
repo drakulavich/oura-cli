@@ -64,6 +64,19 @@ describe('getTrends', () => {
     expect(three?.max).toBe(65); // 2026-04-06 is out
     expect(one?.count).toBe(1);  // the degenerate window is today alone
   });
+
+  it('counts only the days with a SpO2 value, as report does, since a NULL average is not in the average (#142)', () => {
+    const own = new Database(':memory:');
+    ensureSchema(own);
+    own.query('INSERT INTO daily_spo2 (id, day, spo2_average) VALUES (?,?,?)').run('a', '2026-04-03', 96.2);
+    own.query('INSERT INTO daily_spo2 (id, day, spo2_average) VALUES (?,?,NULL)').run('b', '2026-04-04');
+    own.query('INSERT INTO daily_spo2 (id, day, spo2_average) VALUES (?,?,NULL)').run('c', '2026-04-05');
+    const spo2 = getTrends(own, 7, '2026-04-05').find(t => t.label === 'SpO2');
+    const none = getTrends(own, 1, '2026-04-05').find(t => t.label === 'SpO2'); // today alone: one NULL row
+    own.close();
+    expect(spo2).toEqual({ label: 'SpO2', avg: 96.2, min: 96.2, max: 96.2, count: 1 });
+    expect(none).toBeUndefined();
+  });
 });
 
 describe('getStats', () => {

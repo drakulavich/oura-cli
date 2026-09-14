@@ -102,8 +102,10 @@ export function getTrends(db: Database, days: number, today: string): TrendRow[]
     }
   }
 
+  // COUNT(spo2_average), as the metrics above count their column: AVG skips a NULL average and the
+  // "(N days)" the count feeds must too. `report` already did (#128); the two views disagreed (#142).
   const sp = db.query(
-    'SELECT AVG(spo2_average) as avg, MIN(spo2_average) as min, MAX(spo2_average) as max, COUNT(*) as count FROM daily_spo2 WHERE day BETWEEN ? AND ?'
+    'SELECT AVG(spo2_average) as avg, MIN(spo2_average) as min, MAX(spo2_average) as max, COUNT(spo2_average) as count FROM daily_spo2 WHERE day BETWEEN ? AND ?'
   ).get(start, today) as { avg: number | null; min: number | null; max: number | null; count: number };
   if (sp.count > 0 && sp.avg !== null) {
     results.push({ label: 'SpO2', avg: +sp.avg.toFixed(1), min: +sp.min!.toFixed(1), max: +sp.max!.toFixed(1), count: sp.count });

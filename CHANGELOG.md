@@ -6,6 +6,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- `db trends` no longer counts a day whose SpO2 average is NULL in its `(N days)`; it printed 5 days where `report` printed 3 for the same cache. (#142)
+
 ## [0.8.4] - 2026-09-14
 
 ### Fixed
