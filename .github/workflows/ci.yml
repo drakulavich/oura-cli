@@ -19,6 +19,8 @@ jobs:
           bun-version: latest
 
       - run: bun install --frozen-lockfile
+      - name: Layer boundaries
+        run: bun run lint:layers
 
       - name: Type-check
         run: bunx tsc --noEmit

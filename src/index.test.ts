@@ -262,3 +262,14 @@ describe('help fits an 80-column terminal (#130)', () => {
     }
   });
 });
+
+describe('colour mode is decided before citty loads', () => {
+  // citty reads NO_COLOR when its module is evaluated, so the import that applies --no-color must
+  // come first; a later position silently coloured `--help` (#80). Pinned here because a re-sort
+  // of the import block is exactly the edit that breaks it.
+  it('the first import of src/index.ts is ./lib/apply-color-mode.js', async () => {
+    const text = await Bun.file(ENTRY).text();
+    const firstImport = text.split('\n').find(l => l.startsWith('import '));
+    expect(firstImport).toBe("import './lib/apply-color-mode.js';");
+  });
+});

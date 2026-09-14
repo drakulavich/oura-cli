@@ -1,0 +1,151 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.2.4/schema.json",
+  "root": true,
+  "files": {
+    "includes": [
+      "src/**",
+      "!**/*.test.ts"
+    ]
+  },
+  "formatter": {
+    "enabled": false
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": false
+    }
+  },
+  "overrides": [
+    {
+      "includes": [
+        "src/lib/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "../api/*",
+                      "../collections/*",
+                      "../db/*",
+                      "../render/*",
+                      "../commands/*"
+                    ],
+                    "message": "src/lib may import only from lib: layers depend only downward (lib → api → collections → db → render → commands → index)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/api/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "../collections/*",
+                      "../db/*",
+                      "../render/*",
+                      "../commands/*"
+                    ],
+                    "message": "src/api may import only from lib, api: layers depend only downward (lib → api → collections → db → render → commands → index)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/collections/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "../db/*",
+                      "../render/*",
+                      "../commands/*"
+                    ],
+                    "message": "src/collections may import only from lib, api, collections: layers depend only downward (lib → api → collections → db → render → commands → index)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/db/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "../render/*",
+                      "../commands/*"
+                    ],
+                    "message": "src/db may import only from lib, api, collections, db: layers depend only downward (lib → api → collections → db → render → commands → index)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/render/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "../commands/*"
+                    ],
+                    "message": "src/render may import only from lib, api, collections, db, render: layers depend only downward (lib → api → collections → db → render → commands → index)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
