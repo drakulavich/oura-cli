@@ -28,11 +28,30 @@ describe('emptyDayHint (#133)', () => {
     db.close();
   });
 
-  it('gives today the publish-delay note, a past day a sync --from for that day, and a future day no fetch at all', () => {
+  it('gives today the publish-delay note and a future day no fetch at all', () => {
     const db = cache(true);
     expect(emptyDayHint(db, TODAY, TODAY)).toContain("Oura publishes a day's summary");
-    expect(emptyDayHint(db, '2026-06-02', TODAY)).toBe('Nothing cached for 2026-06-02. Run `oura-cli sync --from 2026-06-02` to fetch it if Oura has it.');
     expect(emptyDayHint(db, '2026-06-16', TODAY)).toBe('2026-06-16 is after today (2026-06-15); nothing can be cached for it yet.');
+    db.close();
+  });
+
+  it('places a past day against the cached summaries: before the first, after the last, or a gap a sync has passed (#143)', () => {
+    const db = cache(true); // holds 2026-06-01
+    db.query('INSERT INTO daily_readiness (id, day) VALUES (?,?)').run('r1', '2026-06-10'); // the range spans the three daily tables
+    db.query("INSERT INTO daily_stress (id, day) VALUES ('st', '2026-06-05')").run(); // not a summary: must not make the day "cached"
+    expect(emptyDayHint(db, '2026-05-20', TODAY)).toBe('No daily summaries for 2026-05-20: the cache begins at 2026-06-01. Run `oura-cli sync --from 2026-05-20` to fetch it if Oura has it.');
+    expect(emptyDayHint(db, '2026-06-12', TODAY)).toBe('No daily summaries for 2026-06-12: the cache ends at 2026-06-10. Run `oura-cli sync`; if it adds nothing, the ring has not uploaded (`oura-cli doctor` says which side is behind).');
+    // The loop of the issue: a day inside the cache that a sync has already asked for. No sync --from as the first move.
+    const gap = emptyDayHint(db, '2026-06-05', TODAY);
+    // "Most likely", not a fact: two explicit --from/--to windows leave a gap no sync covered.
+    expect(gap).toBe('No daily summaries for 2026-06-05, though the cache runs from 2026-06-01 to 2026-06-10: most likely Oura has none for that day. `oura-cli sync --from 2026-06-05` re-fetches it in case a sync skipped it.');
+    expect(gap).not.toContain('Nothing cached');
+    // The boundary days themselves are inside the cache: a summary row whose scores are all NULL is
+    // an empty panel on the first or last cached day, and neither "begins at" nor "ends at" applies.
+    // The hint names the range rather than "days on both sides", which a boundary day does not have.
+    db.query('INSERT INTO daily_sleep VALUES (?,?,?,?,?)').run('s0', '2026-05-30', null, '{}', '');
+    expect(emptyDayHint(db, '2026-05-30', TODAY)).toStartWith('No daily summaries for 2026-05-30, though the cache runs from 2026-05-30 to 2026-06-10');
+    expect(emptyDayHint(db, '2026-06-10', TODAY)).toStartWith('No daily summaries for 2026-06-10, though the cache runs from 2026-05-30 to 2026-06-10');
     db.close();
   });
 });
@@ -157,7 +176,7 @@ describe('db rows (#73)', () => {
       const proc = Bun.spawn(['bun', 'run', 'src/index.ts', '--db', path, 'db', 'date', '2026-06-02', '--format', 'table'], { stdout: 'pipe', stderr: 'pipe' });
       const text = await new Response(proc.stdout).text();
       expect(await proc.exited).toBe(0);
-      expect(text).toContain('Nothing cached for 2026-06-02. Run `oura-cli sync --from 2026-06-02` to fetch it if Oura has it.');
+      expect(text).toContain('No daily summaries for 2026-06-02: the cache ends at 2026-06-01. Run `oura-cli sync`;');
       expect(text).not.toMatch(/Sleep: +—/);
     } finally {
       for (const suffix of ['', '-wal', '-shm']) rmSync(path + suffix, { force: true });
