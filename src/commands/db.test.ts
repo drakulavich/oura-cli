@@ -4,6 +4,7 @@ import { rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { ensureSchema } from '../db/open.js';
+import { emptyDayHint } from './db.js';
 
 async function run(...argv: string[]) {
   const proc = Bun.spawn(['bun', 'run', 'src/index.ts', '--db', ':memory:', ...argv], { stdout: 'pipe', stderr: 'pipe' });
@@ -11,6 +12,30 @@ async function run(...argv: string[]) {
   const code = await proc.exited;
   return { stdout, stderr, code };
 }
+
+describe('emptyDayHint (#133)', () => {
+  const TODAY = '2026-06-15';
+  function cache(withDays: boolean): Database {
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    if (withDays) db.query('INSERT INTO daily_sleep VALUES (?,?,?,?,?)').run('s1', '2026-06-01', 80, '{}', '');
+    return db;
+  }
+
+  it('tells an empty cache to download, whatever the day', () => {
+    const db = cache(false);
+    for (const day of ['2026-06-01', TODAY, '2026-07-01']) expect(emptyDayHint(db, day, TODAY)).toContain('to download your data');
+    db.close();
+  });
+
+  it('gives today the publish-delay note, a past day a sync --from for that day, and a future day no fetch at all', () => {
+    const db = cache(true);
+    expect(emptyDayHint(db, TODAY, TODAY)).toContain("Oura publishes a day's summary");
+    expect(emptyDayHint(db, '2026-06-02', TODAY)).toBe('Nothing cached for 2026-06-02. Run `oura-cli sync --from 2026-06-02` to fetch it if Oura has it.');
+    expect(emptyDayHint(db, '2026-06-16', TODAY)).toBe('2026-06-16 is after today (2026-06-15); nothing can be cached for it yet.');
+    db.close();
+  });
+});
 
 describe('db date', () => {
   it('rejects a calendar-invalid date with BAD_ARGS before querying', async () => {
@@ -113,6 +138,27 @@ describe('db rows (#73)', () => {
       expect(await proc.exited).toBe(0);
       expect(text).not.toContain('to download your data');
       expect(text).toContain("Oura publishes a day's summary after that night's sleep syncs from the ring. If the ring has synced since, run `oura-cli sync` again.");
+    } finally {
+      for (const suffix of ['', '-wal', '-shm']) rmSync(path + suffix, { force: true });
+    }
+  });
+
+  it('db date: explains an empty past day the way db today does, instead of printing dashes (#133)', async () => {
+    const empty = await run('db', 'date', '2026-06-02', '--format', 'table');
+    expect(empty.stdout).toContain('No Oura data for 2026-06-02 yet.');
+    expect(empty.stdout).toContain('to download your data');
+
+    const path = join(tmpdir(), `oura-db-date-hint-${process.pid}.db`);
+    const db = new Database(path);
+    ensureSchema(db);
+    db.query('INSERT INTO daily_sleep VALUES (?,?,?,?,?)').run('s1', '2026-06-01', 80, '{}', '');
+    db.close();
+    try {
+      const proc = Bun.spawn(['bun', 'run', 'src/index.ts', '--db', path, 'db', 'date', '2026-06-02', '--format', 'table'], { stdout: 'pipe', stderr: 'pipe' });
+      const text = await new Response(proc.stdout).text();
+      expect(await proc.exited).toBe(0);
+      expect(text).toContain('Nothing cached for 2026-06-02. Run `oura-cli sync --from 2026-06-02` to fetch it if Oura has it.');
+      expect(text).not.toMatch(/Sleep: +—/);
     } finally {
       for (const suffix of ['', '-wal', '-shm']) rmSync(path + suffix, { force: true });
     }

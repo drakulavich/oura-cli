@@ -1,6 +1,7 @@
 import { defineCommand } from 'citty';
 import { byName, names } from '../collections/index.js';
 import { getDaySummary, getTrends, getStats, hasDailySummaries } from '../db/queries.js';
+import type { Database } from '../db/open.js';
 import { getRows } from '../db/rows.js';
 import { formatDaySummary, formatWeekTable, formatTrends, formatStats, PUBLISH_DELAY_NOTE } from '../render/format.js';
 import { formatRows } from '../render/format-rows.js';
@@ -16,6 +17,19 @@ const SYNC_HINT = `Run \`oura-cli sync\` to download your data. ${PUBLISH_DELAY_
 // ring has not uploaded. "Download your data" here sent users back to a sync that changed nothing (#127).
 const TODAY_UNPUBLISHED_HINT = `${PUBLISH_DELAY_NOTE} If the ring has synced since, run \`oura-cli sync\` again.`;
 
+/**
+ * Why a day's panel is empty, for `db today` and `db date` alike: `date` printed bare dashes while
+ * `today` explained itself, though README promises the day views cannot disagree (#133). An empty
+ * cache wants a download whatever the day; today waits on Oura; a past day is fetched by name; a
+ * future day has nothing to fetch.
+ */
+export function emptyDayHint(db: Database, day: string, today: string): string {
+  if (!hasDailySummaries(db)) return SYNC_HINT;
+  if (day === today) return TODAY_UNPUBLISHED_HINT;
+  if (day > today) return `${day} is after today (${today}); nothing can be cached for it yet.`;
+  return `Nothing cached for ${day}. Run \`oura-cli sync --from ${day}\` to fetch it if Oura has it.`;
+}
+
 export const dbCommand = defineCommand({
   meta: { name: 'db', description: 'Query and manage the local SQLite database' },
   subCommands: {
@@ -24,8 +38,7 @@ export const dbCommand = defineCommand({
       needs: { db: true },
       run(ctx) {
         const summary = getDaySummary(ctx.db!, ctx.today, dayCompleteness(ctx.db!, ctx.today));
-        const hint = hasDailySummaries(ctx.db!) ? TODAY_UNPUBLISHED_HINT : SYNC_HINT;
-        return { json: summary, text: () => formatDaySummary(summary, 'table', hint) };
+        return { json: summary, text: () => formatDaySummary(summary, 'table', emptyDayHint(ctx.db!, ctx.today, ctx.today)) };
       },
     }),
 
@@ -36,7 +49,7 @@ export const dbCommand = defineCommand({
       run(ctx, args) {
         const day = assertCalendarDate(String(args.day), '<day>');
         const summary = getDaySummary(ctx.db!, day, dayCompleteness(ctx.db!, ctx.today));
-        return { json: summary, text: () => formatDaySummary(summary, 'table') };
+        return { json: summary, text: () => formatDaySummary(summary, 'table', emptyDayHint(ctx.db!, day, ctx.today)) };
       },
     }),
 

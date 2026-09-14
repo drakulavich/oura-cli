@@ -9,6 +9,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 - A damaged cache is explained where it bites. `db today` and every other read used to answer "database disk image is malformed" with a hint about the path and whether oura-cli created the file; the hint now says the file is damaged and how to rebuild it, the same words `doctor` uses. `doctor`'s integrity row prints the one problem `quick_check` found instead of the pragma's multi-line dump, which spilled to column 0 and broke the table. README's "If something looks wrong" table has a row for it. (#134)
 - `report`'s `*` note no longer says "averages cover through <day>" when only the activity and steps averages stop there; it names them, and every average line, SpO2 included, ends with the days it took (`(min: 71, max: 87, 4 days)`), as `db trends` already did; the JSON gains `spo2.count`. (#128)
+- `db date` on a day the cache has nothing for explains itself the way `db today` does, instead of printing a row of dashes: an empty cache is told to sync, a past day gets `oura-cli sync --from <day>`, a future day is told nothing can be cached for it yet. (#133)
 
 ## [0.8.3] - 2026-09-13
 
