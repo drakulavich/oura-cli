@@ -11,7 +11,7 @@
 <p align="center"><b>Own your Oura Ring data.</b> Pull your sleep, readiness, activity, heart rate, SpO₂, stress, and workouts from the Oura Cloud API straight to your terminal. No mobile app. No telemetry. Just SQLite and your data.</p>
 
 <p align="center">
-  <img src="https://github.com/drakulavich/oura-cli/raw/main/assets/demo.gif" alt="oura-cli demo: --version, db today, db week, report, describe" width="720">
+  <img src="https://github.com/drakulavich/oura-cli/raw/main/assets/demo.gif" alt="oura-cli demo: doctor, db today, db week, report, db rows, describe" width="720">
 </p>
 
 - **Offline-first.** Everything caches into `~/.oura-cli/oura.db` after one `oura-cli sync`. Reports keep working when your internet doesn't.
@@ -54,7 +54,15 @@ oura-cli sync     # first sync fetches the last 30 days; later syncs resume from
 oura-cli report   # weekly digest in the terminal
 ```
 
-Subsequent `oura-cli sync` re-fetches each collection from its own last stored day (Oura revises recent days, so the overlap is deliberate) and reports rows fetched (+new). Heart rate also re-reads the two weeks behind its watermark, because Oura publishes workout samples days after the day they belong to; that re-read happens on the first sync of the day and whenever a sync brings samples newer than the cache (the ring has uploaded), so a repeat sync on a quiet ring costs about 17 requests instead of 37. A re-fetched window ends up holding exactly what the API returned for it: a sample Oura reclassified, or a record it re-issued under a new id, replaces the row it supersedes instead of joining it. When a response drops most of what one request covered — the shape of a partial or short answer — those rows are kept rather than deleted, and `sync` names the collection and how many. `oura-cli sync --prune=hr` then applies them for that collection once you have judged the correction genuine; `oura-cli sync --prune=all` does it for every collection in the run, which also lifts the guard on any collection that answers short in the same run. `oura-cli sync --from 2026-08-01 [--to 2026-08-07]` re-fetches an explicit window for every collection instead — for example after an interrupted sync. `oura-cli db today` / `oura-cli db week` read the local cache instantly, no API call.
+After the first run, `sync` resumes each collection from its own last stored day. Oura revises recent days, so the overlap is deliberate, and the summary reports rows fetched (+new) per collection.
+
+Heart rate also re-reads the two weeks behind its watermark, because Oura publishes workout samples days after the day they belong to. That re-read happens on the first sync of the day and whenever a sync brings samples newer than the cache, which means the ring has uploaded. A repeat sync on a quiet ring costs about 17 requests instead of 37.
+
+A re-fetched window ends up holding exactly what the API returned for it. A sample Oura reclassified, or a record it re-issued under a new id, replaces the row it supersedes instead of joining it. One exception: when a response drops most of what one request covered, which is what a partial or short answer looks like, `sync` keeps those rows and names the collection and how many it kept. Once you have judged the correction genuine, `oura-cli sync --prune=hr` applies them for that collection, and `--prune=all` does it for every collection in the run.
+
+`oura-cli sync --from 2026-08-01 [--to 2026-08-07]` re-fetches an explicit window for every collection instead, for example after an interrupted sync. A `429 Too Many Requests` is retried with the wait `Retry-After` asks for, up to a minute per wait and three minutes per command, before it becomes an error.
+
+`oura-cli db today` / `oura-cli db week` read the local cache instantly, no API call.
 
 ### If something looks wrong
 
@@ -63,6 +71,7 @@ Subsequent `oura-cli sync` re-fetches each collection from its own last stored d
 | `No Oura data is available for this report yet.` | `oura-cli sync` |
 | `No Oura access token at /…/.oura-token` | `oura-cli login` |
 | `Oura API 401` | `oura-cli login` with a fresh PAT |
+| `Oura API 429` after the automatic retries | Wait a few minutes; a long `fetch hr` window is hundreds of requests. |
 | `db today` empty right after a sync | Normal — Oura publishes a day's summary after that night's sleep syncs from the ring. |
 | `doctor` still warns that data is stale after a sync | The ring has not uploaded: open the Oura app near the ring, then `oura-cli sync`. `doctor` (without `--offline`) says which side is behind. |
 | `Database query failed: database disk image is malformed` | The cache file is damaged. Delete it (`--db` / `OURA_DB_PATH`) and run `oura-cli sync` to rebuild it; `oura-cli doctor` shows what is wrong with it first. |
@@ -83,6 +92,8 @@ Today's scores from the local cache. If you forgot to sync, run `oura-cli sync` 
 ```bash
 oura-cli db date 2026-05-10
 ```
+
+When the cache has nothing for the day, `db date` says where the day sits (before the cache begins, after it ends, or in a gap inside it) and which `sync` call would fill it, instead of printing a row of dashes.
 
 ### Last week, at a glance
 
@@ -115,7 +126,17 @@ oura-cli db stats                 # row counts, date range, personal bests
 oura-cli db rows tags --days 30                     # your own annotations for the month
 oura-cli db rows battery --day 2026-09-01           # the battery curve for one day
 oura-cli db rows ring --format json                 # every ring on the account, as JSON
+oura-cli db rows hr --day 2026-09-01 --limit 20     # a day of heart rate is hundreds of rows
 ```
+
+### Health check
+
+```bash
+oura-cli doctor            # token, token accepted by Oura, database, integrity, data freshness
+oura-cli doctor --offline  # the same without the live token check
+```
+
+`doctor` prints one row per check and a `Next:` line with the first fix to apply. The `integrity` row runs SQLite's `quick_check`. The `data` row warns once the newest cached day ended more than 36 hours ago; online, it also asks Oura whether it holds anything newer, so it can tell "run `oura-cli sync`" apart from "the ring has not uploaded".
 
 ### Raw API records
 
@@ -146,7 +167,7 @@ oura-cli db trends 90 > trends.json
 | Setting          | Flag        | Env var            | Default                     |
 |------------------|-------------|--------------------|-----------------------------|
 | Token            | `--token`   | `OURA_TOKEN`       | (file)                      |
-| Token file path  |             | `OURA_TOKEN_PATH`  | `~/.oura-token`             |
+| Token file path  | `--path` (`login` only) | `OURA_TOKEN_PATH` | `~/.oura-token`      |
 | Database path    | `--db`      | `OURA_DB_PATH`     | `~/.oura-cli/oura.db`       |
 | Timezone         | `--tz`      | `OURA_TZ`          | system timezone, else `UTC` |
 | Output format    | `--format`  |                    | auto-detect (TTY → table)   |
