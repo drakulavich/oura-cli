@@ -1,3 +1,4 @@
+#!/usr/bin/env bun
 // First: sets NO_COLOR before citty is evaluated, which is when it decides its usage colours.
 import './lib/apply-color-mode.js';
 import { readFileSync } from 'fs';

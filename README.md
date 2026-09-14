@@ -17,7 +17,7 @@
 - **Offline-first.** Everything caches into `~/.oura-cli/oura.db` after one `oura-cli sync`. Reports keep working when your internet doesn't.
 - **Real terminal reports.** `oura-cli report` writes a weekly or monthly digest with averages, trend deltas, and "you slept poorly Tuesday" callouts. No dashboards, no logging in.
 - **Pipe-friendly.** Output auto-switches to stable JSON when stdout isn't a terminal. Analyse with `jq`, plot with `gnuplot`, or feed it into your own scripts.
-- **Single ~110 kB binary, MIT, no telemetry.** Built on Bun; zero native dependencies.
+- **No build step, MIT, no telemetry.** Runs straight from source on Bun; zero native dependencies.
 
 ## Install
 
@@ -188,7 +188,7 @@ This tool reads your personal health data — handle the token with care.
 | Ring       | Oura V2 `ring_configuration`        | `ring_configuration`  |
 | Battery    | Oura V2 `ring_battery_level`        | `ring_battery_level`  |
 
-Runtime: [Bun](https://bun.sh). Storage: built-in `bun:sqlite`. CLI parsing: [citty](https://github.com/unjs/citty). Output styling: [chalk](https://github.com/chalk/chalk). One ~110 kB `dist/index.js`, no native deps.
+Runtime: [Bun](https://bun.sh). Storage: built-in `bun:sqlite`. CLI parsing: [citty](https://github.com/unjs/citty). Output styling: [chalk](https://github.com/chalk/chalk). No build step: the CLI runs from `src/` on Bun, no native deps.
 
 ## Automation (LLM agents, scripts, MCP)
 

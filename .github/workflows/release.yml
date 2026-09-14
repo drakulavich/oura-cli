@@ -29,7 +29,6 @@ jobs:
       # The same gates as ci.yml: a tag on a type error must not publish.
       - run: bunx tsc --noEmit
       - run: bun test
-      - run: bun run build
 
       - name: Extract release notes from CHANGELOG
         id: notes

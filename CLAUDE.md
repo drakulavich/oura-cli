@@ -2,7 +2,7 @@
 
 This file is the list of mistakes agents and people have actually made in this repo that nothing yet prevents. Every line names the mistake and where it happened; when a test or CI step comes to catch one, its line goes. If something here surprises or confuses you, say so in the PR description or open an issue instead of working around it: that is how this list grows and shrinks. What the repo is and how to run it: README.md, CONTRIBUTING.md, `package.json` scripts.
 
-- **You may be running a stale build.** `bin` points at `dist/` (from `bun run build`), `bun run dev` runs the sources, and the `oura-cli` on PATH is the npm package, not this checkout. If a change has no effect, check which one ran. Never hand-edit `dist/`.
+- **The `oura-cli` on PATH is the npm package, not this checkout.** `bun run dev` runs the sources; if a change has no effect, check which one ran.
 - **Tag the merge commit GitHub reports**, never local `HEAD` or `origin/main`: a rebase-merge rewrites the SHA and `origin/main` moves when the next PR lands. A published version is permanent: on failure fix forward with a new patch version, never re-tag. Exact command: CONTRIBUTING.md, "Releasing (maintainers)".
 - **Commit `bun.lock` with any dependency change.** A lockfile behind `package.json` fails CI at install, before any test runs (#15, #16).
 - **JSON-only is deliberate** for `describe`, `manifest`, `healthcheck` and `fetch`, and `login` is interactive text. Don't "fix" them. Every other user-facing data command needs both a JSON and a table mode.
