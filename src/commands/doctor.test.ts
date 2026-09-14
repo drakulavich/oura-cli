@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'bun:test';
 import { Database } from 'bun:sqlite';
-import { openSync, writeSync, closeSync, rmSync } from 'fs';
+import { openSync, writeSync, closeSync, rmSync, statSync, truncateSync } from 'fs';
 import { homedir, tmpdir } from 'os';
 import { join } from 'path';
-import { ensureSchema } from '../db/open.js';
+import { ensureSchema, openDatabase, REBUILD_HINT } from '../db/open.js';
 import { CliError } from '../lib/errors.js';
 import {
   runChecks, exitCodeForChecks,
@@ -420,6 +420,40 @@ describe('database integrity', () => {
     const check = result.checks.find(c => c.id === 'integrity')!;
     expect(check.status).toBe('fail');
     expect(check.detail).toContain('database unavailable');
+    expect(result.checks.find(c => c.id === 'database')!.fix).toBeUndefined(); // a bare Error brings no advice
+  });
+
+  it('shortens the path the open error quotes, as the ok row does (#130)', async () => {
+    const boom = new CliError('DB_ERROR', `Cannot open database ${join(homedir(), '.oura-cli', 'oura.db')}: unable to open database file`, 'Check the directory.');
+    const result = await runChecks(makeDeps({ openDb: () => { throw boom; } }));
+    const database = result.checks.find(c => c.id === 'database')!;
+    expect(database.detail).toBe('Cannot open database ~/.oura-cli/oura.db: unable to open database file');
+    expect(database.fix).toBe('Check the directory.');
+  });
+
+  it('names the rebuild when the file is too damaged to open, as db today does on the same file (#144)', async () => {
+    // A truncated cache: SQLite refuses it at open with "database disk image is malformed", so the
+    // integrity check never runs and the database row is the only place the recovery can appear.
+    const path = join(tmpdir(), `oura-doctor-truncated-${process.pid}.db`);
+    for (const suffix of ['', '-wal', '-shm']) rmSync(path + suffix, { force: true });
+    const seed = new Database(path);
+    ensureSchema(seed);
+    const insert = seed.query("INSERT INTO heartrate (timestamp, bpm, source, day) VALUES (?, 60, 'awake', '2026-01-01')");
+    seed.transaction(() => { for (let i = 0; i < 400; i++) insert.run(`2026-01-01T${String(Math.floor(i / 60)).padStart(2, '0')}:${String(i % 60).padStart(2, '0')}:00+00:00`); })();
+    seed.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+    seed.close();
+    truncateSync(path, Math.floor(statSync(path).size / 2));
+
+    const result = await runChecks(makeDeps({ openDb: () => { const db = openDatabase(path); ensureSchema(db); return { db, path }; } }));
+    for (const suffix of ['', '-wal', '-shm']) rmSync(path + suffix, { force: true });
+
+    const database = result.checks.find(c => c.id === 'database')!;
+    expect(database.status).toBe('fail');
+    expect(database.detail).toContain('malformed');
+
+    expect(database.fix).toBe(REBUILD_HINT); // not the db today hint, which ends by pointing at doctor
+    expect(result.nextStep).toBe(REBUILD_HINT);
+    expect(result.checks.map(c => c.id)).toEqual(['token', 'token-valid', 'database', 'integrity', 'data']);
   });
 });
 

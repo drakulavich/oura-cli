@@ -1,6 +1,6 @@
 import { openDatabase, ensureSchema, getDbPath, REBUILD_HINT } from '../db/open.js';
 import type { Database } from '../db/open.js';
-import { homePath } from '../lib/home-path.js';
+import { homePath, homePathsIn } from '../lib/home-path.js';
 import { OuraClient } from '../api/client.js';
 import { resolveToken } from '../api/token.js';
 import { CliError, exitCodeFor } from '../lib/errors.js';
@@ -58,8 +58,15 @@ export async function runChecks(deps: DoctorDeps): Promise<DoctorResult> {
     db = opened.db;
     checks.push({ id: 'database', status: 'ok', detail: `Database ready at ${homePath(opened.path)}.` });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    checks.push({ id: 'database', status: 'fail', detail: msg });
+    // The open path already knows what to do about a locked, unwritable or damaged file: its
+    // CliError carries the hint every read command prints. Without it, a cache too damaged to open
+    // ended in "Next: see the failing checks above" while `db today` on the same file named the
+    // rebuild (#144).
+    // The damaged-file hint ends by pointing at doctor; here that is us, so the rebuild stands alone.
+    const msg = homePathsIn(err instanceof Error ? err.message : String(err)); // the open error quotes the path in full
+    const hint = err instanceof CliError ? err.hint : undefined;
+    const fix = hint?.includes(REBUILD_HINT) ? REBUILD_HINT : hint;
+    checks.push({ id: 'database', status: 'fail', detail: msg, ...(fix === undefined ? {} : { fix }) });
   }
 
   if (db) {
