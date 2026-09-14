@@ -25,10 +25,18 @@ export interface DaySummary {
   partial: boolean;
 }
 
-/** True once any daily summary has been stored: the difference between "download your data" and "today is not published yet" (#127). */
-export function hasDailySummaries(db: Database): boolean {
-  const row = db.query('SELECT EXISTS (SELECT 1 FROM daily_sleep) OR EXISTS (SELECT 1 FROM daily_activity) OR EXISTS (SELECT 1 FROM daily_readiness) AS any_row').get() as { any_row: number } | undefined;
-  return row?.any_row === 1;
+/**
+ * The first and last day any daily summary is stored for, or null on a cache with none: the
+ * difference between "download your data" and "today is not published yet" (#127), and between a
+ * day before the cache begins, one after it ends, and a gap inside it that a sync has already
+ * passed (#143).
+ */
+export function dailySummaryRange(db: Database): { first: string; last: string } | null {
+  const row = db.query(`
+    SELECT MIN(day) AS first, MAX(day) AS last FROM (
+      SELECT day FROM daily_sleep UNION ALL SELECT day FROM daily_activity UNION ALL SELECT day FROM daily_readiness
+    )`).get() as { first: string | null; last: string | null };
+  return row.first === null || row.last === null ? null : { first: row.first, last: row.last };
 }
 
 /**

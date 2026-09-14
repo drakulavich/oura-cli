@@ -1,6 +1,6 @@
 import { defineCommand } from 'citty';
 import { byName, names } from '../collections/index.js';
-import { getDaySummary, getTrends, getStats, hasDailySummaries } from '../db/queries.js';
+import { getDaySummary, getTrends, getStats, dailySummaryRange } from '../db/queries.js';
 import type { Database } from '../db/open.js';
 import { getRows } from '../db/rows.js';
 import { formatDaySummary, formatWeekTable, formatTrends, formatStats, PUBLISH_DELAY_NOTE } from '../render/format.js';
@@ -20,14 +20,22 @@ const TODAY_UNPUBLISHED_HINT = `${PUBLISH_DELAY_NOTE} If the ring has synced sin
 /**
  * Why a day's panel is empty, for `db today` and `db date` alike: `date` printed bare dashes while
  * `today` explained itself, though README promises the day views cannot disagree (#133). An empty
- * cache wants a download whatever the day; today waits on Oura; a past day is fetched by name; a
- * future day has nothing to fetch.
+ * cache wants a download whatever the day; today waits on Oura; a future day has nothing to fetch.
+ * A past day depends on where it falls against the cached summaries (#143): before the first one, a
+ * sync never asked for it; after the last one, the ring has not uploaded or a plain sync is due; in
+ * between, an incremental sync has passed it and Oura most likely holds no summaries for that day,
+ * so prescribing `sync --from` sent the user round a loop that changed nothing. "Most likely": two
+ * explicit `--from/--to` windows leave a gap no sync covered, so `sync --from` stays as the re-check.
+ * "No daily summaries", not "nothing cached": the day may well hold stress or battery rows.
  */
 export function emptyDayHint(db: Database, day: string, today: string): string {
-  if (!hasDailySummaries(db)) return SYNC_HINT;
+  const range = dailySummaryRange(db);
+  if (range === null) return SYNC_HINT;
   if (day === today) return TODAY_UNPUBLISHED_HINT;
   if (day > today) return `${day} is after today (${today}); nothing can be cached for it yet.`;
-  return `Nothing cached for ${day}. Run \`oura-cli sync --from ${day}\` to fetch it if Oura has it.`;
+  if (day < range.first) return `No daily summaries for ${day}: the cache begins at ${range.first}. Run \`oura-cli sync --from ${day}\` to fetch it if Oura has it.`;
+  if (day > range.last) return `No daily summaries for ${day}: the cache ends at ${range.last}. Run \`oura-cli sync\`; if it adds nothing, the ring has not uploaded (\`oura-cli doctor\` says which side is behind).`;
+  return `No daily summaries for ${day}, though the cache runs from ${range.first} to ${range.last}: most likely Oura has none for that day. \`oura-cli sync --from ${day}\` re-fetches it in case a sync skipped it.`;
 }
 
 export const dbCommand = defineCommand({

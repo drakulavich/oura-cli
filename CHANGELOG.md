@@ -8,6 +8,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 - `db trends` no longer counts a day whose SpO2 average is NULL in its `(N days)`; it printed 5 days where `report` printed 3 for the same cache. (#142)
+- `db date` on an empty past day no longer sends every user to `oura-cli sync --from <day>`, which for a day Oura has no summaries for changed nothing and printed the same advice again. The hint now places the day against the cached summaries: before the cache begins, `sync --from <day>`; after it ends, a plain `sync` or the ring has not uploaded; a gap in between, most likely Oura has none for that day, with `sync --from` kept as the re-check. It says "no daily summaries", since the day may hold stress or battery rows. (#143)
 
 ## [0.8.4] - 2026-09-14
 
