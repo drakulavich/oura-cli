@@ -407,6 +407,12 @@ describe('database integrity', () => {
     expect(check.status).toBe('fail');
     expect(check.fix).toContain('sync');
     expect(result.ok).toBe(false);
+    // One line, the problem itself: quick_check's banner and any further lines broke the table (#134).
+    expect(check.detail).not.toContain('\n');
+    expect(check.detail).not.toContain('***');
+    expect(check.detail).toMatch(/^Database is damaged: \S/);
+    // The data check hits the same damage and names the same recovery.
+    expect(result.checks.find(c => c.id === 'data')!.fix).toBe(check.fix);
   });
 
   it('reports integrity as failed when the database could not be opened at all', async () => {

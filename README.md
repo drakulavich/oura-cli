@@ -65,6 +65,7 @@ Subsequent `oura-cli sync` re-fetches each collection from its own last stored d
 | `Oura API 401` | `oura-cli login` with a fresh PAT |
 | `db today` empty right after a sync | Normal — Oura publishes a day's summary after that night's sleep syncs from the ring. |
 | `doctor` still warns that data is stale after a sync | The ring has not uploaded: open the Oura app near the ring, then `oura-cli sync`. `doctor` (without `--offline`) says which side is behind. |
+| `Database query failed: database disk image is malformed` | The cache file is damaged. Delete it (`--db` / `OURA_DB_PATH`) and run `oura-cli sync` to rebuild it; `oura-cli doctor` shows what is wrong with it first. |
 | Anything else | `oura-cli doctor` |
 
 ## Daily use
