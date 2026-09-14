@@ -33,21 +33,34 @@ The README screencast at `assets/demo.gif` is generated from a checked-in
 [VHS](https://github.com/charmbracelet/vhs) tape script. The GIF is tracked
 with Git LFS (see `.gitattributes`).
 
-After a CLI surface change (renamed commands or flags, altered output format),
-regenerate it:
+The GIF is public, so it must never show a real account: no real scores, steps,
+SpO2, temperatures, HRV, dates of real nights, or a live token check.
+`scripts/demo-fixture.ts` builds a fake home directory with 60 days of seeded
+synthetic data, a placeholder token file and a `bin/oura-cli` that runs this
+checkout; the tape runs `doctor --offline` so the placeholder is found but never
+sent. Without an argument it creates a fresh directory under the system temp dir;
+with one, it refuses a directory that already exists and never deletes anything.
+Record with `HOME` pointed at that directory:
 
 ```bash
 brew install vhs                       # one-time; pulls in ttyd + ffmpeg
 brew install --cask chromium           # one-time; VHS drives a headless browser
 git lfs install                        # one-time per clone
-oura-cli sync                          # fresh data in the local cache
-unset OURA_TOKEN                       # don't let an env token leak into the recording
-vhs assets/demo.tape                   # writes assets/demo.gif
+bun scripts/demo-fixture.ts            # prints the directory it built under the temp dir
+HOME=<dir> PATH=<dir>/bin:$PATH vhs assets/demo.tape
 ```
 
+Before committing, step through the frames (`ffmpeg -ss <s> -i assets/demo.gif
+-frames:v 1 frame.png`) and check that every number on screen is the fixture's.
+A recording made with the real `HOME` is a leak, and LFS history keeps it.
+
 Keep the recording under 40 seconds and the GIF under 2 MB. The tape
-deliberately omits `login` and `sync` — the demo focuses on what a first-time
+deliberately omits `login` and `sync`: the demo focuses on what a first-time
 user reads, not what they type to set up.
+
+vhs 0.12.0 exits 0 and writes no file
+([charmbracelet/vhs#787](https://github.com/charmbracelet/vhs/issues/787)); use
+0.11.0 until the fix ships.
 
 ## Releasing (maintainers)
 
