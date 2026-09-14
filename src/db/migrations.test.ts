@@ -31,3 +31,9 @@ describe('registry DDL vs shipped migrations', () => {
     ]);
   });
 });
+
+describe('migration versions', () => {
+  it('are consecutive from 1, so an applied version can never be skipped or repeated', () => {
+    expect(MIGRATIONS.map(m => m.version)).toEqual(MIGRATIONS.map((_, i) => i + 1));
+  });
+});

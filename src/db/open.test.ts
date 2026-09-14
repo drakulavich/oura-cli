@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, afterAll } from 'bun:test';
 import { CliError } from '../lib/errors.js';
 import { mkdtempSync, writeFileSync, rmSync, statSync, mkdirSync, chmodSync, openSync, writeSync, closeSync } from 'fs';
 import { Database } from 'bun:sqlite';
-import { openDatabase, getDbPath, ensureSchema, asDbError, REBUILD_HINT, type Migration } from './open.js';
+import { openDatabase, getDbPath, ensureSchema, asDbError, migrationChecksum, REBUILD_HINT, type Migration } from './open.js';
 import { unlinkSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -65,6 +65,66 @@ afterEach(() => {
   try { unlinkSync(TEST_DB); } catch {}
   try { unlinkSync(TEST_DB + '-wal'); } catch {}
   try { unlinkSync(TEST_DB + '-shm'); } catch {}
+});
+
+describe('applied migrations are validated against their checksum', () => {
+  // Append-only is the rule; this is what enforces it. An edit to a shipped migration is a no-op on
+  // an existing cache while a fresh cache runs the new SQL, so the two diverge in silence unless
+  // the cache remembers what it ran.
+  const v1: Migration = { version: 1, sql: 'CREATE TABLE IF NOT EXISTS t (id INTEGER PRIMARY KEY)' };
+  const v1Edited: Migration = { version: 1, sql: 'CREATE TABLE IF NOT EXISTS t (id INTEGER PRIMARY KEY, extra TEXT)' };
+  const v2: Migration = { version: 2, sql: 'CREATE TABLE IF NOT EXISTS t2 (id INTEGER PRIMARY KEY)' };
+
+  it('records the checksum of every migration it applies', () => {
+    const db = new Database(':memory:');
+    ensureSchema(db, [v1, v2]);
+    const rows = db.query('SELECT version, checksum FROM _schema_version ORDER BY version').all();
+    db.close();
+    expect(rows).toEqual([{ version: 1, checksum: migrationChecksum(v1.sql) }, { version: 2, checksum: migrationChecksum(v2.sql) }]);
+  });
+
+  it('refuses a cache whose applied migration no longer matches the code, naming the version and the rule', () => {
+    const db = new Database(':memory:');
+    ensureSchema(db, [v1]);
+    let err: unknown;
+    try { ensureSchema(db, [v1Edited, v2]); } catch (e) { err = e; }
+    const applied = (db.query('SELECT version FROM _schema_version').all() as Array<{ version: number }>).map(r => r.version);
+    db.close();
+    expect(err).toBeInstanceOf(CliError);
+    expect((err as CliError).code).toBe('DB_ERROR');
+    expect((err as CliError).message).toContain('Schema migration 1 was changed after it was applied');
+    expect((err as CliError).hint).toContain('append-only');
+    expect(applied).toEqual([1]); // nothing past the refusal ran
+  });
+
+  it('still opens a cache whose code is unchanged, and adds only what is new', () => {
+    const db = new Database(':memory:');
+    ensureSchema(db, [v1]);
+    ensureSchema(db, [v1, v2]);
+    ensureSchema(db, [v1, v2]);
+    const rows = db.query('SELECT version, checksum FROM _schema_version ORDER BY version').all();
+    db.close();
+    expect(rows).toEqual([{ version: 1, checksum: migrationChecksum(v1.sql) }, { version: 2, checksum: migrationChecksum(v2.sql) }]);
+  });
+
+  it('upgrades a cache from before checksums: adds the column, stamps the rows with the current SQL, then enforces', () => {
+    const db = new Database(':memory:');
+    db.exec('CREATE TABLE _schema_version (version INTEGER NOT NULL)');
+    db.exec(v1.sql);
+    db.query('INSERT INTO _schema_version (version) VALUES (1)').run();
+    ensureSchema(db, [v1]); // the only SQL version 1 can have run is the one the binary carries
+    const rows = db.query('SELECT version, checksum FROM _schema_version').all();
+    expect(rows).toEqual([{ version: 1, checksum: migrationChecksum(v1.sql) }]);
+    expect(() => ensureSchema(db, [v1Edited])).toThrow(/changed after it was applied/);
+    db.close();
+  });
+
+  it('ignores a version the running code does not know, so an older binary still opens a newer cache', () => {
+    const db = new Database(':memory:');
+    ensureSchema(db, [v1, v2]);
+    expect(() => ensureSchema(db, [v1])).not.toThrow();
+    db.close();
+  });
 });
 
 describe('Database', () => {
