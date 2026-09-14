@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.8.6] - 2026-09-14
+
 ### Fixed
 - `db today` and `db date` round SpO2 to tenths and show them only when they are not zero (`97.7%`, `97%`); Oura stores three decimals and the day view printed them. JSON keeps the stored value. (#157)
 
