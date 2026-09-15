@@ -42,7 +42,7 @@ metadata:
 2. **Cache first.** Answer from `db today`, `db date`, `db week`, `db trends`, `db rows` or `report`. Run `sync` when `doctor` says the data is stale or the user asks for the latest. Use `fetch` only when the cache cannot answer (the user wants the exact API record, or a range older than the cache).
 3. **Never ask for or print the token.** `oura-cli login` is interactive and hides the input. If there is no token, tell the user to run `oura-cli login` themselves, or to export `OURA_TOKEN` in the environment the agent runs in. Do not echo `~/.oura-token`, `OURA_TOKEN`, or the `--token` flag into a transcript.
 4. **This is personal health data.** Keep it on the machine. Do not paste rows into a third-party service or file outside the user's request without saying so first.
-5. **Gate on `.ok`, not the exit code.** `doctor` and `healthcheck` exit 0 with `"ok": false` whenever the probe itself ran.
+5. **Gate on `.ok`, not the exit code.** `healthcheck` always exits 0 once the probe ran, and `doctor` exits 0 for a `warn` (stale or empty cache) even though `ok` is `false`. `doctor` exits 2 when a token check fails and 4 when the database check fails, so a non-zero exit is a finding, not a crash.
 
 ## Preflight
 
@@ -60,7 +60,7 @@ Returns `{ok, checks[], nextStep}`. Each check is `{id, status: "ok"|"warn"|"fai
 | `integrity` | SQLite `quick_check` failed | delete the file, then `oura-cli sync` |
 | `data` | newest cached day ended more than 36 h ago | `oura-cli sync`; if still stale, the ring has not uploaded (user opens the Oura app near the ring) |
 
-Drop `--offline` when you also want to know whether Oura has newer data than the cache; it costs one API call.
+Drop `--offline` when you also want to know whether Oura has newer data than the cache: one API call to validate the token, and up to one per collection to look for newer data when the cache is stale.
 
 ## Which command answers which question
 
@@ -68,13 +68,13 @@ Drop `--offline` when you also want to know whether Oura has newer data than the
 |---|---|---|
 | today / how did I sleep last night | `oura-cli db today --format json` | one object, see below |
 | a specific day | `oura-cli db date 2026-09-01 --format json` | same object; every field `null` when the day is not cached |
-| the last 7 days | `oura-cli db week --format json` | array of 7 day objects |
-| a weekly or monthly digest, deltas, recommendations | `oura-cli report --format json` or `oura-cli report --period month --format json` | `{period, weekStart, weekEnd, days[], completeThrough, averages[], spo2, patterns, sleepDetails, recommendations[]}` |
+| the last 7 days, or yesterday | `oura-cli db week --format json` | array of 7 day objects ending today, so yesterday is the second-to-last; prefer this to computing dates yourself |
+| a weekly or monthly digest, deltas, recommendations | `oura-cli report --format json` or `oura-cli report --period month --format json` | `{period, weekStart, weekEnd, days[], completeThrough, averages[], spo2, patterns, sleepDetails, recommendations[]}`; see below for `recommendations` |
 | a trend over N days | `oura-cli db trends 30 --format json` | array of `{label, avg, min, max, count}` |
 | how much data there is, personal bests | `oura-cli db stats --format json` | `{tables[], dateRange, trends[], records}` |
 | detail no summary shows (workouts, tags, sessions, HRV samples, battery, ring hardware) | `oura-cli db rows <collection> [range] --format json` | array of Oura records as cached |
 | the exact record straight from Oura | `oura-cli fetch <collection> [range]` | array of Oura records; always JSON |
-| refresh the cache | `oura-cli sync --format json` | `{import: {startDate, endDate, fetched, added}, today}` |
+| refresh the cache | `oura-cli sync --format json` | `{import: {startDate, endDate, fetched, added, removed, dropped, refused, pruned, isFirstSync}, today}`; a non-empty `refused` names rows sync kept because the API stopped returning them, which `oura-cli sync --prune=<collection>` applies once the user agrees, and that run adds `import.pruneScope` (`"all"` or the collections named) |
 
 A day object from `db today`, `db date` and `db week`:
 
@@ -88,7 +88,9 @@ A day object from `db today`, `db date` and `db week`:
 }
 ```
 
-Every field except `day` and `partial` can be `null`. Today is often all `null` until the morning, because Oura publishes a day's summary only after that night's sleep syncs from the ring. A past day that is all `null` is not cached: run `oura-cli db date <day>` without `--format json` once and it says whether the day is before the cache begins, after it ends, or in a gap, and which `sync` call would fill it. Pass that hint on rather than guessing.
+Every field except `day` and `partial` can be `null`. Today is often all `null` until the morning, because Oura publishes a day's summary only after that night's sleep syncs from the ring. A past day that is all `null` is not cached: run `oura-cli db date <day> --format table` once, the one deliberate exception to rule 1: the table output says whether the day is before the cache begins, after it ends, or in a gap, and which `sync` call would fill it, and the JSON does not. Pass that hint on rather than guessing. When every day is `null` in `db week` and `report` as well, the cache is empty: `doctor` says so (`data: warn`, `nextStep: oura-cli sync`). A `--db` path that does not exist is created as a new empty cache rather than rejected, so check the path before concluding there is no data.
+
+`report.recommendations` holds codes, not sentences: `sleep_low`, `sleep_great`, `readiness_low`, `readiness_great`, `steps_low`, `steps_great`. Phrase them yourself; the table output has one line per code.
 
 ### Collections
 

@@ -4,6 +4,7 @@ import { buildManifest, type ManifestArg, type ManifestCommand } from '../src/co
 import { buildRegistry } from '../src/commands/registry.js';
 import { names } from '../src/collections/index.js';
 import { ERROR_CODES } from '../src/lib/errors.js';
+import { RECOMMENDATIONS } from '../src/render/format-report.js';
 
 // The skill is prose an agent reads instead of `describe`, so it must not name a command,
 // subcommand, flag, collection or error code the CLI does not have. This test tokenises every
@@ -102,6 +103,10 @@ describe('skills/oura-cli/SKILL.md', () => {
 
   it('lists every collection, verbatim', () => {
     expect(body).toContain(`\`${names().join(' ')}\``);
+  });
+
+  it('lists every report recommendation code, verbatim', () => {
+    expect(body).toContain(Object.keys(RECOMMENDATIONS).map(c => `\`${c}\``).join(', '));
   });
 
   it('names only error codes from src/lib/errors.ts', () => {

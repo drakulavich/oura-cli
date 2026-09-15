@@ -34,7 +34,7 @@ function fmtNumber(n: number, isSteps: boolean): string {
   return n.toFixed(0);
 }
 
-const RECOMMENDATIONS: Record<string, string> = {
+export const RECOMMENDATIONS: Record<string, string> = {
   sleep_low: 'Sleep below average — try going to bed 30 min earlier.',
   sleep_great: 'Excellent sleep! Keep it up.',
   readiness_low: 'Low readiness — possible sleep debt. Prioritize recovery.',
