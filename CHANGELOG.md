@@ -6,6 +6,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- The agent skill no longer claims `doctor` exits 0 whenever it ran (a failed token check exits 2, a failed database check 4), says that `report.recommendations` are codes and lists them, gives `sync` its full `import` shape with `refused` and `--prune`, notes that `db week` ends today, that an empty cache reads as all-`null` rows and a missing `--db` path is created rather than rejected, and that an online `doctor` costs more than one request when the cache is stale. Found by an exploratory session against the real CLI.
+
 ### Added
 - `skills/oura-cli/SKILL.md`, an [Agent Skills](https://agentskills.io) file for OpenClaw, Hermes Agent and any harness that reads `SKILL.md`: which command answers which question, the JSON shapes, exit codes, and the rules an agent should keep. It ships in the npm package; the README says where to link it. A test resolves every `oura-cli …` line in it against `describe`, so it cannot drift from the CLI, and CI runs the reference `skills-ref` validator on the frontmatter.
 
