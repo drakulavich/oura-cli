@@ -119,8 +119,10 @@ oura-cli fetch sleep-periods --day 2026-09-01               # bedtime, HRV, per-
 Errors are a single JSON object on **stderr**:
 
 ```json
-{"error":{"code":"BAD_ARGS","message":"<day> must be a real YYYY-MM-DD date, got \"tomorrow\".","hint":"..."}}
+{"error":{"code":"BAD_ARGS","message":"<day> must be a real YYYY-MM-DD date, got \"tomorrow\".","hint":"Write <day> as a calendar day, e.g. 2026-09-01."}}
 ```
+
+`code` and `message` are always present. `hint` is optional: it is there when the CLI has a fix to suggest, and absent otherwise (an unexpected internal error, some argument conflicts), so treat a missing `hint` as no suggestion, not as a malformed payload.
 
 | Exit | Meaning | Typical code | Usually means |
 |---|---|---|---|

@@ -15,8 +15,8 @@ export interface ResolveFormatArgs {
  */
 export function assertValidFormat(explicit: string | undefined): asserts explicit is OutputFormat | undefined {
   if (explicit === undefined || explicit === 'table' || explicit === 'json') return;
-  // Every other error path carries a hint; these two did not (#121). A bare `--format` reaches
-  // here as "", and is worded the way `--db ""` is, not as an unknown value.
+  // A hint is optional on the envelope; these two lacked one where a user could act on it (#121).
+  // A bare `--format` reaches here as "", and is worded the way `--db ""` is, not as an unknown value.
   if (explicit === '') {
     throw new CliError('BAD_ARGS', '--format has no value', 'Pass "table" or "json", or remove --format to fall back to the terminal default (table on a TTY, json on a pipe).');
   }
