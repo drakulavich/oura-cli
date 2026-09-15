@@ -20,6 +20,9 @@ describe('assertCalendarDate', () => {
   it('throws BAD_ARGS naming the label when invalid', () => {
     expect(badArgs(() => assertCalendarDate('2026-02-30', '--day')).message).toContain('--day');
   });
+  it('carries a hint that names the flag and shows the format (#167)', () => {
+    expect(badArgs(() => assertCalendarDate('tomorrow', '--day')).hint).toBe('Write --day as a calendar day, e.g. 2026-09-01.');
+  });
 });
 
 describe('assertPositiveInt', () => {
@@ -28,6 +31,9 @@ describe('assertPositiveInt', () => {
   });
   it.each(['0', '-1', '1.5', 'abc', '', '7x', '1e3'])('rejects %j with BAD_ARGS', value => {
     expect(badArgs(() => assertPositiveInt(value, '<days>')).message).toContain('<days>');
+  });
+  it('carries a hint that names the argument (#167)', () => {
+    expect(badArgs(() => assertPositiveInt('abc', '--limit')).hint).toBe('Write --limit as a whole number of 1 or more, e.g. 7.');
   });
 });
 
