@@ -6,6 +6,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- `skills/oura-cli/SKILL.md`, an [Agent Skills](https://agentskills.io) file for OpenClaw, Hermes Agent and any harness that reads `SKILL.md`: which command answers which question, the JSON shapes, exit codes, and the rules an agent should keep. It ships in the npm package; the README says where to link it. A test resolves every `oura-cli …` line in it against `describe`, so it cannot drift from the CLI, and CI runs the reference `skills-ref` validator on the frontmatter.
+
 ### Changed
 - No build step. The package ships `src/` and `bin` runs `src/index.ts` on Bun directly; `bun run build`, `prepublishOnly` and the `dist/` directory are gone, and so is the "~110 kB binary" README claim (part of #152). Nothing changes for users: `bun add -g @drakulavich/oura-cli` installs the same command.
 - The cache remembers the checksum of every schema migration it ran, and refuses to open when a migration in the code no longer matches what was applied: `Schema migration N was changed after it was applied to this cache`, with the append-only rule in the hint. Caches from earlier versions gain the column on first open and are stamped with the SQL the binary carries. Nothing changes for a cache whose code is intact.

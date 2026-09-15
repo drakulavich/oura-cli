@@ -226,6 +226,19 @@ For a script or an LLM harness driving the CLI:
 
 `oura-cli manifest` prints the tool-registry shape [OpenClaw](https://github.com/openclaw/openclaw) expects. A first-party `oura-mcp` companion is on the roadmap.
 
+### Agent skill
+
+[`skills/oura-cli/SKILL.md`](skills/oura-cli/SKILL.md) is an [Agent Skills](https://agentskills.io) file: which command answers which question, the JSON shapes, the exit codes, and the rules an agent should keep (always `--format json`, cache before API, never print the token). It ships in the npm package, so link the folder into wherever your harness looks for skills:
+
+```bash
+SKILL_SRC=~/.bun/install/global/node_modules/@drakulavich/oura-cli/skills/oura-cli
+ln -s "$SKILL_SRC" ~/.openclaw/skills/oura-cli     # OpenClaw
+ln -s "$SKILL_SRC" ~/.hermes/skills/oura-cli       # Hermes Agent
+ln -s "$SKILL_SRC" ~/.agents/skills/oura-cli       # any harness that reads ~/.agents/skills
+```
+
+A test resolves every `oura-cli …` line in the skill against `describe`, so the file cannot name a command, flag, collection or error code the CLI does not have, and CI runs the reference validator (`uvx --from skills-ref agentskills validate skills/oura-cli`) on the frontmatter. One deliberate deviation from the spec: `metadata.openclaw` and `metadata.hermes` are nested objects, because both harnesses read them that way (the spec types `metadata` as string → string); the same test confines the deviation to those two keys.
+
 ## Requirements
 
 - [Bun](https://bun.sh) >= 1.0

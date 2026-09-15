@@ -32,6 +32,8 @@
     "!src/**/*.test.ts",
     "!src/**/__snapshots__",
     "docs/schemas",
+    "skills",
+    "!skills/**/*.test.ts",
     "README.md",
     "LICENSE",
     "CHANGELOG.md"
