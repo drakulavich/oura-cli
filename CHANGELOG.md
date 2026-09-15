@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-09-15
+
 ### Fixed
 - The agent skill says `hint` on the error envelope is optional, with the example showing a real one; it showed `hint` unconditionally, and several `BAD_ARGS` paths omit it. The date and positive-integer checks behind `--day`, `<day>`, `--from`/`--to`, `<days>`, `--days` and `--limit` now carry a hint naming the argument and showing the format. (#167)
 - The agent skill lists `lastUpload` in the `report` JSON shape; the command has always returned it, and a test now holds the documented keys to the real ones. (#166)
