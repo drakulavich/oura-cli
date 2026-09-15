@@ -2,13 +2,8 @@ import chalk from 'chalk';
 import { screenWidth } from './terminal.js';
 import { wrap } from './wrap.js';
 
-export type ErrorCode =
-  | 'BAD_ARGS'
-  | 'TOKEN_MISSING'
-  | 'TOKEN_INVALID'
-  | 'API_ERROR'
-  | 'DB_ERROR'
-  | 'UNKNOWN';
+export const ERROR_CODES = ['BAD_ARGS', 'TOKEN_MISSING', 'TOKEN_INVALID', 'API_ERROR', 'DB_ERROR', 'UNKNOWN'] as const;
+export type ErrorCode = (typeof ERROR_CODES)[number];
 
 export class CliError extends Error {
   constructor(public code: ErrorCode, message: string, public hint?: string) {
