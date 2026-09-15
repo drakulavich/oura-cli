@@ -852,23 +852,23 @@ oura-cli report" aria-label="Copy">
               <ul class="security-list" role="list">
                 <li>
                   <span class="sec-tag">file</span>
-                  <code>~/.oura-token</code> written with <strong>0600</strong> by <code>oura-cli login</code>. Only your user can read it.
+                  <span class="sec-text"><code>~/.oura-token</code> written with <strong>0600</strong> by <code>oura-cli login</code>. Only your user can read it.</span>
                 </li>
                 <li>
                   <span class="sec-tag">env</span>
-                  <code>OURA_TOKEN</code> works for CI &amp; scripts, but shows up in <code>ps auxe</code> and core dumps. Prefer the file.
+                  <span class="sec-text"><code>OURA_TOKEN</code> works for CI &amp; scripts, but shows up in <code>ps auxe</code> and core dumps. Prefer the file.</span>
                 </li>
                 <li>
                   <span class="sec-tag sec-tag--warn">avoid</span>
-                  <code>--token &lt;pat&gt;</code> lands in shell history. Throw-away scripts only.
+                  <span class="sec-text"><code>--token &lt;pat&gt;</code> lands in shell history. Throw-away scripts only.</span>
                 </li>
                 <li>
                   <span class="sec-tag">redact</span>
-                  API errors truncate response bodies to 200 chars and redact <code>Bearer</code> tokens and <code>"token":"…"</code> patterns.
+                  <span class="sec-text">API errors truncate response bodies to 200 chars and redact <code>Bearer</code> tokens and <code>"token":"…"</code> patterns.</span>
                 </li>
                 <li>
                   <span class="sec-tag">revoke</span>
-                  Lost device? Revoke at <a href="https://cloud.ouraring.com/personal-access-tokens" target="_blank" rel="noopener">cloud.ouraring.com</a>, not through this CLI.
+                  <span class="sec-text">Lost device? Revoke at <a href="https://cloud.ouraring.com/personal-access-tokens" target="_blank" rel="noopener">cloud.ouraring.com</a>, not through this CLI.</span>
                 </li>
               </ul>
             </div>
