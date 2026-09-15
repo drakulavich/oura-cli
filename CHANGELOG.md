@@ -6,6 +6,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- The agent skill lists `lastUpload` in the `report` JSON shape; the command has always returned it, and a test now holds the documented keys to the real ones. (#166)
+
 ## [0.9.0] - 2026-09-15
 
 ### Added

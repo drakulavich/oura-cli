@@ -5,6 +5,9 @@ import { buildRegistry } from '../src/commands/registry.js';
 import { names } from '../src/collections/index.js';
 import { ERROR_CODES } from '../src/lib/errors.js';
 import { RECOMMENDATIONS } from '../src/render/format-report.js';
+import { Database } from 'bun:sqlite';
+import { ensureSchema } from '../src/db/open.js';
+import { getReport } from '../src/db/report.js';
 
 // The skill is prose an agent reads instead of `describe`, so it must not name a command,
 // subcommand, flag, collection or error code the CLI does not have. This test tokenises every
@@ -103,6 +106,14 @@ describe('skills/oura-cli/SKILL.md', () => {
 
   it('lists every collection, verbatim', () => {
     expect(body).toContain(`\`${names().join(' ')}\``);
+  });
+
+  it('gives report the top-level keys the command returns, no more and no fewer (#166)', () => {
+    const row = body!.split('\n').find(l => l.includes('`oura-cli report --format json`'))!;
+    const documented = row.match(/`\{([^}]+)\}`/)![1]!.split(',').map(k => k.trim().replace(/\[\]$/, '')).sort();
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    expect(documented).toEqual(Object.keys(getReport(db, 7, '2026-09-15')).sort());
   });
 
   it('lists every report recommendation code, verbatim', () => {

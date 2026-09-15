@@ -69,7 +69,7 @@ Drop `--offline` when you also want to know whether Oura has newer data than the
 | today / how did I sleep last night | `oura-cli db today --format json` | one object, see below |
 | a specific day | `oura-cli db date 2026-09-01 --format json` | same object; every field `null` when the day is not cached |
 | the last 7 days, or yesterday | `oura-cli db week --format json` | array of 7 day objects ending today, so yesterday is the second-to-last; prefer this to computing dates yourself |
-| a weekly or monthly digest, deltas, recommendations | `oura-cli report --format json` or `oura-cli report --period month --format json` | `{period, weekStart, weekEnd, days[], completeThrough, averages[], spo2, patterns, sleepDetails, recommendations[]}`; see below for `recommendations` |
+| a weekly or monthly digest, deltas, recommendations | `oura-cli report --format json` or `oura-cli report --period month --format json` | `{period, weekStart, weekEnd, days[], completeThrough, lastUpload, averages[], spo2, patterns, sleepDetails, recommendations[]}`; `lastUpload` is the newest heart-rate sample in the cache, ISO 8601 UTC, and lags the daily summaries by days; see below for `recommendations` |
 | a trend over N days | `oura-cli db trends 30 --format json` | array of `{label, avg, min, max, count}` |
 | how much data there is, personal bests | `oura-cli db stats --format json` | `{tables[], dateRange, trends[], records}` |
 | detail no summary shows (workouts, tags, sessions, HRV samples, battery, ring hardware) | `oura-cli db rows <collection> [range] --format json` | array of Oura records as cached |
