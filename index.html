@@ -106,7 +106,7 @@
         <div class="container hero__inner">
           <div class="eyebrow">
             <span class="eyebrow__dot"></span>
-            <span>v0.8.6 · MIT licensed · Bun + TypeScript</span>
+            <span>v0.9.1 · MIT licensed · Bun + TypeScript</span>
           </div>
 
           <h1 class="hero__title">
@@ -778,12 +778,15 @@ oura-cli report" aria-label="Copy">
                   <path d="M14 17.5h7M17.5 14v7" />
                 </svg>
               </div>
-              <h3>OpenClaw skill</h3>
+              <h3>Agent skill in the box</h3>
               <p>
-                <code>oura-cli manifest</code> returns the tool-registry shape. A first-party
-                <code>oura-mcp</code> companion is on the roadmap.
+                <code>skills/oura-cli/SKILL.md</code> ships in the package, in the
+                <a href="https://agentskills.io" target="_blank" rel="noopener">Agent Skills</a> format OpenClaw,
+                Hermes and <code>~/.agents/skills</code> read: which command answers which question, the JSON
+                shapes, exit codes, and the rules. A test resolves every command in it against
+                <code>describe</code>, so it cannot drift.
               </p>
-              <a href="https://github.com/openclaw/openclaw" target="_blank" rel="noopener">Learn more →</a>
+              <a href="https://github.com/drakulavich/oura-cli/blob/main/skills/oura-cli/SKILL.md" target="_blank" rel="noopener">Read the skill →</a>
             </article>
 
             <article class="integration-card">
