@@ -46,9 +46,9 @@ describe('JSON schemas in docs/schemas/', () => {
   }
 
   it('every command outputSchema reference in the manifest points at a file that exists in docs/schemas/', async () => {
-    const { buildManifest } = await import('../commands/describe.js');
-    const { fetchCommand } = await import('../commands/fetch.js');
-    const { doctorCommand } = await import('../commands/doctor.js');
+    const { buildManifest } = await import('./describe.js');
+    const { fetchCommand } = await import('./fetch.js');
+    const { doctorCommand } = await import('./doctor.js');
     const subCommandsForTest = { fetch: fetchCommand, doctor: doctorCommand };
     const manifest = buildManifest('0.3.0', subCommandsForTest);
     for (const cmd of manifest.commands) {
@@ -64,9 +64,9 @@ describe('JSON schemas in docs/schemas/', () => {
   });
 
   it('describe.json validates the output of buildManifest', async () => {
-    const { buildManifest } = await import('../commands/describe.js');
-    const { fetchCommand } = await import('../commands/fetch.js');
-    const { doctorCommand } = await import('../commands/doctor.js');
+    const { buildManifest } = await import('./describe.js');
+    const { fetchCommand } = await import('./fetch.js');
+    const { doctorCommand } = await import('./doctor.js');
     const subCommandsForTest = { fetch: fetchCommand, doctor: doctorCommand };
     const manifest = buildManifest('0.3.0', subCommandsForTest);
     const schema = JSON.parse(readFileSync(join(SCHEMAS_DIR, 'describe.json'), 'utf-8'));
