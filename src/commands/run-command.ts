@@ -50,7 +50,7 @@ export interface DataCommandDef<A extends ArgsDef> {
   run: (ctx: Ctx, args: ParsedArgs<A & CommonArgsDef>) => Output | Promise<Output>;
 }
 
-export const processIo: RunnerIo = {
+const processIo: RunnerIo = {
   stdout: s => { process.stdout.write(s + '\n'); },
   stderr: s => { process.stderr.write(s + '\n'); },
   exit: code => process.exit(code),

@@ -9,7 +9,7 @@ import { formatDoctorTable } from '../render/doctor-table.js';
 import { dataCommand, type Ctx, type Output } from './run-command.js';
 import type { CheckStatus, DoctorCheck, DoctorResult, DoctorDeps } from '../render/doctor-types.js';
 
-export type { CheckId, CheckStatus, DoctorCheck, DoctorResult, DoctorDeps, TokenResolution } from '../render/doctor-types.js';
+export type { DoctorCheck, DoctorResult, DoctorDeps } from '../render/doctor-types.js';
 
 export async function runChecks(deps: DoctorDeps): Promise<DoctorResult> {
   const checks: DoctorCheck[] = [];
@@ -147,7 +147,7 @@ const DATA_TABLES = ['daily_sleep', 'daily_readiness', 'daily_activity'] as cons
  * a second missed night is worth a nudge, and 36 hours past the newest day's midnight is where
  * that second night has clearly been skipped.
  */
-export const STALE_AFTER_HOURS = 36;
+const STALE_AFTER_HOURS = 36;
 
 /** Hours from the local midnight that closed `day` (in `tz`) to `now`; negative while `day` is still running. */
 function hoursSinceDayEnded(day: string, now: string, tz: string): number {

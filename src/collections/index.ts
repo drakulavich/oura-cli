@@ -19,7 +19,7 @@ import { tags } from './tags.js';
 import { ring } from './ring.js';
 import { battery } from './battery.js';
 
-export type { AnyCollection, Collection, Column, SqlValue } from './types.js';
+export type { AnyCollection, Collection, SqlValue } from './types.js';
 
 /** Order is the sync order and the order tables appear in `db stats`. */
 export const COLLECTIONS: readonly AnyCollection[] = [

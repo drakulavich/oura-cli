@@ -1,9 +1,9 @@
 import type { OuraEndpoint } from '../api/types.js';
 
-export type SqlType = 'TEXT' | 'INTEGER' | 'REAL';
+type SqlType = 'TEXT' | 'INTEGER' | 'REAL';
 export type SqlValue = string | number | null;
 
-export interface Column<Row> {
+interface Column<Row> {
   name: string;
   type: SqlType;
   pick: (row: Row) => SqlValue;
@@ -11,14 +11,14 @@ export interface Column<Row> {
   unique?: boolean;
 }
 
-export interface IndexDef {
+interface IndexDef {
   name: string;
   columns: readonly string[];
   unique?: boolean;
 }
 
 /** An API field that is always present; drives the JSON Schema `required` list. */
-export interface IdentityField {
+interface IdentityField {
   field: string;
   format?: 'date' | 'date-time';
   description: string;

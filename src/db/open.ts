@@ -6,7 +6,7 @@ import { CliError } from '../lib/errors.js';
 import { requireValue } from '../lib/require-value.js';
 import { MIGRATIONS, type Migration } from './migrations.js';
 
-export const DB_HINT = 'Check the path in --db / OURA_DB_PATH and that the file is a SQLite database oura-cli created.';
+const DB_HINT = 'Check the path in --db / OURA_DB_PATH and that the file is a SQLite database oura-cli created.';
 /** How a damaged cache is recovered: the same words under a DB_ERROR and in doctor's integrity check (#134). */
 export const REBUILD_HINT = 'Delete the cache file (--db / OURA_DB_PATH) and run `oura-cli sync` to rebuild it.';
 const CORRUPT_HINT = `The cache file is damaged. ${REBUILD_HINT} \`oura-cli doctor\` shows what is wrong with it.`;
