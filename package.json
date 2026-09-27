@@ -23,7 +23,7 @@
     "test": "bun test",
     "schemas": "bun run scripts/generate-schemas.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "biome ci",
+    "lint": "biome ci && knip --include files,exports,types",
     "check": "bun run typecheck && bun run lint && bun run test"
   },
   "exports": {
@@ -66,6 +66,7 @@
     "@types/node": "^26.0.0",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
+    "knip": "^6.38.0",
     "typescript": "^7.0.2"
   }
 }
