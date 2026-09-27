@@ -22,7 +22,9 @@
     "dev": "bun run src/index.ts",
     "test": "bun test",
     "schemas": "bun run scripts/generate-schemas.ts",
-    "lint:layers": "biome lint"
+    "typecheck": "tsc --noEmit",
+    "lint": "biome ci",
+    "check": "bun run typecheck && bun run lint && bun run test"
   },
   "exports": {
     ".": "./src/index.ts"
