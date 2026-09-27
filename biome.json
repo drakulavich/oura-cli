@@ -4,7 +4,8 @@
   "files": {
     "includes": [
       "src/**",
-      "!**/*.test.ts"
+      "scripts/**",
+      "skills/**"
     ]
   },
   "formatter": {
