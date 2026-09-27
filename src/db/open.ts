@@ -4,7 +4,7 @@ import { homedir } from 'os';
 import { chmodSync, existsSync, mkdirSync } from 'fs';
 import { CliError } from '../lib/errors.js';
 import { requireValue } from '../lib/require-value.js';
-import { MIGRATIONS } from './migrations.js';
+import { MIGRATIONS, type Migration } from './migrations.js';
 
 export const DB_HINT = 'Check the path in --db / OURA_DB_PATH and that the file is a SQLite database oura-cli created.';
 /** How a damaged cache is recovered: the same words under a DB_ERROR and in doctor's integrity check (#134). */
@@ -41,11 +41,6 @@ export function asDbError(err: unknown): CliError | undefined {
 }
 
 export type { Database };
-
-export interface Migration {
-  version: number;
-  sql: string;
-}
 
 export function getDbPath(explicit?: string): string {
   if (explicit !== undefined) return requireValue(explicit, '--db', 'the default database');
