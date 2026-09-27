@@ -1,4 +1,7 @@
-import type { Migration } from './open.js';
+export interface Migration {
+  version: number;
+  sql: string;
+}
 
 export const MIGRATIONS: Migration[] = [
   {

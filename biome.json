@@ -16,7 +16,15 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "preset": "none"
+      "preset": "none",
+      "suspicious": {
+        "noImportCycles": {
+          "level": "error",
+          "options": {
+            "ignoreTypes": false
+          }
+        }
+      }
     }
   },
   "overrides": [
