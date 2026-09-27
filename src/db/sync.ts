@@ -6,7 +6,7 @@ import { planWindow, applyWindowPlan, type WindowPlan } from './reconcile.js';
 import { lookbackDue, lookbackRange, markLookbackRan } from './lookback.js';
 
 /** Days (inclusive) a collection's first sync covers. */
-export const BACKFILL_DAYS = 30;
+const BACKFILL_DAYS = 30;
 
 export interface ImportResult {
   /**
@@ -70,7 +70,7 @@ export interface ImportResult {
  * by table, as they always were; these two carry the collection name because they are the ones a
  * reader has to act on, and nothing else in the published output maps a table back to a collection.
  */
-export interface RefusalRecord {
+interface RefusalRecord {
   rows: number;
   /** The collection name, i.e. what to pass to `--prune`. */
   collection: string;

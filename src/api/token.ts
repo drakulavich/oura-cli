@@ -9,7 +9,7 @@ export interface TokenResolution {
   source: string;
 }
 
-export function defaultTokenPath(): string {
+function defaultTokenPath(): string {
   return process.env.OURA_TOKEN_PATH ?? resolve(homedir(), '.oura-token');
 }
 

@@ -122,7 +122,7 @@ export function getTrends(db: Database, days: number, today: string): TrendRow[]
   return results;
 }
 
-export interface TableStats {
+interface TableStats {
   /** The name `fetch`, `sync` and `--prune` use; `table` is what the schema and SQL use (#72). */
   collection: string;
   table: string;

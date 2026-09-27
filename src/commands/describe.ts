@@ -12,7 +12,7 @@ export interface ManifestArg {
   values?: string[];
 }
 
-export interface ManifestSubcommand {
+interface ManifestSubcommand {
   name: string;
   description: string;
   args: ManifestArg[];
