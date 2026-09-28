@@ -28,7 +28,7 @@ jobs:
       # The reference validator parses the frontmatter with strictyaml, which rejects YAML the
       # in-repo test's Bun.YAML accepts (flow mappings, say). It decides what a generic Agent Skills
       # consumer will load.
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
       - name: Validate agent skill
         run: uvx --from skills-ref==0.1.1 agentskills validate skills/oura-cli
 
