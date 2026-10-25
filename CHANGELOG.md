@@ -6,6 +6,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- `--help` fits an 80-column terminal again, bar the root USAGE line that lists every command. citty padded each OPTIONS row with trailing spaces to column 87, so every row wrapped though its text fitted; the padding is gone. A `db` subcommand's screen names it in full (`USAGE oura-cli db rows …`, banner `(oura-cli db rows v…)`) where it said `db rows`; `db stats` and `db rows` have shorter descriptions so the longer banner still fits. (#147)
+
 ## [0.9.1] - 2026-09-15
 
 ### Fixed

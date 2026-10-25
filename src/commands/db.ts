@@ -83,7 +83,7 @@ export const dbCommand = defineCommand({
     }),
 
     stats: dataCommand({
-      meta: { name: 'stats', description: 'Row counts, date range, and record highs from local database' },
+      meta: { name: 'stats', description: 'Row counts, date span and record highs of the cache' },
       needs: { db: true },
       run(ctx) {
         const stats = getStats(ctx.db!, ctx.today);
@@ -95,7 +95,7 @@ export const dbCommand = defineCommand({
     // them, and seeing a tag or a battery curve meant `fetch`, which goes back to the API (#73).
     // Same range flags and defaults as `fetch`, so the two are twins: one reads the API, this the cache.
     rows: dataCommand({
-      meta: { name: 'rows', description: 'Cached rows of one collection, as stored: the local twin of `fetch`' },
+      meta: { name: 'rows', description: "One collection's rows as cached: the local `fetch`" },
       args: {
         collection: { type: 'positional', required: true, description: 'Collection name (ring is a snapshot: no range flags)' },
         day:  { type: 'string', description: 'Single day (YYYY-MM-DD). Default: today.' },

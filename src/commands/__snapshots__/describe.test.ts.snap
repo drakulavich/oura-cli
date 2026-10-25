@@ -126,7 +126,7 @@ exports[`buildManifest matches the snapshot (any diff here is a contract change)
         },
         {
           "args": [],
-          "description": "Row counts, date range, and record highs from local database",
+          "description": "Row counts, date span and record highs of the cache",
           "name": "stats",
         },
         {
@@ -187,7 +187,7 @@ exports[`buildManifest matches the snapshot (any diff here is a contract change)
               "type": "string",
             },
           ],
-          "description": "Cached rows of one collection, as stored: the local twin of \`fetch\`",
+          "description": "One collection's rows as cached: the local \`fetch\`",
           "name": "rows",
         },
       ],
@@ -338,11 +338,11 @@ exports[`buildOpenclawManifest matches the snapshot 1`] = `
           "name": "trends",
         },
         {
-          "description": "Row counts, date range, and record highs from local database",
+          "description": "Row counts, date span and record highs of the cache",
           "name": "stats",
         },
         {
-          "description": "Cached rows of one collection, as stored: the local twin of \`fetch\`",
+          "description": "One collection's rows as cached: the local \`fetch\`",
           "name": "rows",
         },
       ],
@@ -588,7 +588,7 @@ exports[`the published contract, over the real registry describe: matches the sn
         },
         {
           "args": [],
-          "description": "Row counts, date range, and record highs from local database",
+          "description": "Row counts, date span and record highs of the cache",
           "name": "stats",
         },
         {
@@ -649,7 +649,7 @@ exports[`the published contract, over the real registry describe: matches the sn
               "type": "string",
             },
           ],
-          "description": "Cached rows of one collection, as stored: the local twin of \`fetch\`",
+          "description": "One collection's rows as cached: the local \`fetch\`",
           "name": "rows",
         },
       ],
@@ -811,11 +811,11 @@ exports[`the published contract, over the real registry manifest: matches the sn
           "name": "trends",
         },
         {
-          "description": "Row counts, date range, and record highs from local database",
+          "description": "Row counts, date span and record highs of the cache",
           "name": "stats",
         },
         {
-          "description": "Cached rows of one collection, as stored: the local twin of \`fetch\`",
+          "description": "One collection's rows as cached: the local \`fetch\`",
           "name": "rows",
         },
       ],
