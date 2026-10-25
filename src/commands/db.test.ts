@@ -201,4 +201,24 @@ describe('db rows (#73)', () => {
     expect(text.stdout).toContain('No cached ring rows.');
     expect(text.stdout).toContain('oura-cli fetch ring');
   });
+
+  it('says under a timeseries table that day is the UTC date while rows follow the local day (#131)', async () => {
+    const path = join(tmpdir(), `oura-db-rows-utc-${process.pid}.db`);
+    const db = new Database(path);
+    ensureSchema(db);
+    db.query('INSERT INTO ring_battery_level (timestamp, level, charging, in_charger, day) VALUES (?,?,?,?,?)').run('2026-09-09T22:00:00+00:00', 80, 0, 0, '2026-09-09');
+    db.close();
+    const rows = (...collection: string[]) => Bun.spawn(['bun', 'run', 'src/index.ts', '--db', path, '--tz', 'Asia/Dubai', 'db', 'rows', ...collection, '--day', '2026-09-10', '--format', 'table'], { stdout: 'pipe', stderr: 'pipe' });
+    try {
+      const battery = rows('battery');
+      const lines = (await new Response(battery.stdout).text()).trimEnd().split('\n');
+      expect(await battery.exited).toBe(0);
+      expect(lines.at(-2)).toBe('  2026-09-09T22:00:00+00:00     80         0           0  2026-09-09');
+      expect(lines.at(-1)).toBe('  day is the UTC date of each sample; rows are selected by the local day in Asia/Dubai.');
+      const tags = rows('tags');
+      expect(await new Response(tags.stdout).text()).not.toContain('UTC');
+    } finally {
+      for (const suffix of ['', '-wal', '-shm']) rmSync(path + suffix, { force: true });
+    }
+  });
 });

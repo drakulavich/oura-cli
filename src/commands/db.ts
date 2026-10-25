@@ -7,6 +7,8 @@ import { formatDaySummary, formatWeekTable, formatTrends, formatStats, PUBLISH_D
 import { formatRows } from '../render/format-rows.js';
 import { CliError } from '../lib/errors.js';
 import { daysBack } from '../lib/time.js';
+import { screenWidth } from '../lib/terminal.js';
+import { wrap } from '../lib/wrap.js';
 import { assertCalendarDate, assertPositiveInt } from '../lib/validate.js';
 import { assertRangeAllowed, resolveRange } from './fetch.js';
 import { dataCommand } from './run-command.js';
@@ -83,7 +85,7 @@ export const dbCommand = defineCommand({
     }),
 
     stats: dataCommand({
-      meta: { name: 'stats', description: 'Row counts, date range, and record highs from local database' },
+      meta: { name: 'stats', description: 'Row counts, date span and record highs of the cache' },
       needs: { db: true },
       run(ctx) {
         const stats = getStats(ctx.db!, ctx.today);
@@ -95,7 +97,7 @@ export const dbCommand = defineCommand({
     // them, and seeing a tag or a battery curve meant `fetch`, which goes back to the API (#73).
     // Same range flags and defaults as `fetch`, so the two are twins: one reads the API, this the cache.
     rows: dataCommand({
-      meta: { name: 'rows', description: 'Cached rows of one collection, as stored: the local twin of `fetch`' },
+      meta: { name: 'rows', description: 'Cached rows of a collection: the twin of `fetch`' },
       args: {
         collection: { type: 'positional', required: true, description: 'Collection name (ring is a snapshot: no range flags)' },
         day:  { type: 'string', description: 'Single day (YYYY-MM-DD). Default: today.' },
@@ -122,7 +124,10 @@ export const dbCommand = defineCommand({
         const hint = range === null
           ? `Run \`oura-cli sync\` to fill the cache, or \`oura-cli fetch ${c.name}\` to read the API.`
           : `Run \`oura-cli sync\` (\`sync --from <day>\` for older days), or \`oura-cli fetch ${c.name}\` to read the API.`;
-        return { json: rows, text: () => formatRows(c, rows, scope, 'table', hint, undefined, all.length) };
+        const utcNote = range !== null && c.rangeParams === 'datetime' && rows.length > 0
+          ? wrap(`day is the UTC date of each sample; rows are selected by the local day in ${ctx.tz}.`, screenWidth(), '  ')
+          : [];
+        return { json: rows, text: () => [formatRows(c, rows, scope, 'table', hint, undefined, all.length), ...utcNote].join('\n') };
       },
     }),
   },

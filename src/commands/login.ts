@@ -1,12 +1,13 @@
 import { defineCommand } from 'citty';
 import type { ArgsDef } from 'citty';
 import { writeFileSync, chmodSync, mkdirSync } from 'fs';
-import { resolve, dirname } from 'path';
+import { resolve, dirname, join } from 'path';
 import { homedir } from 'os';
 import chalk from 'chalk';
 import { CliError, emitError, exitCodeFor } from '../lib/errors.js';
 import { commonArgs } from './common.js';
 import { assertKnownArgs } from './run-command.js';
+import { requireValue } from '../lib/require-value.js';
 
 type HiddenTokenInput = {
   isTTY?: boolean;
@@ -67,7 +68,12 @@ export function writeToken(path: string, token: string): void {
     throw new CliError('BAD_ARGS', 'Token cannot be empty.');
   }
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, trimmed, { encoding: 'utf-8' });
+  try {
+    writeFileSync(path, trimmed, { encoding: 'utf-8' });
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== 'EISDIR') throw err;
+    throw new CliError('BAD_ARGS', `${path} is a directory.`, `Pass a file path with --path or OURA_TOKEN_PATH, such as ${join(path, '.oura-token')}.`);
+  }
   if (process.platform !== 'win32') {
     chmodSync(path, 0o600);
   }
@@ -88,8 +94,8 @@ export const loginCommand = defineCommand({
         chk.level = 0;
       }
       const target = args.path ?? process.env.OURA_TOKEN_PATH ?? resolve(homedir(), '.oura-token');
-      let token = args.token as string | undefined;
-      if (!token) {
+      let token = args.token === undefined ? undefined : requireValue(args.token, '--token', 'the interactive prompt');
+      if (token === undefined) {
         console.log('Get a Personal Access Token at https://cloud.ouraring.com/personal-access-tokens');
         token = await readHiddenToken(process.stdin, process.stdout);
       }
