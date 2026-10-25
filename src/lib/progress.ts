@@ -4,8 +4,8 @@ export interface ProgressSink {
 }
 
 export interface PageProgress {
-  /** A page of `endpoint` arrived with `rows` rows. Counters restart when the endpoint changes. */
-  onPage: (page: { endpoint: string; rows: number }) => void;
+  /** Page `page` of a request to `endpoint` arrived with `rows` rows. Rows restart when the endpoint changes. */
+  onPage: (page: { endpoint: string; rows: number; page: number }) => void;
   /** The client is about to wait `waitMs` on a 429 before asking for the same page again. */
   onRetry: (retry: { endpoint: string; waitMs: number }) => void;
   /** Wipe the line; nothing of it stays in the scrollback. */
@@ -20,7 +20,7 @@ export interface PageProgress {
  * For a terminal only: on a pipe, stderr carries the one-line error envelope and must stay clean,
  * so the caller decides from `process.stderr.isTTY` whether to build one at all.
  */
-export function pageProgress(sink: ProgressSink, verb: string): PageProgress {
+export function pageProgress(sink: ProgressSink, verb: string, label: (endpoint: string) => string = e => e): PageProgress {
   let endpoint: string | undefined;
   let pages = 0;
   let rows = 0;
@@ -32,12 +32,12 @@ export function pageProgress(sink: ProgressSink, verb: string): PageProgress {
     written = true;
     sink.write(`\r${text}`);
   };
-  const status = () => (pages === 0 ? `  ${verb} ${endpoint}` : `  ${verb} ${endpoint}: page ${pages}, ${rows} rows so far`);
+  const status = () => (pages === 0 ? `  ${verb} ${label(endpoint!)}` : `  ${verb} ${label(endpoint!)}: page ${pages}, ${rows} rows so far`);
 
   return {
     onPage(page) {
       if (page.endpoint !== endpoint) { endpoint = page.endpoint; pages = 0; rows = 0; }
-      pages++;
+      pages = page.page;
       rows += page.rows;
       show(`${status()}…`);
     },

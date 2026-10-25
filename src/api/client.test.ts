@@ -392,11 +392,11 @@ describe('rate limiting and progress (#45)', () => {
       { status: 200, data: [], next_token: 'p3' },
       { status: 200, data: [3] },
     ]);
-    const seen: Array<{ endpoint: string; rows: number }> = [];
+    const seen: Array<{ endpoint: string; rows: number; page: number }> = [];
     const client = new OuraClient({ sleep: async () => {}, onPage: p => seen.push(p) });
     await client.fetch('heartrate', { start_datetime: 'a', end_datetime: 'b' });
     // A 429 is not a page; the retry that succeeds is.
-    expect(seen).toEqual([{ endpoint: 'heartrate', rows: 2 }, { endpoint: 'heartrate', rows: 0 }, { endpoint: 'heartrate', rows: 1 }]);
+    expect(seen).toEqual([{ endpoint: 'heartrate', rows: 2, page: 1 }, { endpoint: 'heartrate', rows: 0, page: 2 }, { endpoint: 'heartrate', rows: 1, page: 3 }]);
   });
 });
 

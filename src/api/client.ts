@@ -55,6 +55,8 @@ export interface PageEvent {
   endpoint: OuraEndpoint;
   /** Rows on this page. */
   rows: number;
+  /** 1 for the first page of this request; each range piece is a request of its own. */
+  page: number;
 }
 
 export interface RetryEvent {
@@ -108,6 +110,7 @@ export class OuraClient {
     const rows: T[] = [];
     const seenTokens = new Set<string>();
     let nextToken: string | null = null;
+    let pageNo = 0;
     do {
       if (seenTokens.size >= MAX_PAGES) {
         throw new CliError('API_ERROR', `Oura API returned more than ${MAX_PAGES} pages for ${endpoint}; stopping.`);
@@ -115,7 +118,7 @@ export class OuraClient {
       const params = new URLSearchParams(query);
       if (nextToken) params.set('next_token', nextToken);
       const page: { data: T[]; next_token: string | null } = await this.getPage(endpoint, `${BASE_URL}/${endpoint}?${params}`);
-      this.onPage?.({ endpoint, rows: page.data.length });
+      this.onPage?.({ endpoint, rows: page.data.length, page: ++pageNo });
       for (const row of page.data) rows.push(row);
       nextToken = page.next_token;
       if (nextToken && seenTokens.has(nextToken)) {

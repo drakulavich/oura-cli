@@ -6,6 +6,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- The progress line on a terminal names the collection, as the summary under it does: `syncing sleep` is the sleep collection and `syncing sleep-periods` the sleep periods, where it printed the API endpoint (`daily_sleep`, `sleep`, `vO2_max`, `ring_battery_level`). Its page counter starts again with each request, so a 61-day `fetch hr`, three 30-day requests, counts up to each request's own pages instead of running to page 87; the row count still runs across them. (#129)
+
 ## [0.9.1] - 2026-09-15
 
 ### Fixed

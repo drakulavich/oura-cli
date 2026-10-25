@@ -10,9 +10,9 @@ describe('pageProgress (#45)', () => {
   it('rewrites one line in place, counting pages and rows across calls', () => {
     const s = sink();
     const p = pageProgress(s, 'fetching');
-    p.onPage({ endpoint: 'heartrate', rows: 1000 });
-    p.onPage({ endpoint: 'heartrate', rows: 0 });
-    p.onPage({ endpoint: 'heartrate', rows: 5 });
+    p.onPage({ endpoint: 'heartrate', rows: 1000, page: 1 });
+    p.onPage({ endpoint: 'heartrate', rows: 0, page: 2 });
+    p.onPage({ endpoint: 'heartrate', rows: 5, page: 3 });
     expect(s.chunks).toEqual([
       '\r  fetching heartrate: page 1, 1000 rows so far…',
       '\r  fetching heartrate: page 2, 1000 rows so far…',
@@ -23,8 +23,8 @@ describe('pageProgress (#45)', () => {
   it('starts the count over when the endpoint changes, as a sync moves from collection to collection', () => {
     const s = sink();
     const p = pageProgress(s, 'syncing');
-    p.onPage({ endpoint: 'daily_sleep', rows: 3 });
-    p.onPage({ endpoint: 'heartrate', rows: 1000 });
+    p.onPage({ endpoint: 'daily_sleep', rows: 3, page: 1 });
+    p.onPage({ endpoint: 'heartrate', rows: 1000, page: 1 });
     expect(s.chunks[1]).toBe('\r  syncing heartrate: page 1, 1000 rows so far…');
   });
 
@@ -32,7 +32,7 @@ describe('pageProgress (#45)', () => {
     const s = sink();
     const p = pageProgress(s, 'fetching');
     p.onRetry({ endpoint: 'heartrate', waitMs: 30_000 });
-    p.onPage({ endpoint: 'heartrate', rows: 1000 });
+    p.onPage({ endpoint: 'heartrate', rows: 1000, page: 1 });
     p.onRetry({ endpoint: 'heartrate', waitMs: 1_500 });
     expect(s.chunks).toEqual([
       '\r  fetching heartrate; rate limited, retrying in 30 s…',
@@ -44,9 +44,9 @@ describe('pageProgress (#45)', () => {
   it('wipes the line on done, as wide as the widest line it wrote', () => {
     const s = sink();
     const p = pageProgress(s, 'fetching');
-    p.onPage({ endpoint: 'heartrate', rows: 12345 });
+    p.onPage({ endpoint: 'heartrate', rows: 12345, page: 1 });
     p.onRetry({ endpoint: 'heartrate', waitMs: 60_000 });
-    p.onPage({ endpoint: 'heartrate', rows: 0 });
+    p.onPage({ endpoint: 'heartrate', rows: 0, page: 2 });
     p.done();
     const widest = Math.max(...s.chunks.slice(0, 3).map(c => c.length - 1));
     expect(s.chunks[3]).toBe(`\r${' '.repeat(widest)}\r`);
