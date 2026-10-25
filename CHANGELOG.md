@@ -8,6 +8,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 - `TOKEN_MISSING` from `sync` and `fetch` names the token file with `~` for the home directory (`No Oura access token at ~/.oura-token.`), the way `doctor` does; it printed the full home path. The multi-line token error names the file the same way. (#146)
+- The `error:` line is coloured only when stderr is a terminal (and `NO_COLOR` / `--no-color` are not set, or `FORCE_COLOR` asks for it). The decision followed stdout, so `oura-cli sync 2>err.log` on a terminal wrote ANSI codes into the file. (#150)
 
 ## [0.9.1] - 2026-09-15
 
