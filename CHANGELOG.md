@@ -6,6 +6,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- `sync` checks `--from`, `--to` and `--prune` before it looks for a token, as `fetch` does: `sync --to 2026-09-01` without `--from`, an impossible date or an unknown `--prune` collection is `BAD_ARGS` (exit 1), where a fresh install without a token said `TOKEN_MISSING` and the argument error surfaced only after `login`. (#145)
+
 ## [0.9.1] - 2026-09-15
 
 ### Fixed

@@ -47,6 +47,8 @@ export interface DataCommandDef<A extends ArgsDef> {
   args?: A;
   needs?: { db?: boolean; client?: boolean };
   jsonOnly?: boolean;
+  /** Argument checks that must win over a missing token or an unopenable database (#145). */
+  validate?: (ctx: Ctx, args: ParsedArgs<A & CommonArgsDef>) => void;
   run: (ctx: Ctx, args: ParsedArgs<A & CommonArgsDef>) => Output | Promise<Output>;
 }
 
@@ -112,6 +114,7 @@ export async function execute<A extends ArgsDef>(
     const outputFormat: OutputFormat = def.jsonOnly ? 'json' : format;
     const tz = assertTimezone((args.tz as string | undefined) ?? resolveDefaultTimezone());
     const ctx: Ctx = { format: outputFormat, tz, today: today(tz), ...(io.progress ? { progress: io.progress } : {}) };
+    def.validate?.(ctx, args);
     if (def.needs?.db) {
       db = openDatabase(args.db as string | undefined);
       ensureSchema(db);
