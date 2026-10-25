@@ -41,7 +41,7 @@ export function emptyDayHint(db: Database, day: string, today: string): string {
 }
 
 export const dbCommand = defineCommand({
-  meta: { name: 'db', description: 'Query and manage the local SQLite database' },
+  meta: { name: 'db', description: 'Query the local cache.' },
   subCommands: {
     today: dataCommand({
       meta: { name: 'today', description: "Today's summary from local database" },
