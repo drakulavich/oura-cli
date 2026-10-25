@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'bun:test';
 import { join } from 'path';
+import { mkdtempSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
 import { formatFromArgv } from './lib/format-resolve.js';
 
 const ENTRY = join(import.meta.dir, 'index.ts');
@@ -271,5 +273,52 @@ describe('colour mode is decided before citty loads', () => {
     const text = await Bun.file(ENTRY).text();
     const firstImport = text.split('\n').find(l => l.startsWith('import '));
     expect(firstImport).toBe("import './lib/apply-color-mode.js';");
+  });
+});
+
+// A temp home with no token and its own cache, so nothing here reads the user's token or database.
+async function runWithoutToken(...argv: string[]) {
+  const home = mkdtempSync(join(tmpdir(), 'oura-no-token-'));
+  const env: Record<string, string | undefined> = { ...process.env, HOME: home, OURA_TOKEN_PATH: join(home, '.oura-token'), OURA_DB_PATH: join(home, 'oura.db') };
+  delete env.OURA_TOKEN;
+  const proc = Bun.spawn(['bun', 'run', ENTRY, ...argv], { stdout: 'pipe', stderr: 'pipe', env, cwd: join(import.meta.dir, '..') });
+  const [stdout, stderr] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
+  const code = await proc.exited;
+  rmSync(home, { recursive: true, force: true });
+  return { stdout, stderr, code };
+}
+
+describe('sync checks its own flags before it looks for a token (#145)', () => {
+  it.each([
+    [['sync', '--to', '2026-09-01'], '--to requires --from.'],
+    [['sync', '--from', '2026-02-30'], '--from must be a real YYYY-MM-DD date, got "2026-02-30".'],
+    [['sync', '--prune=bogus'], '--prune: unknown collection: bogus.'],
+  ])('%j → BAD_ARGS, not TOKEN_MISSING', async (argv, message) => {
+    const { stdout, stderr, code } = await runWithoutToken(...argv);
+    expect(stdout).toBe('');
+    expect(envelope(stderr)).toMatchObject({ code: 'BAD_ARGS', message });
+    expect(code).toBe(1);
+  });
+});
+
+describe('a flag given without a value says so (#148)', () => {
+  it.each([
+    [['db', 'today', '--tz'], '--tz', 'OURA_TZ or the system timezone'],
+    [['report', '--period'], '--period', 'week'],
+    [['fetch', 'sleep', '--token'], '--token', 'the token file'],
+    [['sync', '--token', ''], '--token', 'the token file'],
+    [['db', 'today', '--token'], '--token', 'the token file'],
+  ])('%j → BAD_ARGS naming the flag', async (argv, flag, fallback) => {
+    const { stdout, stderr, code } = await runWithoutToken(...argv);
+    expect(stdout).toBe('');
+    expect(envelope(stderr)).toEqual({ code: 'BAD_ARGS', message: `${flag} has no value`, hint: `Pass a value, or remove ${flag} to fall back to ${fallback}.` });
+    expect(code).toBe(1);
+  });
+
+  it('login --token "" refuses instead of falling through to the prompt', async () => {
+    const { stdout, stderr, code } = await runWithoutToken('login', '--token', '');
+    expect(stdout).toBe('');
+    expect(stderr).toBe('error: --token has no value\n  hint: Pass a value, or remove --token to fall back to the interactive prompt.\n');
+    expect(code).toBe(1);
   });
 });
