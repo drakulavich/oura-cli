@@ -1,7 +1,7 @@
 import { Database, SQLiteError } from 'bun:sqlite';
-import { resolve, dirname } from 'path';
+import { resolve, dirname, join } from 'path';
 import { homedir } from 'os';
-import { chmodSync, existsSync, mkdirSync } from 'fs';
+import { chmodSync, existsSync, mkdirSync, statSync } from 'fs';
 import { CliError } from '../lib/errors.js';
 import { requireValue } from '../lib/require-value.js';
 import { MIGRATIONS, type Migration } from './migrations.js';
@@ -51,6 +51,9 @@ export function getDbPath(explicit?: string): string {
 
 export function openDatabase(explicit?: string): Database {
   const dbPath = getDbPath(explicit);
+  if (dbPath !== ':memory:' && existsSync(dbPath) && statSync(dbPath).isDirectory()) {
+    throw new CliError('DB_ERROR', `Cannot open database ${dbPath}: it is a directory.`, `Point --db / OURA_DB_PATH at a file, such as ${join(dbPath, 'oura.db')}.`);
+  }
   try {
     const onDisk = dbPath !== ':memory:';
     const isNew = onDisk && !existsSync(dbPath);

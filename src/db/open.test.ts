@@ -215,6 +215,19 @@ describe('openDatabase errors', () => {
     expect((err as CliError).hint).toContain('OURA_DB_PATH');
   });
 
+  it('says a path naming a directory is one, instead of blaming permissions (#151)', () => {
+    const target = mkdtempSync(join(tmpdir(), 'oura-db-is-a-dir-'));
+    let err: unknown;
+    try { openDatabase(target); } catch (e) { err = e; }
+    rmSync(target, { recursive: true, force: true });
+    expect(err).toBeInstanceOf(CliError);
+    expect({ code: (err as CliError).code, message: (err as CliError).message, hint: (err as CliError).hint }).toEqual({
+      code: 'DB_ERROR',
+      message: `Cannot open database ${target}: it is a directory.`,
+      hint: `Point --db / OURA_DB_PATH at a file, such as ${target}/oura.db.`,
+    });
+  });
+
   it('blames directory permissions, not the file format, when the directory is read-only', () => {
     // #78: SQLite reports a directory it cannot write as a read-only *database*, and the generic
     // hint sent the user to inspect a file that was fine.
