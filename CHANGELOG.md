@@ -8,6 +8,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 - `login --path <directory>` (or `OURA_TOKEN_PATH` naming one) is `BAD_ARGS` saying the path is a directory, with a file path inside it as the example; it printed a raw `EISDIR: illegal operation on a directory` with no hint. (#149)
+- `--db` or `OURA_DB_PATH` naming a directory is a `DB_ERROR` saying so, with `<dir>/oura.db` as the example, and `doctor` shows the same fix; SQLite's `unable to open database file` sent the user to check permissions that were fine. (#151)
 
 ## [0.9.1] - 2026-09-15
 
