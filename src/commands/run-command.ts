@@ -10,7 +10,9 @@ import { assertValidFormat, resolveFormat, type OutputFormat } from '../lib/form
 import { pageProgress, type ProgressSink } from '../lib/progress.js';
 import { today, resolveDefaultTimezone } from '../lib/time.js';
 import { assertTimezone } from '../lib/validate.js';
+import { requireValue } from '../lib/require-value.js';
 import { commonArgs } from './common.js';
+import { COLLECTIONS } from '../collections/index.js';
 
 export type CommonArgsDef = typeof commonArgs;
 
@@ -47,6 +49,8 @@ export interface DataCommandDef<A extends ArgsDef> {
   args?: A;
   needs?: { db?: boolean; client?: boolean };
   jsonOnly?: boolean;
+  /** Argument checks that must win over a missing token or an unopenable database (#145). */
+  validate?: (ctx: Ctx, args: ParsedArgs<A & CommonArgsDef>) => void;
   run: (ctx: Ctx, args: ParsedArgs<A & CommonArgsDef>) => Output | Promise<Output>;
 }
 
@@ -58,6 +62,9 @@ const processIo: RunnerIo = {
   // Progress only when someone is watching: on a pipe stderr carries the error envelope (#45).
   progress: process.stderr.isTTY ? process.stderr : undefined,
 };
+
+/** The collection an endpoint serves, for the progress line: `daily_sleep` is `sleep`, `sleep` is `sleep-periods` (#129). */
+export const collectionOf = (endpoint: string): string => COLLECTIONS.find(c => c.endpoint === endpoint)?.name ?? endpoint;
 
 const camel = (s: string) => s.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
 
@@ -110,8 +117,11 @@ export async function execute<A extends ArgsDef>(
     format = resolveFormat({ explicit: args.format as string | undefined, isTty: io.isTty });
     assertKnownArgs({ ...commonArgs, ...(def.args ?? {}) } as ArgsDef, args as Record<string, unknown>);
     const outputFormat: OutputFormat = def.jsonOnly ? 'json' : format;
-    const tz = assertTimezone((args.tz as string | undefined) ?? resolveDefaultTimezone());
+    const tzFlag = args.tz as string | undefined;
+    const tz = assertTimezone(tzFlag !== undefined ? requireValue(tzFlag, '--tz', 'OURA_TZ or the system timezone') : resolveDefaultTimezone());
+    if (args.token !== undefined) requireValue(args.token as string, '--token', 'the token file');
     const ctx: Ctx = { format: outputFormat, tz, today: today(tz), ...(io.progress ? { progress: io.progress } : {}) };
+    def.validate?.(ctx, args);
     if (def.needs?.db) {
       db = openDatabase(args.db as string | undefined);
       ensureSchema(db);
@@ -119,7 +129,7 @@ export async function execute<A extends ArgsDef>(
     }
     // `sync` makes hundreds of requests and buffers its table lines until the end; without this a
     // slow or rate-limited run is silence indistinguishable from a hang (#45). Wiped before any output.
-    const progress = def.needs?.client && io.progress ? pageProgress(io.progress, 'syncing') : undefined;
+    const progress = def.needs?.client && io.progress ? pageProgress(io.progress, 'syncing', collectionOf) : undefined;
     if (def.needs?.client) {
       ctx.client = new OuraClient({
         ...(args.token ? { token: args.token as string } : {}),

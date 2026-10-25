@@ -5,7 +5,7 @@ import { CliError } from '../lib/errors.js';
 import { pageProgress } from '../lib/progress.js';
 import { shiftDay } from '../lib/time.js';
 import { assertCalendarDate, assertPositiveInt } from '../lib/validate.js';
-import { dataCommand } from './run-command.js';
+import { collectionOf, dataCommand } from './run-command.js';
 
 export function resolveRange(opts: { day?: string; from?: string; to?: string; days?: string; today: string }): { start: string; end: string } {
   const modes = [opts.day !== undefined, opts.from !== undefined || opts.to !== undefined, opts.days !== undefined].filter(Boolean).length;
@@ -58,7 +58,7 @@ export const fetchCommand = dataCommand({
     const { start, end } = resolveRange({ ...opts, today: ctx.today });
     // Progress only when someone is watching; the runner leaves `ctx.progress` unset on a pipe, where
     // stderr carries the error envelope (#45).
-    const progress = ctx.progress ? pageProgress(ctx.progress, 'fetching') : undefined;
+    const progress = ctx.progress ? pageProgress(ctx.progress, 'fetching', collectionOf) : undefined;
     const client = new OuraClient({
       ...(args.token ? { token: args.token as string } : {}),
       ...(progress ? { onPage: progress.onPage, onRetry: progress.onRetry } : {}),

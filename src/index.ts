@@ -2,7 +2,8 @@
 // First: sets NO_COLOR before citty is evaluated, which is when it decides its usage colours.
 import './lib/apply-color-mode.js';
 import { readFileSync } from 'fs';
-import { defineCommand, runCommand, runMain } from 'citty';
+import { defineCommand, renderUsage, runCommand, runMain } from 'citty';
+import type { ArgsDef, CommandDef, CommandMeta } from 'citty';
 import { buildRegistry } from './commands/registry.js';
 import { CLI_DESCRIPTION, commonArgs } from './commands/common.js';
 import { names } from './collections/index.js';
@@ -61,12 +62,28 @@ const bareParent = commands.length === 1 && Object.hasOwn(PARENT_COMMANDS, comma
 const wantsHelp = rawArgs.some(a => a === '--help' || a === '-h')
   || ((commands.length === 0 || bareParent) && process.stdout.isTTY === true);
 
+/** Spaces at the end of a line, before any colour codes that close it. */
+const TRAILING_SPACE = new RegExp(`\\s+((?:${String.fromCharCode(27)}\\[[0-9;]*m)*)$`);
+
+/**
+ * citty's usage, with two fixes for an 80-column terminal (#147): it pads every OPTIONS row with
+ * trailing spaces, counting colour codes as width, and it names a nested command (`db rows`)
+ * after its immediate parent only.
+ */
+async function showUsage<T extends ArgsDef = ArgsDef>(cmd: CommandDef<T>, parent?: CommandDef<T>): Promise<void> {
+  const named = parent !== undefined && (parent as unknown) !== main
+    ? ({ meta: { name: `oura-cli ${(parent.meta as CommandMeta).name}`, version: VERSION } } as CommandDef<T>)
+    : parent;
+  const usage = (await renderUsage(cmd, named)).split('\n').map(l => l.replace(TRAILING_SPACE, '$1')).join('\n');
+  console.log(`${usage}\n`);
+}
+
 if (isVersionRequest(rawArgs)) {
   // citty only answers --version when it is the sole argument; `oura-cli --db x --version` should work too.
   console.log(VERSION);
 } else if (wantsHelp) {
   // citty renders usage itself.
-  runMain(main, { rawArgs: bareParent ? [...rawArgs, '--help'] : rawArgs });
+  runMain(main, { rawArgs: bareParent ? [...rawArgs, '--help'] : rawArgs, showUsage });
 } else {
   // Everything else: errors citty raises before a command runs (unknown command, missing
   // positional) get the same envelope and exit code as errors raised inside a command,
