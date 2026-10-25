@@ -256,6 +256,18 @@ describe('help fits an 80-column terminal (#130)', () => {
     }
   }, 60_000);
 
+  it('ends no help line in spaces, which wrap an 80-column terminal though the text fits (#147)', async () => {
+    for (const cmd of COMMANDS) {
+      const { stdout } = await run(...cmd, '--help');
+      expect({ cmd, padded: stdout.split('\n').filter(l => / $/.test(l.replace(ANSI, ''))) }).toEqual({ cmd, padded: [] });
+    }
+  }, 60_000);
+
+  it('names a db subcommand in full on its USAGE line (#147)', async () => {
+    const { stdout } = await run('db', 'rows', '--help');
+    expect(stdout.split('\n').map(l => l.replace(ANSI, '')).find(l => l.startsWith('USAGE'))).toBe('USAGE oura-cli db rows [OPTIONS] <COLLECTION>');
+  });
+
   it('lists the collections when fetch or db rows is given none, since the help line no longer can', async () => {
     for (const cmd of [['fetch'], ['db', 'rows']]) {
       const e = envelope((await run(...cmd)).stderr);
