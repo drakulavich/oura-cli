@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'bun:test';
+import chalk from 'chalk';
 import { CliError, exitCodeFor, formatError, redactSecrets, type ErrorEnvelope } from './errors.js';
 
 describe('CliError', () => {
@@ -113,6 +114,17 @@ describe('formatError wraps the hint at the terminal width (#130)', () => {
     for (const l of lines.slice(2)) expect(l.startsWith(' '.repeat(8)) && !l.startsWith(' '.repeat(9))).toBe(true);
     for (const l of lines) expect(l.length).toBeLessThanOrEqual(40);
     expect(lines.slice(1).map(l => l.trim()).join(' ')).toBe(`hint: ${hint}`);
+  });
+
+  it('colours the error line by stderr, not stdout (#150)', () => {
+    const level = chalk.level;
+    chalk.level = 1;
+    try {
+      expect(formatError(new CliError('BAD_ARGS', 'boom'), 'table', undefined, false).text).toBe('error: boom');
+      expect(formatError(new CliError('BAD_ARGS', 'boom'), 'table', undefined, true).text).toBe('\u001b[31merror: boom\u001b[39m');
+    } finally {
+      chalk.level = level;
+    }
   });
 
   it('keeps the hint on one line when stderr is a pipe', () => {

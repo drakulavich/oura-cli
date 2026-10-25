@@ -68,7 +68,7 @@ A re-fetched window ends up holding exactly what the API returned for it. A samp
 | What you see | What to run |
 |---|---|
 | `No Oura data is available for this report yet.` | `oura-cli sync` |
-| `No Oura access token at /…/.oura-token` | `oura-cli login` |
+| `No Oura access token at ~/.oura-token` | `oura-cli login` |
 | `Oura API 401` | `oura-cli login` with a fresh PAT |
 | `Oura API 429` after the automatic retries | Wait a few minutes. A long `fetch hr` window is hundreds of requests. |
 | `db today` empty right after a sync | Normal. Oura publishes a day's summary after that night's sleep syncs from the ring. |

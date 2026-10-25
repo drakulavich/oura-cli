@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import { OuraClient, retryDelayMs, MAX_RETRY_AFTER_MS, MAX_TOTAL_WAIT_MS, RETRY_LIMIT } from './client.js';
 import { CliError } from '../lib/errors.js';
+import { homedir } from 'os';
+import { join } from 'path';
 
 const realFetch = globalThis.fetch;
 
@@ -76,6 +78,13 @@ describe('OuraClient', () => {
       });
       afterEach(() => {
         if (prevToken !== undefined) process.env.OURA_TOKEN = prevToken;
+      });
+
+      it('names a token file under the home directory with ~, as doctor does (#146)', () => {
+        const dir = `oura-cli-no-such-dir-${process.pid}`;
+        let err: unknown;
+        try { new OuraClient({ tokenPath: join(homedir(), dir, '.oura-token') }); } catch (e) { err = e; }
+        expect((err as CliError).message).toBe(`No Oura access token at ~/${dir}/.oura-token.`);
       });
 
       it('throws CliError with code TOKEN_MISSING and a hint to run login', () => {
