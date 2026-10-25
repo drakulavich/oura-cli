@@ -6,6 +6,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- `TOKEN_MISSING` from `sync` and `fetch` names the token file with `~` for the home directory (`No Oura access token at ~/.oura-token.`), the way `doctor` does; it printed the full home path. The multi-line token error names the file the same way. (#146)
+
 ## [0.9.1] - 2026-09-15
 
 ### Fixed
