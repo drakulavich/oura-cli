@@ -6,6 +6,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- `db rows hr` and `db rows battery` end the table with `day is the UTC date of each sample; rows are selected by the local day in <tz>.` Rows were already bounded on the local day, like `fetch`, while `day` holds the UTC date of the sample, so `db rows battery --day 2026-09-10` in Asia/Dubai listed rows dated 2026-09-09 with nothing on screen to say why. JSON is unchanged. (#131)
+
 ## [0.9.1] - 2026-09-15
 
 ### Fixed

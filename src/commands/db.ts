@@ -7,6 +7,8 @@ import { formatDaySummary, formatWeekTable, formatTrends, formatStats, PUBLISH_D
 import { formatRows } from '../render/format-rows.js';
 import { CliError } from '../lib/errors.js';
 import { daysBack } from '../lib/time.js';
+import { screenWidth } from '../lib/terminal.js';
+import { wrap } from '../lib/wrap.js';
 import { assertCalendarDate, assertPositiveInt } from '../lib/validate.js';
 import { assertRangeAllowed, resolveRange } from './fetch.js';
 import { dataCommand } from './run-command.js';
@@ -122,7 +124,10 @@ export const dbCommand = defineCommand({
         const hint = range === null
           ? `Run \`oura-cli sync\` to fill the cache, or \`oura-cli fetch ${c.name}\` to read the API.`
           : `Run \`oura-cli sync\` (\`sync --from <day>\` for older days), or \`oura-cli fetch ${c.name}\` to read the API.`;
-        return { json: rows, text: () => formatRows(c, rows, scope, 'table', hint, undefined, all.length) };
+        const utcNote = range !== null && c.rangeParams === 'datetime' && rows.length > 0
+          ? wrap(`day is the UTC date of each sample; rows are selected by the local day in ${ctx.tz}.`, screenWidth(), '  ')
+          : [];
+        return { json: rows, text: () => [formatRows(c, rows, scope, 'table', hint, undefined, all.length), ...utcNote].join('\n') };
       },
     }),
   },
