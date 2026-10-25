@@ -470,7 +470,8 @@ describe('sync progress on a terminal (pre-0.8.0 S2)', () => {
       await execute(syncDef, { db: TEST_DB, format: 'table' } as never, io);
     } finally { delete process.env.OURA_TOKEN; }
     expect(chunks.length).toBeGreaterThan(1);
-    expect(chunks[0]).toMatch(/^\r  syncing daily_sleep: page 1, \d+ rows so far…$/);
+    expect(chunks[0]).toMatch(/^\r  syncing sleep: page 1, \d+ rows so far…$/);
+    expect(chunks).toContainEqual(expect.stringMatching(/^\r  syncing sleep-periods: page 1, \d+ rows so far…$/));
     expect(chunks.at(-1)).toMatch(/^\r +\r$/);          // wiped
     expect(stdoutAt).toBe(chunks.length);               // and only then the table
   });

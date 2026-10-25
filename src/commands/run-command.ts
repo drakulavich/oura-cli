@@ -12,6 +12,7 @@ import { today, resolveDefaultTimezone } from '../lib/time.js';
 import { assertTimezone } from '../lib/validate.js';
 import { requireValue } from '../lib/require-value.js';
 import { commonArgs } from './common.js';
+import { COLLECTIONS } from '../collections/index.js';
 
 export type CommonArgsDef = typeof commonArgs;
 
@@ -61,6 +62,9 @@ const processIo: RunnerIo = {
   // Progress only when someone is watching: on a pipe stderr carries the error envelope (#45).
   progress: process.stderr.isTTY ? process.stderr : undefined,
 };
+
+/** The collection an endpoint serves, for the progress line: `daily_sleep` is `sleep`, `sleep` is `sleep-periods` (#129). */
+export const collectionOf = (endpoint: string): string => COLLECTIONS.find(c => c.endpoint === endpoint)?.name ?? endpoint;
 
 const camel = (s: string) => s.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
 
@@ -125,7 +129,7 @@ export async function execute<A extends ArgsDef>(
     }
     // `sync` makes hundreds of requests and buffers its table lines until the end; without this a
     // slow or rate-limited run is silence indistinguishable from a hang (#45). Wiped before any output.
-    const progress = def.needs?.client && io.progress ? pageProgress(io.progress, 'syncing') : undefined;
+    const progress = def.needs?.client && io.progress ? pageProgress(io.progress, 'syncing', collectionOf) : undefined;
     if (def.needs?.client) {
       ctx.client = new OuraClient({
         ...(args.token ? { token: args.token as string } : {}),
