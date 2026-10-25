@@ -247,7 +247,7 @@ A test resolves every `oura-cli …` line in the skill against `describe`, so th
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Bug reports and pull requests are welcome at [drakulavich/oura-cli/issues](https://github.com/drakulavich/oura-cli/issues).
+See [CONTRIBUTING.md](https://github.com/drakulavich/oura-cli/blob/main/CONTRIBUTING.md). Bug reports and pull requests are welcome at [drakulavich/oura-cli/issues](https://github.com/drakulavich/oura-cli/issues).
 
 ## License
 

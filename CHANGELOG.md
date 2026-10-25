@@ -6,6 +6,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- README links to CONTRIBUTING.md on GitHub; the relative link was dead in the installed package, which does not ship the file. `db` is described as "Query the local cache.", ending with a period like its siblings; it said "Query and manage the local SQLite database", and nothing has been manageable since `db reset` left in 0.5.0. (#152)
+
 ## [0.9.1] - 2026-09-15
 
 ### Fixed

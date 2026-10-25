@@ -87,7 +87,7 @@ exports[`buildManifest matches the snapshot (any diff here is a contract change)
     },
     {
       "args": [],
-      "description": "Query and manage the local SQLite database",
+      "description": "Query the local cache.",
       "name": "db",
       "subcommands": [
         {
@@ -313,7 +313,7 @@ exports[`buildOpenclawManifest matches the snapshot 1`] = `
       "name": "fetch",
     },
     {
-      "description": "Query and manage the local SQLite database",
+      "description": "Query the local cache.",
       "examples": [
         "oura-cli db today",
         "oura-cli db week --format json",
@@ -549,7 +549,7 @@ exports[`the published contract, over the real registry describe: matches the sn
     },
     {
       "args": [],
-      "description": "Query and manage the local SQLite database",
+      "description": "Query the local cache.",
       "name": "db",
       "subcommands": [
         {
@@ -786,7 +786,7 @@ exports[`the published contract, over the real registry manifest: matches the sn
       "name": "sync",
     },
     {
-      "description": "Query and manage the local SQLite database",
+      "description": "Query the local cache.",
       "examples": [
         "oura-cli db today",
         "oura-cli db week --format json",
