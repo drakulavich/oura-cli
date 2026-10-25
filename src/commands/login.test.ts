@@ -1,9 +1,10 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 import { EventEmitter } from 'events';
-import { readFileSync, statSync, rmSync } from 'fs';
+import { readFileSync, statSync, rmSync, mkdtempSync } from 'fs';
 import { resolve } from 'path';
 import { tmpdir } from 'os';
 import { readHiddenToken, writeToken } from './login.js';
+import { CliError } from '../lib/errors.js';
 
 const tmpPath = resolve(tmpdir(), `oura-token-test-${process.pid}-${Math.random().toString(36).slice(2)}`);
 
@@ -26,6 +27,21 @@ describe('writeToken', () => {
 
       const mode = statSync(tmpPath).mode & 0o777;
       expect(mode).toBe(0o600);
+    });
+  });
+
+  describe('when the path is a directory (#149)', () => {
+    it('throws BAD_ARGS naming the directory, not a raw EISDIR', () => {
+      const dir = mkdtempSync(resolve(tmpdir(), 'oura-token-dir-'));
+      let err: unknown;
+      try { writeToken(dir, 'abc-123'); } catch (e) { err = e; }
+      rmSync(dir, { recursive: true, force: true });
+      expect(err).toBeInstanceOf(CliError);
+      expect({ code: (err as CliError).code, message: (err as CliError).message, hint: (err as CliError).hint }).toEqual({
+        code: 'BAD_ARGS',
+        message: `${dir} is a directory.`,
+        hint: `Pass a file path with --path or OURA_TOKEN_PATH, such as ${dir}/.oura-token.`,
+      });
     });
   });
 

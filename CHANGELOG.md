@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Fixed
+- `sync` checks `--from`, `--to` and `--prune` before it looks for a token, as `fetch` does: `sync --to 2026-09-01` without `--from`, an impossible date or an unknown `--prune` collection is `BAD_ARGS` (exit 1), where a fresh install without a token said `TOKEN_MISSING` and the argument error surfaced only after `login`. (#145)
+- A flag given without a value is refused the same way everywhere, as `--format`, `--db` and `doctor --token` already were: `--tz`, `report --period`, `--token` on `fetch`, `sync` and the `db` commands, and `login --token ""` now say `--<flag> has no value` and name what leaving the flag out falls back to. `--tz` said `Unknown timezone ""`, `--period` said `got ""`, `--token` was dropped for the token file (a `TOKEN_MISSING` naming the file, or silently accepted by `db today`), and `login` fell through to the interactive prompt. (#148)
+- `login --path <directory>` (or `OURA_TOKEN_PATH` naming one) is `BAD_ARGS` saying the path is a directory, with a file path inside it as the example; it printed a raw `EISDIR: illegal operation on a directory` with no hint. (#149)
+- `--db` or `OURA_DB_PATH` naming a directory is a `DB_ERROR` saying so, with `<dir>/oura.db` as the example, and `doctor` shows the same fix; SQLite's `unable to open database file` sent the user to check permissions that were fine. (#151)
+- `TOKEN_MISSING` from `sync` and `fetch` names the token file with `~` for the home directory (`No Oura access token at ~/.oura-token.`), the way `doctor` does; it printed the full home path. The multi-line token error names the file the same way. (#146)
+- The `error:` line is coloured only when stderr is a terminal (and `NO_COLOR` / `--no-color` are not set, or `FORCE_COLOR` asks for it). The decision followed stdout, so `oura-cli sync 2>err.log` on a terminal wrote ANSI codes into the file. (#150)
 - `--help` fits an 80-column terminal again, bar the root USAGE line that lists every command. citty padded each OPTIONS row with trailing spaces to column 87, so every row wrapped though its text fitted; the padding is gone. A `db` subcommand's screen names it in full (`USAGE oura-cli db rows …`, banner `(oura-cli db rows v…)`) where it said `db rows`; `db stats` and `db rows` have shorter descriptions so the longer banner still fits. (#147)
 
 ## [0.9.1] - 2026-09-15
