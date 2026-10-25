@@ -1,4 +1,5 @@
 import { CliError, redactSecrets } from '../lib/errors.js';
+import { homePath } from '../lib/home-path.js';
 import { resolveToken } from './token.js';
 import type { OuraEndpoint } from './types.js';
 
@@ -92,11 +93,11 @@ export class OuraClient {
     this.sleep = options.sleep ?? (ms => new Promise(resolve => setTimeout(resolve, ms)));
     const { token, source } = resolveToken(options.token, options.tokenPath);
     if (!token) {
-      throw new CliError('TOKEN_MISSING', `No Oura access token at ${source}.`, 'Run `oura-cli login` or set OURA_TOKEN.');
+      throw new CliError('TOKEN_MISSING', `No Oura access token at ${homePath(source)}.`, 'Run `oura-cli login` or set OURA_TOKEN.');
     }
     if (/\s/.test(token)) {
       // A multi-line token file would otherwise reach fetch() and come back as a header error quoting the token.
-      throw new CliError('TOKEN_INVALID', `The token from ${source} contains whitespace or a line break; a token is a single line.`, 'Fix the file or variable, or run `oura-cli login` again.');
+      throw new CliError('TOKEN_INVALID', `The token from ${homePath(source)} contains whitespace or a line break; a token is a single line.`, 'Fix the file or variable, or run `oura-cli login` again.');
     }
     this.token = token;
   }

@@ -1,6 +1,7 @@
 import { getReport } from '../db/report.js';
 import { formatReport } from '../render/format-report.js';
 import { CliError } from '../lib/errors.js';
+import { requireValue } from '../lib/require-value.js';
 import { dataCommand } from './run-command.js';
 
 export const reportCommand = dataCommand({
@@ -8,7 +9,7 @@ export const reportCommand = dataCommand({
   args: { period: { type: 'string', description: 'Report window: week | month', default: 'week' } },
   needs: { db: true },
   run(ctx, args) {
-    const period = args.period;
+    const period = requireValue(args.period, '--period', 'week');
     if (period !== 'week' && period !== 'month') {
       throw new CliError('BAD_ARGS', `--period must be "week" or "month", got "${period}".`);
     }
