@@ -10,6 +10,7 @@ import { assertValidFormat, resolveFormat, type OutputFormat } from '../lib/form
 import { pageProgress, type ProgressSink } from '../lib/progress.js';
 import { today, resolveDefaultTimezone } from '../lib/time.js';
 import { assertTimezone } from '../lib/validate.js';
+import { requireValue } from '../lib/require-value.js';
 import { commonArgs } from './common.js';
 
 export type CommonArgsDef = typeof commonArgs;
@@ -112,7 +113,9 @@ export async function execute<A extends ArgsDef>(
     format = resolveFormat({ explicit: args.format as string | undefined, isTty: io.isTty });
     assertKnownArgs({ ...commonArgs, ...(def.args ?? {}) } as ArgsDef, args as Record<string, unknown>);
     const outputFormat: OutputFormat = def.jsonOnly ? 'json' : format;
-    const tz = assertTimezone((args.tz as string | undefined) ?? resolveDefaultTimezone());
+    const tzFlag = args.tz as string | undefined;
+    const tz = assertTimezone(tzFlag !== undefined ? requireValue(tzFlag, '--tz', 'OURA_TZ or the system timezone') : resolveDefaultTimezone());
+    if (args.token !== undefined) requireValue(args.token as string, '--token', 'the token file');
     const ctx: Ctx = { format: outputFormat, tz, today: today(tz), ...(io.progress ? { progress: io.progress } : {}) };
     def.validate?.(ctx, args);
     if (def.needs?.db) {

@@ -300,3 +300,25 @@ describe('sync checks its own flags before it looks for a token (#145)', () => {
     expect(code).toBe(1);
   });
 });
+
+describe('a flag given without a value says so (#148)', () => {
+  it.each([
+    [['db', 'today', '--tz'], '--tz', 'OURA_TZ or the system timezone'],
+    [['report', '--period'], '--period', 'week'],
+    [['fetch', 'sleep', '--token'], '--token', 'the token file'],
+    [['sync', '--token', ''], '--token', 'the token file'],
+    [['db', 'today', '--token'], '--token', 'the token file'],
+  ])('%j → BAD_ARGS naming the flag', async (argv, flag, fallback) => {
+    const { stdout, stderr, code } = await runWithoutToken(...argv);
+    expect(stdout).toBe('');
+    expect(envelope(stderr)).toEqual({ code: 'BAD_ARGS', message: `${flag} has no value`, hint: `Pass a value, or remove ${flag} to fall back to ${fallback}.` });
+    expect(code).toBe(1);
+  });
+
+  it('login --token "" refuses instead of falling through to the prompt', async () => {
+    const { stdout, stderr, code } = await runWithoutToken('login', '--token', '');
+    expect(stdout).toBe('');
+    expect(stderr).toBe('error: --token has no value\n  hint: Pass a value, or remove --token to fall back to the interactive prompt.\n');
+    expect(code).toBe(1);
+  });
+});
