@@ -7,6 +7,7 @@ import chalk from 'chalk';
 import { CliError, emitError, exitCodeFor } from '../lib/errors.js';
 import { commonArgs } from './common.js';
 import { assertKnownArgs } from './run-command.js';
+import { requireValue } from '../lib/require-value.js';
 
 type HiddenTokenInput = {
   isTTY?: boolean;
@@ -93,8 +94,8 @@ export const loginCommand = defineCommand({
         chk.level = 0;
       }
       const target = args.path ?? process.env.OURA_TOKEN_PATH ?? resolve(homedir(), '.oura-token');
-      let token = args.token as string | undefined;
-      if (!token) {
+      let token = args.token === undefined ? undefined : requireValue(args.token, '--token', 'the interactive prompt');
+      if (token === undefined) {
         console.log('Get a Personal Access Token at https://cloud.ouraring.com/personal-access-tokens');
         token = await readHiddenToken(process.stdin, process.stdout);
       }

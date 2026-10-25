@@ -89,6 +89,10 @@ export const syncDef: DataCommandDef<typeof syncArgs> = {
   meta: { name: 'sync', description: 'Download new Oura data into the local cache.' },
   args: syncArgs,
   needs: { db: true, client: true },
+  validate: (ctx, args) => {
+    resolveWindow({ from: args.from as string | undefined, to: args.to as string | undefined }, ctx.today);
+    resolvePruneScope(args.prune);
+  },
   run: (ctx, args) => runSync(
     ctx,
     resolveWindow({ from: args.from as string | undefined, to: args.to as string | undefined }, ctx.today),
