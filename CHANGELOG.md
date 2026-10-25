@@ -6,6 +6,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- `login --path <directory>` (or `OURA_TOKEN_PATH` naming one) is `BAD_ARGS` saying the path is a directory, with a file path inside it as the example; it printed a raw `EISDIR: illegal operation on a directory` with no hint. (#149)
+
 ## [0.9.1] - 2026-09-15
 
 ### Fixed
