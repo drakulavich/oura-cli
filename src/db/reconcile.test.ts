@@ -26,21 +26,33 @@ function anyRange(c: AnyCollection): Record<string, string> {
 }
 
 /** What `sync` does for one collection: plan, insert, delete — all in one transaction. */
-function syncPieces(db: Database, c: AnyCollection, rowsPerPiece: unknown[][], options: PlanOptions = {}): { added: number; removed: number; refused: number; bypassed: number } {
+function syncPieces(
+  db: Database,
+  c: AnyCollection,
+  rowsPerPiece: unknown[][],
+  options: PlanOptions = {},
+): { added: number; removed: number; refused: number; bypassed: number } {
   const stmt = db.query(insertSql(c));
-  const pieces = rowsPerPiece.map(rows => ({ query: anyRange(c), rows }));
+  const pieces = rowsPerPiece.map((rows) => ({ query: anyRange(c), rows }));
   const plan = planWindow(db, c, pieces, options);
   for (const row of rowsPerPiece.flat()) stmt.run(...rowValues(c, row));
   return { added: plan.added, removed: applyWindowPlan(db, c, plan), refused: plan.refused, bypassed: plan.bypassed };
 }
 
 /** The common case: a range small enough to need one request. */
-function syncWindow(db: Database, c: AnyCollection, rows: unknown[], options: PlanOptions = {}): { added: number; removed: number; refused: number; bypassed: number } {
+function syncWindow(
+  db: Database,
+  c: AnyCollection,
+  rows: unknown[],
+  options: PlanOptions = {},
+): { added: number; removed: number; refused: number; bypassed: number } {
   return syncPieces(db, c, [rows], options);
 }
 
 const sample = (minute: number, source: string) => ({
-  timestamp: `2026-09-01T10:${String(minute).padStart(2, '0')}:00+00:00`, bpm: 60 + minute, source,
+  timestamp: `2026-09-01T10:${String(minute).padStart(2, '0')}:00+00:00`,
+  bpm: 60 + minute,
+  source,
 });
 
 describe('identityColumns', () => {
@@ -66,9 +78,12 @@ describe('a heart-rate sample Oura reclassifies', () => {
 
     const result = syncWindow(db, hr, [sample(0, 'workout'), sample(1, 'awake'), sample(2, 'rest')]);
 
-    const rows = db.query('SELECT timestamp, source FROM heartrate ORDER BY timestamp').all() as Array<{ timestamp: string; source: string }>;
+    const rows = db.query('SELECT timestamp, source FROM heartrate ORDER BY timestamp').all() as Array<{
+      timestamp: string;
+      source: string;
+    }>;
     db.close();
-    expect(rows.map(r => r.source)).toEqual(['workout', 'awake', 'rest']);
+    expect(rows.map((r) => r.source)).toEqual(['workout', 'awake', 'rest']);
     expect(result).toEqual({ added: 1, removed: 1, refused: 0, bypassed: 0 });
   });
 
@@ -79,9 +94,11 @@ describe('a heart-rate sample Oura reclassifies', () => {
     // A later run whose response covers only the middle of the stored range.
     const result = syncWindow(db, hr, [sample(5, 'workout')]);
 
-    const rows = db.query('SELECT timestamp, source FROM heartrate ORDER BY timestamp').all() as Array<{ source: string }>;
+    const rows = db.query('SELECT timestamp, source FROM heartrate ORDER BY timestamp').all() as Array<{
+      source: string;
+    }>;
     db.close();
-    expect(rows.map(r => r.source)).toEqual(['awake', 'workout', 'awake']);
+    expect(rows.map((r) => r.source)).toEqual(['awake', 'workout', 'awake']);
     expect(result.removed).toBe(1);
   });
 
@@ -100,8 +117,18 @@ describe('a heart-rate sample Oura reclassifies', () => {
 });
 
 describe('a day whose records are re-issued under new ids', () => {
-  const workoutRow = (id: string, day: string) => ({ id, day, activity: 'walking', intensity: 'easy',
-    start_datetime: `${day}T08:00:00+00:00`, end_datetime: `${day}T09:00:00+00:00`, calories: 100, distance: 1000, label: null, source: 'manual' });
+  const workoutRow = (id: string, day: string) => ({
+    id,
+    day,
+    activity: 'walking',
+    intensity: 'easy',
+    start_datetime: `${day}T08:00:00+00:00`,
+    end_datetime: `${day}T09:00:00+00:00`,
+    calories: 100,
+    distance: 1000,
+    label: null,
+    source: 'manual',
+  });
 
   it('keeps only the records the API still has for that day', () => {
     // #71: workouts, sleep periods, sessions, rest-mode periods and tags key on id with a
@@ -111,7 +138,7 @@ describe('a day whose records are re-issued under new ids', () => {
 
     const result = syncWindow(db, workout, [workoutRow('w1', '2026-09-05'), workoutRow('w3', '2026-09-05')]);
 
-    const ids = (db.query('SELECT id FROM workouts ORDER BY id').all() as Array<{ id: string }>).map(r => r.id);
+    const ids = (db.query('SELECT id FROM workouts ORDER BY id').all() as Array<{ id: string }>).map((r) => r.id);
     db.close();
     expect(ids).toEqual(['w1', 'w3']);
     expect(result).toEqual({ added: 1, removed: 1, refused: 0, bypassed: 0 });
@@ -123,20 +150,31 @@ describe('a day whose records are re-issued under new ids', () => {
 
     syncWindow(db, workout, [workoutRow('w3', '2026-09-05')]);
 
-    const ids = (db.query('SELECT id FROM workouts ORDER BY id').all() as Array<{ id: string }>).map(r => r.id);
+    const ids = (db.query('SELECT id FROM workouts ORDER BY id').all() as Array<{ id: string }>).map((r) => r.id);
     db.close();
     expect(ids).toEqual(['w1', 'w3']); // 2026-09-04 untouched, 2026-09-05 replaced
   });
 
   it('is a no-op for a table with a unique day, where the insert already replaces', () => {
     const db = seeded();
-    const daily = (id: string) => ({ id, day: '2026-09-05', score: 80, timestamp: '2026-09-05T00:00:00+00:00',
-      contributors: {}, total_sleep_duration: null, deep_sleep_duration: null, rem_sleep_duration: null, average_hrv: null, lowest_heart_rate: null, efficiency: null });
+    const daily = (id: string) => ({
+      id,
+      day: '2026-09-05',
+      score: 80,
+      timestamp: '2026-09-05T00:00:00+00:00',
+      contributors: {},
+      total_sleep_duration: null,
+      deep_sleep_duration: null,
+      rem_sleep_duration: null,
+      average_hrv: null,
+      lowest_heart_rate: null,
+      efficiency: null,
+    });
     syncWindow(db, sleep, [daily('s1')]);
 
     const result = syncWindow(db, sleep, [daily('s2')]);
 
-    const ids = (db.query('SELECT id FROM daily_sleep').all() as Array<{ id: string }>).map(r => r.id);
+    const ids = (db.query('SELECT id FROM daily_sleep').all() as Array<{ id: string }>).map((r) => r.id);
     db.close();
     expect(ids).toEqual(['s2']);
     expect(result.removed).toBe(0); // the unique day made the insert replace it
@@ -156,7 +194,9 @@ describe('a range fetched in several pieces', () => {
 
     const result = syncPieces(db, hr, [early, [], late]);
 
-    const stored = (db.query('SELECT timestamp FROM heartrate ORDER BY timestamp').all() as Array<{ timestamp: string }>).length;
+    const stored = (
+      db.query('SELECT timestamp FROM heartrate ORDER BY timestamp').all() as Array<{ timestamp: string }>
+    ).length;
     db.close();
     expect(stored).toBe(6); // the middle piece described nothing, so it removed nothing
     expect(result).toEqual({ added: 0, removed: 0, refused: 0, bypassed: 0 });
@@ -168,7 +208,9 @@ describe('a range fetched in several pieces', () => {
 
     const result = syncPieces(db, hr, [[sample(0, 'workout')], []]);
 
-    const rows = (db.query('SELECT source FROM heartrate ORDER BY timestamp').all() as Array<{ source: string }>).map(r => r.source);
+    const rows = (db.query('SELECT source FROM heartrate ORDER BY timestamp').all() as Array<{ source: string }>).map(
+      (r) => r.source,
+    );
     db.close();
     expect(rows).toEqual(['workout', 'awake']);
     expect(result).toEqual({ added: 1, removed: 1, refused: 0, bypassed: 0 });
@@ -184,7 +226,8 @@ describe('a range fetched in several pieces', () => {
     // A pathological split: the first piece's scope brackets a sample only the second returned.
     const result = syncPieces(db, hr, [[sample(0, 'awake'), sample(9, 'awake')], [sample(5, 'awake')]]);
 
-    const kept = (db.query('SELECT timestamp FROM heartrate ORDER BY timestamp').all() as Array<{ timestamp: string }>).length;
+    const kept = (db.query('SELECT timestamp FROM heartrate ORDER BY timestamp').all() as Array<{ timestamp: string }>)
+      .length;
     db.close();
     expect(kept).toBe(3);
     expect(result).toEqual({ added: 0, removed: 0, refused: 0, bypassed: 0 });
@@ -194,7 +237,7 @@ describe('a range fetched in several pieces', () => {
     // Ten stored samples in one piece and two in another: dropping eight of the first piece is a
     // majority of that piece, even though it is a minority of everything fetched.
     const db = seeded();
-    const wide = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(m => sample(m, 'awake'));
+    const wide = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((m) => sample(m, 'awake'));
     const other = [sample(30, 'awake'), sample(31, 'awake')];
     syncPieces(db, hr, [wide, other]);
 
@@ -211,7 +254,11 @@ describe('a response that looks truncated', () => {
   it('refuses to delete most of the window and says so', () => {
     // The guard that keeps a rate-limited or partial page from emptying a day's samples.
     const db = seeded();
-    syncWindow(db, hr, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(m => sample(m, 'awake')));
+    syncWindow(
+      db,
+      hr,
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((m) => sample(m, 'awake')),
+    );
 
     const result = syncWindow(db, hr, [sample(0, 'awake'), sample(9, 'awake')]);
 
@@ -229,7 +276,7 @@ describe('a response that looks truncated', () => {
     const db = seeded();
     const twenty = Array.from({ length: 20 }, (_, m) => sample(m, 'awake'));
     syncWindow(db, hr, twenty);
-    const kept = [0, 3, 6, 9, 12, 15, 18, 19].map(m => sample(m, 'awake'));
+    const kept = [0, 3, 6, 9, 12, 15, 18, 19].map((m) => sample(m, 'awake'));
 
     expect(syncWindow(db, hr, kept)).toEqual({ added: 0, removed: 0, refused: 12, bypassed: 0 });
 
@@ -246,7 +293,11 @@ describe('a response that looks truncated', () => {
     // nothing. Otherwise one 200-with-[] during an outage would empty the table on a --prune run,
     // which is the worst case the guard exists for.
     const db = seeded();
-    syncWindow(db, hr, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(m => sample(m, 'awake')));
+    syncWindow(
+      db,
+      hr,
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((m) => sample(m, 'awake')),
+    );
 
     const result = syncWindow(db, hr, [], { prune: true });
 
@@ -260,13 +311,19 @@ describe('a response that looks truncated', () => {
     // A pruning run is still scoped by what the API answered: a day the response never covered
     // keeps its samples.
     const db = seeded();
-    syncWindow(db, hr, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(m => sample(m, 'awake')));
+    syncWindow(
+      db,
+      hr,
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((m) => sample(m, 'awake')),
+    );
     const elsewhere = { timestamp: '2026-08-01T10:00:00+00:00', bpm: 61, source: 'awake' };
     syncWindow(db, hr, [elsewhere]);
 
     syncWindow(db, hr, [sample(0, 'awake'), sample(9, 'awake')], { prune: true });
 
-    const days = (db.query("SELECT COUNT(*) AS n FROM heartrate WHERE timestamp LIKE '2026-08-01%'").get() as { n: number }).n;
+    const days = (
+      db.query("SELECT COUNT(*) AS n FROM heartrate WHERE timestamp LIKE '2026-08-01%'").get() as { n: number }
+    ).n;
     db.close();
     expect(days).toBe(1);
   });
@@ -276,12 +333,19 @@ describe('a response that looks truncated', () => {
     // the narrow one dropped four of ten and does not. Minutes 15-18 are stale in both. A verdict
     // taken while walking the pieces would be settled by whichever came first, so the same two
     // responses would delete or keep depending on order.
-    const wide = [sample(0, 'awake'), sample(19, 'awake')];                       // scope 00-19
-    const narrow = [10, 11, 12, 13, 14, 19].map(m => sample(m, 'awake'));         // scope 10-19
+    const wide = [sample(0, 'awake'), sample(19, 'awake')]; // scope 00-19
+    const narrow = [10, 11, 12, 13, 14, 19].map((m) => sample(m, 'awake')); // scope 10-19
 
-    const outcomes = [[wide, narrow], [narrow, wide]].map(order => {
+    const outcomes = [
+      [wide, narrow],
+      [narrow, wide],
+    ].map((order) => {
       const db = seeded();
-      syncWindow(db, hr, Array.from({ length: 20 }, (_, m) => sample(m, 'awake')));
+      syncWindow(
+        db,
+        hr,
+        Array.from({ length: 20 }, (_, m) => sample(m, 'awake')),
+      );
       const result = syncPieces(db, hr, order);
       const rows = (db.query('SELECT COUNT(*) AS n FROM heartrate').get() as { n: number }).n;
       db.close();
@@ -301,7 +365,7 @@ describe('a response that looks truncated', () => {
     const twenty = Array.from({ length: 20 }, (_, m) => sample(m, 'awake'));
     syncWindow(db, hr, twenty);
     // one row the cache does not hold yet, so arriving twice must still count as one new row
-    const kept = [0, 3, 6, 9, 12, 15, 18, 19, 25].map(m => sample(m, 'awake'));
+    const kept = [0, 3, 6, 9, 12, 15, 18, 19, 25].map((m) => sample(m, 'awake'));
 
     // the same answer delivered as two pieces whose returned bounds overlap
     const result = syncPieces(db, hr, [kept, kept], { prune: true });
@@ -331,10 +395,15 @@ describe('a piece vouches only for the range its request asked for (#111)', () =
   // stored sample between them. 60 stored, one stray: 59 refused, with the log naming the flag that
   // would delete them.
   const at = (day: string, minute: number) => ({
-    timestamp: `2026-03-${day}T10:${String(minute).padStart(2, '0')}:00+00:00`, bpm: 60, source: 'awake',
+    timestamp: `2026-03-${day}T10:${String(minute).padStart(2, '0')}:00+00:00`,
+    bpm: 60,
+    source: 'awake',
   });
   const dayOf = (day: string) => Array.from({ length: 15 }, (_, i) => at(day, i));
-  const request = (day: string) => ({ start_datetime: `2026-03-${day}T00:00:00.000Z`, end_datetime: `2026-03-${day}T23:59:59.999Z` });
+  const request = (day: string) => ({
+    start_datetime: `2026-03-${day}T00:00:00.000Z`,
+    end_datetime: `2026-03-${day}T23:59:59.999Z`,
+  });
   function withFourDays(): Database {
     const db = seeded();
     syncWindow(db, hr, [...dayOf('01'), ...dayOf('02'), ...dayOf('03'), ...dayOf('04')]);
@@ -346,16 +415,18 @@ describe('a piece vouches only for the range its request asked for (#111)', () =
     const stray = { timestamp: '2026-01-01T00:00:00+00:00', bpm: 1, source: 'awake' };
     const plan = planWindow(db, hr, [{ query: request('04'), rows: [...dayOf('04'), stray] }]);
     db.close();
-    expect(plan.stale).toEqual([]);   // the 45 samples of 03-01..03 were never in scope
+    expect(plan.stale).toEqual([]); // the 45 samples of 03-01..03 were never in scope
     expect(plan.refused).toBe(0);
-    expect(plan.added).toBe(1);       // the stray is still new, and still gets inserted
+    expect(plan.added).toBe(1); // the stray is still new, and still gets inserted
   });
 
   it('keeps an empty-string or unparsable timestamp out of the scope', () => {
     const db = withFourDays();
     // Two real samples bound the scope (a single one covers only itself); the empty string must not
     // stretch it downwards over the three earlier days.
-    const plan = planWindow(db, hr, [{ query: request('04'), rows: [{ timestamp: '', bpm: 1, source: 'awake' }, at('04', 0), at('04', 14)] }]);
+    const plan = planWindow(db, hr, [
+      { query: request('04'), rows: [{ timestamp: '', bpm: 1, source: 'awake' }, at('04', 0), at('04', 14)] },
+    ]);
     db.close();
     // Only 10:00..10:14 of 03-04 is in scope: the 13 unreturned samples between them look like a
     // truncated answer (13 of 15), so they are refused, and nothing from the other days is touched.
@@ -384,13 +455,24 @@ describe('a piece vouches only for the range its request asked for (#111)', () =
     expect(plan.refused).toBe(0);
   });
 
-  it('does not let a stray day in a date piece reach that day\'s stored siblings', () => {
+  it("does not let a stray day in a date piece reach that day's stored siblings", () => {
     // Day-scoped collections clip too: a workout returned for a day outside the request must not put
     // that day's other stored workouts up for deletion.
-    const w = (id: string, day: string) => ({ id, day, start_datetime: `${day}T08:00:00+00:00`, end_datetime: `${day}T09:00:00+00:00`, calories: 100, distance: 1000, label: null, source: 'manual' });
+    const w = (id: string, day: string) => ({
+      id,
+      day,
+      start_datetime: `${day}T08:00:00+00:00`,
+      end_datetime: `${day}T09:00:00+00:00`,
+      calories: 100,
+      distance: 1000,
+      label: null,
+      source: 'manual',
+    });
     const db = seeded();
     syncWindow(db, workout, [w('w1', '2026-02-01'), w('w2', '2026-02-01'), w('w3', '2026-02-01')]);
-    const plan = planWindow(db, workout, [{ query: { start_date: '2026-03-04', end_date: '2026-03-05' }, rows: [w('w-stray', '2026-02-01')] }]);
+    const plan = planWindow(db, workout, [
+      { query: { start_date: '2026-03-04', end_date: '2026-03-05' }, rows: [w('w-stray', '2026-02-01')] },
+    ]);
     db.close();
     expect(plan.stale).toEqual([]);
   });

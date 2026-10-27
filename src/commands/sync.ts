@@ -13,13 +13,17 @@ export function resolveWindow(opts: { from?: string; to?: string }, today: strin
   if (opts.to !== undefined && opts.from === undefined) throw new CliError('BAD_ARGS', '--to requires --from.');
   const from = opts.from === undefined ? undefined : assertCalendarDate(opts.from, '--from');
   const to = opts.to === undefined ? undefined : assertCalendarDate(opts.to, '--to');
-  if (from !== undefined && to !== undefined && from > to) throw new CliError('BAD_ARGS', `--from (${from}) must not be after --to (${to}).`);
+  if (from !== undefined && to !== undefined && from > to)
+    throw new CliError('BAD_ARGS', `--from (${from}) must not be after --to (${to}).`);
   // Without --to the window ends today. An explicit --from past it is a mistake worth naming:
   // the sync would otherwise be clamped to today and quietly fetch a window nobody asked for.
   const end = to ?? today;
   if (from !== undefined && from > end) {
-    throw new CliError('BAD_ARGS', `--from (${from}) is after the end of the window (${end}).`,
-      'Pass --to as well to sync a window that ends in the future.');
+    throw new CliError(
+      'BAD_ARGS',
+      `--from (${from}) is after the end of the window (${end}).`,
+      'Pass --to as well to sync a window that ends in the future.',
+    );
   }
   return { from, to };
 }
@@ -46,20 +50,32 @@ export const PRUNE_ALL = 'all';
 export function resolvePruneScope(value: unknown): SyncOptions['prune'] {
   if (value === undefined || value === false) return undefined;
   const raw = value === true ? '' : String(value);
-  const wanted = raw.split(',').map(s => s.trim()).filter(s => s !== '');
-  if (wanted.length === 0 || wanted.some(n => n.startsWith('-'))) {
-    throw new CliError('BAD_ARGS', '--prune needs a value naming what to prune.',
-      `Use --prune=<collection> (for example --prune=hr), a comma-separated list, or --prune=${PRUNE_ALL} for every collection.`);
+  const wanted = raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s !== '');
+  if (wanted.length === 0 || wanted.some((n) => n.startsWith('-'))) {
+    throw new CliError(
+      'BAD_ARGS',
+      '--prune needs a value naming what to prune.',
+      `Use --prune=<collection> (for example --prune=hr), a comma-separated list, or --prune=${PRUNE_ALL} for every collection.`,
+    );
   }
   if (wanted.includes(PRUNE_ALL)) {
     if (wanted.length === 1) return PRUNE_ALL;
-    throw new CliError('BAD_ARGS', `--prune=${PRUNE_ALL} cannot be combined with collection names.`,
-      `Use --prune=${PRUNE_ALL} on its own, or list the collections you mean.`);
+    throw new CliError(
+      'BAD_ARGS',
+      `--prune=${PRUNE_ALL} cannot be combined with collection names.`,
+      `Use --prune=${PRUNE_ALL} on its own, or list the collections you mean.`,
+    );
   }
-  const unknown = wanted.filter(n => byName(n) === undefined);
+  const unknown = wanted.filter((n) => byName(n) === undefined);
   if (unknown.length > 0) {
-    throw new CliError('BAD_ARGS', `--prune: unknown collection${unknown.length > 1 ? 's' : ''}: ${unknown.join(', ')}.`,
-      `Known collections: ${names().join(', ')}.`);
+    throw new CliError(
+      'BAD_ARGS',
+      `--prune: unknown collection${unknown.length > 1 ? 's' : ''}: ${unknown.join(', ')}.`,
+      `Known collections: ${names().join(', ')}.`,
+    );
   }
   return [...new Set(wanted)];
 }
@@ -74,13 +90,14 @@ export async function runSync(ctx: Ctx, window: SyncWindow = {}, options: SyncOp
   const today = getDaySummary(ctx.db!, ctx.today, dayCompleteness(ctx.db!, ctx.today));
   return {
     json: { import: importResult, today },
-    text: () => [...lines, formatImportSummary(importResult), formatDaySummary(today, 'table', TODAY_HINT_AFTER_SYNC)].join('\n'),
+    text: () =>
+      [...lines, formatImportSummary(importResult), formatDaySummary(today, 'table', TODAY_HINT_AFTER_SYNC)].join('\n'),
   };
 }
 
 const syncArgs = {
-  from:  { type: 'string', description: 'Re-fetch every collection from this day (YYYY-MM-DD)' },
-  to:    { type: 'string', description: 'Window end (YYYY-MM-DD, default today); needs --from' },
+  from: { type: 'string', description: 'Re-fetch every collection from this day (YYYY-MM-DD)' },
+  to: { type: 'string', description: 'Window end (YYYY-MM-DD, default today); needs --from' },
   prune: { type: 'string', description: 'Apply removals sync held back: hr, a list, or all' },
 } as const satisfies ArgsDef;
 
@@ -93,11 +110,12 @@ export const syncDef: DataCommandDef<typeof syncArgs> = {
     resolveWindow({ from: args.from as string | undefined, to: args.to as string | undefined }, ctx.today);
     resolvePruneScope(args.prune);
   },
-  run: (ctx, args) => runSync(
-    ctx,
-    resolveWindow({ from: args.from as string | undefined, to: args.to as string | undefined }, ctx.today),
-    { prune: resolvePruneScope(args.prune) },
-  ),
+  run: (ctx, args) =>
+    runSync(
+      ctx,
+      resolveWindow({ from: args.from as string | undefined, to: args.to as string | undefined }, ctx.today),
+      { prune: resolvePruneScope(args.prune) },
+    ),
 };
 
 export const syncCommand = dataCommand(syncDef);

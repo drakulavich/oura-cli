@@ -6,8 +6,8 @@ on:
   pull_request:
 
 permissions:
-  contents: read   # required for actions/checkout
-  id-token: write  # required for GitHub OIDC → flakiness.io
+  contents: read # required for actions/checkout
+  id-token: write # required for GitHub OIDC → flakiness.io
 
 jobs:
   test:

@@ -16,7 +16,10 @@ describe('resolveRange', () => {
     expect(resolveRange({ day: '2026-06-01', today: T })).toEqual({ start: '2026-06-01', end: '2026-06-01' });
   });
   it('accepts --from/--to', () => {
-    expect(resolveRange({ from: '2026-06-01', to: '2026-06-07', today: T })).toEqual({ start: '2026-06-01', end: '2026-06-07' });
+    expect(resolveRange({ from: '2026-06-01', to: '2026-06-07', today: T })).toEqual({
+      start: '2026-06-01',
+      end: '2026-06-07',
+    });
   });
   it('accepts --days N as the last N days ending today', () => {
     expect(resolveRange({ days: '7', today: T })).toEqual({ start: '2026-06-09', end: T });
@@ -33,7 +36,11 @@ describe('resolveRange', () => {
     [{ days: 'x' }],
   ])('rejects %j with BAD_ARGS', (opts) => {
     expect(() => resolveRange({ ...opts, today: T })).toThrow(CliError);
-    try { resolveRange({ ...opts, today: T }); } catch (e) { expect((e as CliError).code).toBe('BAD_ARGS'); }
+    try {
+      resolveRange({ ...opts, today: T });
+    } catch (e) {
+      expect((e as CliError).code).toBe('BAD_ARGS');
+    }
   });
 });
 
@@ -43,7 +50,11 @@ describe('assertRangeAllowed', () => {
     expect(() => assertRangeAllowed(ring, {})).not.toThrow();
     for (const opts of [{ day: '2026-06-15' }, { from: '2026-06-01', to: '2026-06-15' }, { days: '7' }]) {
       let err: unknown;
-      try { assertRangeAllowed(ring, opts); } catch (e) { err = e; }
+      try {
+        assertRangeAllowed(ring, opts);
+      } catch (e) {
+        err = e;
+      }
       expect((err as CliError).code).toBe('BAD_ARGS');
     }
   });
@@ -63,10 +74,20 @@ describe('the progress line of a fetch split into range pieces (#129)', () => {
     const realFetch = globalThis.fetch;
     globalThis.fetch = (async (url: unknown) => {
       const second = new URL(String(url)).searchParams.has('next_token');
-      return new Response(JSON.stringify({ data: second ? [{}] : [{}, {}], next_token: second ? null : 'next' }), { status: 200 });
+      return new Response(JSON.stringify({ data: second ? [{}] : [{}, {}], next_token: second ? null : 'next' }), {
+        status: 200,
+      });
     }) as unknown as typeof globalThis.fetch;
     const chunks: string[] = [];
-    const progress = pageProgress({ write: c => { chunks.push(c); } }, 'fetching', collectionOf);
+    const progress = pageProgress(
+      {
+        write: (c) => {
+          chunks.push(c);
+        },
+      },
+      'fetching',
+      collectionOf,
+    );
     const client = new OuraClient({ token: 'test-token', onPage: progress.onPage, onRetry: progress.onRetry });
     try {
       await fetchCollection(client, byName('hr')!, '2026-04-16', '2026-06-15', 'UTC');

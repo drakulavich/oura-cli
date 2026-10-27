@@ -15,7 +15,11 @@ import { CliError } from './errors.js';
  */
 export function requireValue(value: string, source: string, fallback: string): string {
   if (value.trim() === '') {
-    throw new CliError('BAD_ARGS', `${source} has no value`, `Pass a value, or remove ${source} to fall back to ${fallback}.`);
+    throw new CliError(
+      'BAD_ARGS',
+      `${source} has no value`,
+      `Pass a value, or remove ${source} to fall back to ${fallback}.`,
+    );
   }
   return value;
 }

@@ -12,9 +12,8 @@ import { commandTokens, fromCittyError, type ParentCommands } from './lib/citty-
 import { emitError, exitCodeFor } from './lib/errors.js';
 import { formatFromArgv } from './lib/format-resolve.js';
 
-const VERSION = (JSON.parse(
-  readFileSync(new URL('../package.json', import.meta.url), 'utf-8'),
-) as { version: string }).version;
+const VERSION = (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')) as { version: string })
+  .version;
 
 const subCommands = buildRegistry(VERSION);
 
@@ -26,14 +25,21 @@ const PARENT_COMMANDS: ParentCommands = Object.fromEntries(
   }),
 );
 
-const FETCH_HINT = 'The per-collection commands were replaced in 0.5.0 by `oura-cli fetch <collection>`, e.g. `oura-cli fetch sleep --day 2026-09-01`. Run `oura-cli fetch --help`.';
+const FETCH_HINT =
+  'The per-collection commands were replaced in 0.5.0 by `oura-cli fetch <collection>`, e.g. `oura-cli fetch sleep --day 2026-09-01`. Run `oura-cli fetch --help`.';
 
 /** Commands removed in 0.5.0 and where their job went; shown when someone still types them. */
 const REMOVED_COMMANDS: Readonly<Record<string, string>> = {
-  reset: '`db reset` was removed in 0.5.0; delete the database file (`--db` / OURA_DB_PATH) and run `oura-cli sync` to rebuild it.',
+  reset:
+    '`db reset` was removed in 0.5.0; delete the database file (`--db` / OURA_DB_PATH) and run `oura-cli sync` to rebuild it.',
   import: '`db import` was removed in 0.5.0; `oura-cli sync` downloads and stores everything.',
-  sleep: FETCH_HINT, readiness: FETCH_HINT, activity: FETCH_HINT, hr: FETCH_HINT,
-  spo2: FETCH_HINT, stress: FETCH_HINT, workout: FETCH_HINT,
+  sleep: FETCH_HINT,
+  readiness: FETCH_HINT,
+  activity: FETCH_HINT,
+  hr: FETCH_HINT,
+  spo2: FETCH_HINT,
+  stress: FETCH_HINT,
+  workout: FETCH_HINT,
 };
 
 /**
@@ -59,8 +65,9 @@ const rawArgs = normalizeArgv(process.argv).slice(2);
 // wants the envelope, not usage text.
 const commands = commandTokens(rawArgs);
 const bareParent = commands.length === 1 && Object.hasOwn(PARENT_COMMANDS, commands[0]!);
-const wantsHelp = rawArgs.some(a => a === '--help' || a === '-h')
-  || ((commands.length === 0 || bareParent) && process.stdout.isTTY === true);
+const wantsHelp =
+  rawArgs.some((a) => a === '--help' || a === '-h') ||
+  ((commands.length === 0 || bareParent) && process.stdout.isTTY === true);
 
 /** Spaces at the end of a line, before any colour codes that close it. */
 const TRAILING_SPACE = new RegExp(`\\s+((?:${String.fromCharCode(27)}\\[[0-9;]*m)*)$`);
@@ -71,10 +78,14 @@ const TRAILING_SPACE = new RegExp(`\\s+((?:${String.fromCharCode(27)}\\[[0-9;]*m
  * after its immediate parent only.
  */
 async function showUsage<T extends ArgsDef = ArgsDef>(cmd: CommandDef<T>, parent?: CommandDef<T>): Promise<void> {
-  const named = parent !== undefined && (parent as unknown) !== main
-    ? ({ meta: { name: `oura-cli ${(parent.meta as CommandMeta).name}`, version: VERSION } } as CommandDef<T>)
-    : parent;
-  const usage = (await renderUsage(cmd, named)).split('\n').map(l => l.replace(TRAILING_SPACE, '$1')).join('\n');
+  const named =
+    parent !== undefined && (parent as unknown) !== main
+      ? ({ meta: { name: `oura-cli ${(parent.meta as CommandMeta).name}`, version: VERSION } } as CommandDef<T>)
+      : parent;
+  const usage = (await renderUsage(cmd, named))
+    .split('\n')
+    .map((l) => l.replace(TRAILING_SPACE, '$1'))
+    .join('\n');
   console.log(`${usage}\n`);
 }
 

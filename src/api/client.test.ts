@@ -8,11 +8,14 @@ const realFetch = globalThis.fetch;
 
 function mockFetch(response: { status: number; body: string }) {
   globalThis.fetch = (async () =>
-    new Response(response.body, { status: response.status, statusText: 'mocked' })) as unknown as typeof globalThis.fetch;
+    new Response(response.body, {
+      status: response.status,
+      statusText: 'mocked',
+    })) as unknown as typeof globalThis.fetch;
 }
 
 function captureRequestHeaders(): Promise<Headers> {
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     globalThis.fetch = (async (_url: unknown, init: RequestInit) => {
       resolve(new Headers(init.headers as HeadersInit));
       return new Response('{"data":[]}', { status: 200 });
@@ -41,8 +44,12 @@ describe('OuraClient', () => {
     });
 
     describe('when OURA_TOKEN env is set', () => {
-      beforeEach(() => { process.env.OURA_TOKEN = 'env-token-xyz'; });
-      afterEach(() => { delete process.env.OURA_TOKEN; });
+      beforeEach(() => {
+        process.env.OURA_TOKEN = 'env-token-xyz';
+      });
+      afterEach(() => {
+        delete process.env.OURA_TOKEN;
+      });
 
       it('reads the token from the environment and sends it in the Authorization header', async () => {
         const headerPromise = captureRequestHeaders();
@@ -54,7 +61,9 @@ describe('OuraClient', () => {
     });
 
     describe('when neither inline nor env, but a token file exists', () => {
-      afterEach(() => { delete process.env.OURA_TOKEN; });
+      afterEach(() => {
+        delete process.env.OURA_TOKEN;
+      });
 
       it('reads the token from the configured file path', async () => {
         // Write a temp token file and point the client at it
@@ -83,13 +92,16 @@ describe('OuraClient', () => {
       it('names a token file under the home directory with ~, as doctor does (#146)', () => {
         const dir = `oura-cli-no-such-dir-${process.pid}`;
         let err: unknown;
-        try { new OuraClient({ tokenPath: join(homedir(), dir, '.oura-token') }); } catch (e) { err = e; }
+        try {
+          new OuraClient({ tokenPath: join(homedir(), dir, '.oura-token') });
+        } catch (e) {
+          err = e;
+        }
         expect((err as CliError).message).toBe(`No Oura access token at ~/${dir}/.oura-token.`);
       });
 
       it('throws CliError with code TOKEN_MISSING and a hint to run login', () => {
-        expect(() => new OuraClient({ tokenPath: '/nonexistent/path/.oura-token' }))
-          .toThrow(/No Oura access token/);
+        expect(() => new OuraClient({ tokenPath: '/nonexistent/path/.oura-token' })).toThrow(/No Oura access token/);
         try {
           new OuraClient({ tokenPath: '/nonexistent/path/.oura-token' });
         } catch (e) {
@@ -103,13 +115,22 @@ describe('OuraClient', () => {
 
   describe('token hygiene', () => {
     const path = `/tmp/oura-token-multiline-${process.pid}`;
-    afterEach(async () => { delete process.env.OURA_TOKEN; try { await Bun.file(path).delete(); } catch {} });
+    afterEach(async () => {
+      delete process.env.OURA_TOKEN;
+      try {
+        await Bun.file(path).delete();
+      } catch {}
+    });
 
     it('rejects a token file with a second line as TOKEN_INVALID without quoting the token', async () => {
       await Bun.write(path, 'FAKETOKEN123456789\nnote to self\n');
       delete process.env.OURA_TOKEN;
       let err: unknown;
-      try { new OuraClient({ tokenPath: path }); } catch (e) { err = e; }
+      try {
+        new OuraClient({ tokenPath: path });
+      } catch (e) {
+        err = e;
+      }
       expect(err).toBeInstanceOf(CliError);
       expect((err as CliError).code).toBe('TOKEN_INVALID');
       expect((err as CliError).message).not.toContain('FAKETOKEN123456789');
@@ -122,7 +143,9 @@ describe('OuraClient', () => {
   });
 
   describe('error handling on API responses', () => {
-    beforeEach(() => { process.env.OURA_TOKEN = 'test-token'; });
+    beforeEach(() => {
+      process.env.OURA_TOKEN = 'test-token';
+    });
     afterEach(() => {
       globalThis.fetch = realFetch;
       delete process.env.OURA_TOKEN;
@@ -133,7 +156,7 @@ describe('OuraClient', () => {
         mockFetch({ status: 401, body: '{"detail":"Invalid token"}' });
         // README's recovery table says `login`; the error must say so too, like TOKEN_MISSING does.
         const client = new OuraClient();
-        const err = await client.fetch('daily_sleep', { start_date: '2026-05-10' }).catch(e => e);
+        const err = await client.fetch('daily_sleep', { start_date: '2026-05-10' }).catch((e) => e);
         expect(err).toBeInstanceOf(CliError);
         expect((err as CliError).code).toBe('TOKEN_INVALID');
         expect((err as CliError).hint).toContain('oura-cli login');
@@ -144,7 +167,7 @@ describe('OuraClient', () => {
       it('classifies the response as TOKEN_INVALID so the user knows their token lacks permissions', async () => {
         mockFetch({ status: 403, body: 'forbidden' });
         const client = new OuraClient();
-        const err = await client.fetch('daily_sleep', { start_date: '2026-05-10' }).catch(e => e);
+        const err = await client.fetch('daily_sleep', { start_date: '2026-05-10' }).catch((e) => e);
         expect(err).toBeInstanceOf(CliError);
         expect((err as CliError).code).toBe('TOKEN_INVALID');
       });
@@ -154,7 +177,7 @@ describe('OuraClient', () => {
       it('throws API_ERROR with a retry hint once the retries are spent', async () => {
         mockFetch({ status: 429, body: 'rate limited' });
         const client = new OuraClient({ sleep: async () => {} }); // the retries (#45) would otherwise wait 7 s here
-        const err = await client.fetch('daily_sleep', { start_date: '2026-05-10' }).catch(e => e);
+        const err = await client.fetch('daily_sleep', { start_date: '2026-05-10' }).catch((e) => e);
         expect(err).toBeInstanceOf(CliError);
         expect((err as CliError).code).toBe('API_ERROR');
         expect((err as CliError).hint).toContain('Rate limited');
@@ -165,7 +188,7 @@ describe('OuraClient', () => {
       it('throws API_ERROR so the caller knows the fault is upstream', async () => {
         mockFetch({ status: 500, body: 'oops' });
         const client = new OuraClient();
-        const err = await client.fetch('daily_sleep', { start_date: '2026-05-10' }).catch(e => e);
+        const err = await client.fetch('daily_sleep', { start_date: '2026-05-10' }).catch((e) => e);
         expect(err).toBeInstanceOf(CliError);
         expect((err as CliError).code).toBe('API_ERROR');
       });
@@ -175,7 +198,7 @@ describe('OuraClient', () => {
       it('throws API_ERROR with a clear message when the API returns an empty body on a 200 response', async () => {
         mockFetch({ status: 200, body: '' });
         const client = new OuraClient();
-        const err = await client.fetch('daily_sleep', { start_date: '2026-05-10' }).catch(e => e);
+        const err = await client.fetch('daily_sleep', { start_date: '2026-05-10' }).catch((e) => e);
         expect(err).toBeInstanceOf(CliError);
         expect((err as CliError).code).toBe('API_ERROR');
         expect((err as CliError).message).toContain('Empty response body');
@@ -186,7 +209,7 @@ describe('OuraClient', () => {
       it('removes Bearer tokens from error messages so secrets do not leak to logs', async () => {
         mockFetch({ status: 500, body: 'leaked Bearer abc123def456ghi789' });
         const client = new OuraClient();
-        const err = await client.fetch('daily_sleep', { start_date: '2026-05-10' }).catch(e => e);
+        const err = await client.fetch('daily_sleep', { start_date: '2026-05-10' }).catch((e) => e);
         expect(err).toBeInstanceOf(CliError);
         expect((err as CliError).message).not.toContain('abc123def456ghi789');
         expect((err as CliError).message).toContain('[REDACTED]');
@@ -195,7 +218,7 @@ describe('OuraClient', () => {
       it('truncates very long error bodies so terminal output stays readable', async () => {
         mockFetch({ status: 500, body: 'x'.repeat(500) });
         const client = new OuraClient();
-        const err = await client.fetch('daily_sleep', { start_date: '2026-05-10' }).catch(e => e);
+        const err = await client.fetch('daily_sleep', { start_date: '2026-05-10' }).catch((e) => e);
         expect(err).toBeInstanceOf(CliError);
         expect((err as CliError).message).toContain('truncated');
         expect((err as CliError).message.length).toBeLessThan(300);
@@ -204,7 +227,9 @@ describe('OuraClient', () => {
   });
 
   describe('pagination', () => {
-    beforeEach(() => { process.env.OURA_TOKEN = 'test-token'; });
+    beforeEach(() => {
+      process.env.OURA_TOKEN = 'test-token';
+    });
     afterEach(() => {
       globalThis.fetch = realFetch;
       delete process.env.OURA_TOKEN;
@@ -222,7 +247,10 @@ describe('OuraClient', () => {
 
     it('sends the query verbatim and returns the single page when next_token is null', async () => {
       const urls = mockPages([{ data: [{ id: 'a' }], next_token: null }]);
-      const rows = await new OuraClient().fetch('heartrate', { start_datetime: '2026-05-10T00:00:00Z', end_datetime: '2026-05-11T00:00:00Z' });
+      const rows = await new OuraClient().fetch('heartrate', {
+        start_datetime: '2026-05-10T00:00:00Z',
+        end_datetime: '2026-05-11T00:00:00Z',
+      });
       expect(rows).toEqual([{ id: 'a' }]);
       expect(urls).toHaveLength(1);
       const q = new URL(urls[0]!).searchParams;
@@ -240,15 +268,18 @@ describe('OuraClient', () => {
       ]);
       const rows = await new OuraClient().fetch('daily_sleep', { start_date: '2026-05-01', end_date: '2026-05-31' });
       expect(rows).toEqual([1, 2, 3, 4]);
-      expect(urls.map(u => new URL(u).searchParams.get('next_token'))).toEqual([null, 'p2', 'p3']);
+      expect(urls.map((u) => new URL(u).searchParams.get('next_token'))).toEqual([null, 'p2', 'p3']);
       // the original range travels with every page
-      expect(urls.every(u => new URL(u).searchParams.get('start_date') === '2026-05-01')).toBe(true);
+      expect(urls.every((u) => new URL(u).searchParams.get('start_date') === '2026-05-01')).toBe(true);
     });
 
     it('stops with API_ERROR when the token stream never ends', async () => {
       let n = 0;
-      globalThis.fetch = (async () => new Response(JSON.stringify({ data: [], next_token: `t${n++}` }), { status: 200 })) as unknown as typeof globalThis.fetch;
-      const err = await new OuraClient().fetch('daily_sleep', { start_date: '2026-05-01' }).catch(e => e);
+      globalThis.fetch = (async () =>
+        new Response(JSON.stringify({ data: [], next_token: `t${n++}` }), {
+          status: 200,
+        })) as unknown as typeof globalThis.fetch;
+      const err = await new OuraClient().fetch('daily_sleep', { start_date: '2026-05-01' }).catch((e) => e);
       expect(err).toBeInstanceOf(CliError);
       expect((err as CliError).code).toBe('API_ERROR');
       expect((err as CliError).message).toContain('pages');
@@ -260,7 +291,7 @@ describe('OuraClient', () => {
         { data: [1], next_token: 'loop' },
         { data: [2], next_token: 'loop' },
       ]);
-      const err = await new OuraClient().fetch('daily_sleep', { start_date: '2026-05-01' }).catch(e => e);
+      const err = await new OuraClient().fetch('daily_sleep', { start_date: '2026-05-01' }).catch((e) => e);
       expect(err).toBeInstanceOf(CliError);
       expect((err as CliError).code).toBe('API_ERROR');
     });
@@ -271,18 +302,29 @@ describe('a malformed response body (#112)', () => {
   // `getPage` used to return `body.data ?? []` and let the caller iterate it. An object there exited
   // 1 as UNKNOWN with "{} is not iterable"; a string was iterated per character, and `sync` reported
   // four dropped heart-rate samples that never existed. Both are API faults and say so now.
-  beforeEach(() => { process.env.OURA_TOKEN = 'test-token'; });
-  afterEach(() => { globalThis.fetch = realFetch; delete process.env.OURA_TOKEN; });
+  beforeEach(() => {
+    process.env.OURA_TOKEN = 'test-token';
+  });
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+    delete process.env.OURA_TOKEN;
+  });
 
   async function failure(body: string): Promise<CliError> {
     mockFetch({ status: 200, body });
-    const outcome: unknown = await new OuraClient().fetch('heartrate', { start_datetime: 'x', end_datetime: 'y' }).catch(e => e);
+    const outcome: unknown = await new OuraClient()
+      .fetch('heartrate', { start_datetime: 'x', end_datetime: 'y' })
+      .catch((e) => e);
     if (!(outcome instanceof CliError)) throw new Error(`expected a CliError, got ${JSON.stringify(outcome)}`);
     return outcome;
   }
 
   it('rejects a string, an object, or a number under "data" as API_ERROR naming the endpoint', async () => {
-    for (const [body, kind] of [['{"data":"nope"}', 'a string'], ['{"data":{"a":1}}', 'an object'], ['{"data":5}', 'a number']] as const) {
+    for (const [body, kind] of [
+      ['{"data":"nope"}', 'a string'],
+      ['{"data":{"a":1}}', 'an object'],
+      ['{"data":5}', 'a number'],
+    ] as const) {
       const err = await failure(body);
       expect(err).toBeInstanceOf(CliError);
       expect(err.code).toBe('API_ERROR');
@@ -317,17 +359,27 @@ describe('a malformed response body (#112)', () => {
 });
 
 describe('rate limiting and progress (#45)', () => {
-  beforeEach(() => { process.env.OURA_TOKEN = 'test-token'; });
-  afterEach(() => { globalThis.fetch = realFetch; delete process.env.OURA_TOKEN; });
+  beforeEach(() => {
+    process.env.OURA_TOKEN = 'test-token';
+  });
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+    delete process.env.OURA_TOKEN;
+  });
 
   /** Serves `answers` in order (a 429 with optional Retry-After, or a 200 page) and records every URL. */
-  function serve(answers: Array<{ status: 429; retryAfter?: string } | { status: 200; data: unknown[]; next_token?: string | null }>): string[] {
+  function serve(
+    answers: Array<{ status: 429; retryAfter?: string } | { status: 200; data: unknown[]; next_token?: string | null }>,
+  ): string[] {
     const urls: string[] = [];
     globalThis.fetch = (async (url: unknown) => {
       urls.push(String(url));
       const a = answers[urls.length - 1] ?? { status: 200, data: [] };
       if (a.status === 429) {
-        return new Response('{"detail":"Too Many Requests"}', { status: 429, headers: a.retryAfter === undefined ? {} : { 'Retry-After': a.retryAfter } });
+        return new Response('{"detail":"Too Many Requests"}', {
+          status: 429,
+          headers: a.retryAfter === undefined ? {} : { 'Retry-After': a.retryAfter },
+        });
       }
       return new Response(JSON.stringify({ data: a.data, next_token: a.next_token ?? null }), { status: 200 });
     }) as unknown as typeof globalThis.fetch;
@@ -335,7 +387,12 @@ describe('rate limiting and progress (#45)', () => {
   }
   function recorder(): { waits: number[]; sleep: (ms: number) => Promise<void> } {
     const waits: number[] = [];
-    return { waits, sleep: async ms => { waits.push(ms); } };
+    return {
+      waits,
+      sleep: async (ms) => {
+        waits.push(ms);
+      },
+    };
   }
 
   it('retries the same page after a 429 and returns the rows the retry brings', async () => {
@@ -357,7 +414,7 @@ describe('rate limiting and progress (#45)', () => {
     const { waits, sleep } = recorder();
     const rows = await new OuraClient({ sleep }).fetch('daily_sleep', { start_date: '2026-05-01' });
     expect(rows).toEqual([1, 2]);
-    expect(urls.map(u => new URL(u).searchParams.get('next_token'))).toEqual([null, 'p2', 'p2']);
+    expect(urls.map((u) => new URL(u).searchParams.get('next_token'))).toEqual([null, 'p2', 'p2']);
     expect(waits).toEqual([3_000]);
   });
 
@@ -370,14 +427,26 @@ describe('rate limiting and progress (#45)', () => {
   });
 
   it('falls back to a doubling backoff without a usable Retry-After', () => {
-    expect([null, 'soon', 'Sun, 13 Sep 2026 09:00:00 GMT', '0', '-5'].map(h => retryDelayMs(h, 0, Date.parse('2026-09-13T10:00:00Z')))).toEqual([1_000, 1_000, 1_000, 1_000, 1_000]);
-    expect([0, 1, 2, 9].map(attempt => retryDelayMs(null, attempt))).toEqual([1_000, 2_000, 4_000, 4_000]);
+    expect(
+      [null, 'soon', 'Sun, 13 Sep 2026 09:00:00 GMT', '0', '-5'].map((h) =>
+        retryDelayMs(h, 0, Date.parse('2026-09-13T10:00:00Z')),
+      ),
+    ).toEqual([1_000, 1_000, 1_000, 1_000, 1_000]);
+    expect([0, 1, 2, 9].map((attempt) => retryDelayMs(null, attempt))).toEqual([1_000, 2_000, 4_000, 4_000]);
   });
 
   it('gives up after RETRY_LIMIT retries with an API_ERROR that says so', async () => {
-    const urls = serve([{ status: 429 }, { status: 429 }, { status: 429 }, { status: 429 }, { status: 200, data: [1] }]);
+    const urls = serve([
+      { status: 429 },
+      { status: 429 },
+      { status: 429 },
+      { status: 429 },
+      { status: 200, data: [1] },
+    ]);
     const { waits, sleep } = recorder();
-    const err = await new OuraClient({ sleep }).fetch('daily_sleep', { start_date: '2026-05-01' }).catch(e => e as unknown);
+    const err = await new OuraClient({ sleep })
+      .fetch('daily_sleep', { start_date: '2026-05-01' })
+      .catch((e) => e as unknown);
     expect(err).toBeInstanceOf(CliError);
     expect((err as CliError).code).toBe('API_ERROR');
     expect((err as CliError).message).toBe('Oura API 429: {"detail":"Too Many Requests"}');
@@ -389,7 +458,9 @@ describe('rate limiting and progress (#45)', () => {
   it('does not retry other failures, and still reads 401 as TOKEN_INVALID', async () => {
     mockFetch({ status: 500, body: 'boom' });
     const { waits, sleep } = recorder();
-    const err = await new OuraClient({ sleep }).fetch('daily_sleep', { start_date: '2026-05-01' }).catch(e => e as unknown);
+    const err = await new OuraClient({ sleep })
+      .fetch('daily_sleep', { start_date: '2026-05-01' })
+      .catch((e) => e as unknown);
     expect((err as CliError).code).toBe('API_ERROR');
     expect(waits).toEqual([]);
   });
@@ -402,16 +473,25 @@ describe('rate limiting and progress (#45)', () => {
       { status: 200, data: [3] },
     ]);
     const seen: Array<{ endpoint: string; rows: number; page: number }> = [];
-    const client = new OuraClient({ sleep: async () => {}, onPage: p => seen.push(p) });
+    const client = new OuraClient({ sleep: async () => {}, onPage: (p) => seen.push(p) });
     await client.fetch('heartrate', { start_datetime: 'a', end_datetime: 'b' });
     // A 429 is not a page; the retry that succeeds is.
-    expect(seen).toEqual([{ endpoint: 'heartrate', rows: 2, page: 1 }, { endpoint: 'heartrate', rows: 0, page: 2 }, { endpoint: 'heartrate', rows: 1, page: 3 }]);
+    expect(seen).toEqual([
+      { endpoint: 'heartrate', rows: 2, page: 1 },
+      { endpoint: 'heartrate', rows: 0, page: 2 },
+      { endpoint: 'heartrate', rows: 1, page: 3 },
+    ]);
   });
 });
 
 describe('the 429 wait is bounded per command, and transport faults are classified (pre-0.8.0 S2)', () => {
-  beforeEach(() => { process.env.OURA_TOKEN = 'test-token'; });
-  afterEach(() => { globalThis.fetch = realFetch; delete process.env.OURA_TOKEN; });
+  beforeEach(() => {
+    process.env.OURA_TOKEN = 'test-token';
+  });
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+    delete process.env.OURA_TOKEN;
+  });
 
   function always429(retryAfter: string): number[] {
     const calls: number[] = [];
@@ -426,22 +506,30 @@ describe('the 429 wait is bounded per command, and transport faults are classifi
     // Retry-After 60 s: one page may wait 3 × 60 s = 180 s = the whole budget. The next page gets no retry.
     const calls = always429('60');
     const waits: number[] = [];
-    const client = new OuraClient({ sleep: async ms => { waits.push(ms); } });
-    const first = await client.fetch('heartrate', { start_datetime: 'a', end_datetime: 'b' }).catch(e => e as CliError);
+    const client = new OuraClient({
+      sleep: async (ms) => {
+        waits.push(ms);
+      },
+    });
+    const first = await client
+      .fetch('heartrate', { start_datetime: 'a', end_datetime: 'b' })
+      .catch((e) => e as CliError);
     expect((first as CliError).hint).toContain('waited 180 s on 429 answers (the most it will is 180 s)');
     expect(waits).toEqual([60_000, 60_000, 60_000]);
-    const second = await client.fetch('heartrate', { start_datetime: 'c', end_datetime: 'd' }).catch(e => e as CliError);
+    const second = await client
+      .fetch('heartrate', { start_datetime: 'c', end_datetime: 'd' })
+      .catch((e) => e as CliError);
     expect((second as CliError).code).toBe('API_ERROR');
     expect((second as CliError).hint).toContain('retried 0 times');
-    expect(waits).toHaveLength(3);            // no further sleep
-    expect(calls).toHaveLength(4 + 1);        // 1 + 3 retries, then a single request for the second page
+    expect(waits).toHaveLength(3); // no further sleep
+    expect(calls).toHaveLength(4 + 1); // 1 + 3 retries, then a single request for the second page
     expect(MAX_TOTAL_WAIT_MS).toBe(180_000);
   });
 
   it('announces every wait through onRetry, with the endpoint, the wait and the attempt', async () => {
     always429('2');
     const seen: unknown[] = [];
-    const client = new OuraClient({ sleep: async () => {}, onRetry: r => seen.push(r) });
+    const client = new OuraClient({ sleep: async () => {}, onRetry: (r) => seen.push(r) });
     await client.fetch('daily_sleep', { start_date: '2026-05-01' }).catch(() => undefined);
     expect(seen).toEqual([
       { endpoint: 'daily_sleep', waitMs: 2_000, attempt: 0 },
@@ -462,7 +550,9 @@ describe('the 429 wait is bounded per command, and transport faults are classifi
   it('redacts the literal token from an error body even when it is not behind "Bearer"', async () => {
     process.env.OURA_TOKEN = 'pat-abcdefghijklmnop';
     mockFetch({ status: 429, body: 'denied for token=pat-abcdefghijklmnop&x=1' });
-    const err = await new OuraClient({ sleep: async () => {} }).fetch('daily_sleep', { start_date: '2026-05-01' }).catch(e => e as CliError);
+    const err = await new OuraClient({ sleep: async () => {} })
+      .fetch('daily_sleep', { start_date: '2026-05-01' })
+      .catch((e) => e as CliError);
     expect((err as CliError).message).toBe('Oura API 429: denied for token=[REDACTED]&x=1');
   });
 
@@ -472,7 +562,7 @@ describe('the 429 wait is bounded per command, and transport faults are classifi
       if (n++ === 0) return new Response(JSON.stringify({ data: [1], next_token: 'p2' }), { status: 200 });
       throw new TypeError('fetch failed');
     }) as unknown as typeof globalThis.fetch;
-    const err = await new OuraClient().fetch('daily_sleep', { start_date: '2026-05-01' }).catch(e => e as unknown);
+    const err = await new OuraClient().fetch('daily_sleep', { start_date: '2026-05-01' }).catch((e) => e as unknown);
     expect(err).toBeInstanceOf(CliError);
     expect((err as CliError).code).toBe('API_ERROR');
     expect((err as CliError).message).toBe('Could not reach the Oura API: fetch failed');

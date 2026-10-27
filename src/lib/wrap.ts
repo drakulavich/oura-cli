@@ -18,9 +18,15 @@ export function wrap(text: string, width: number | undefined, indent = '', first
   let prefix = first;
   let line = '';
   for (const word of words) {
-    if (line === '') { line = word; continue; }
+    if (line === '') {
+      line = word;
+      continue;
+    }
     const room = width === undefined ? Infinity : width - visibleWidth(prefix);
-    if (visibleWidth(line) + 1 + visibleWidth(word) <= room) { line += ` ${word}`; continue; }
+    if (visibleWidth(line) + 1 + visibleWidth(word) <= room) {
+      line += ` ${word}`;
+      continue;
+    }
     lines.push(prefix + line);
     prefix = indent;
     line = word;

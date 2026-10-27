@@ -8,10 +8,14 @@ export function formatLocal(utcStr: string, timezone: string): string {
   const dt = new Date(utcStr);
   const parts = new Intl.DateTimeFormat('sv-SE', {
     timeZone: timezone,
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
   }).formatToParts(dt);
-  const get = (type: string) => parts.find(p => p.type === type)?.value ?? '';
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
   return `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')}`;
 }
 
@@ -28,10 +32,13 @@ export function todayLocal(timezone: string): string {
 }
 
 function getTimezoneOffsetMs(utc: Date, tz: string): number {
-  const tzPart = new Intl.DateTimeFormat('en-US', {
-    timeZone: tz,
-    timeZoneName: 'longOffset',
-  }).formatToParts(utc).find(p => p.type === 'timeZoneName')?.value ?? 'GMT';
+  const tzPart =
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      timeZoneName: 'longOffset',
+    })
+      .formatToParts(utc)
+      .find((p) => p.type === 'timeZoneName')?.value ?? 'GMT';
   const m = tzPart.match(/GMT([+-])(\d{2}):(\d{2})/);
   if (!m) return 0;
   const sign = m[1] === '+' ? 1 : -1;

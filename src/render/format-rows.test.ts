@@ -10,7 +10,11 @@ const HINT = 'Run sync.';
 function withColor<T>(fn: () => T): T {
   const prev = chalk.level;
   chalk.level = 1;
-  try { return fn(); } finally { chalk.level = prev; }
+  try {
+    return fn();
+  } finally {
+    chalk.level = prev;
+  }
 }
 
 const battery = byName('battery')!;
@@ -25,13 +29,15 @@ describe('formatRows (#73)', () => {
   });
 
   it('lays out one column per stored column, numbers right-aligned and text left, with the rules at the body indent', () => {
-    const lines = stripAnsi(withColor(() => formatRows(battery, batteryRows, ' for 2026-09-01', 'table', HINT))).split('\n');
+    const lines = stripAnsi(withColor(() => formatRows(battery, batteryRows, ' for 2026-09-01', 'table', HINT))).split(
+      '\n',
+    );
     expect(lines[1]).toBe('  battery (ring_battery_level): 2 rows for 2026-09-01');
     expect(lines[3]).toBe('  timestamp                  level  charging  in_charger  day');
     expect(lines[5]).toBe('  2026-09-01T07:00:00+00:00    100         0           1  2026-09-01');
     expect(lines[6]).toBe('  2026-09-01T19:30:00+00:00      7         —           0  2026-09-01');
-    const rules = lines.filter(l => l.includes('─'));
-    const widest = Math.max(...lines.filter(l => !l.includes('─')).map(l => l.length));
+    const rules = lines.filter((l) => l.includes('─'));
+    const widest = Math.max(...lines.filter((l) => !l.includes('─')).map((l) => l.length));
     expect(rules).toHaveLength(2);
     expect(rules[0]).toBe(`  ${'─'.repeat(widest - 2)}`); // as wide as the widest line of the block, title included
     for (const l of lines) expect(l).toBe(l.trimEnd());
@@ -39,8 +45,18 @@ describe('formatRows (#73)', () => {
 
   it('cuts a long text cell at MAX_CELL in the table but not in the JSON', () => {
     const sleep = byName('sleep')!;
-    const blob = JSON.stringify({ deep_sleep: 90, efficiency: 88, latency: 70, rem_sleep: 80, restfulness: 60, timing: 95, total_sleep: 85 });
-    const rows: CachedRow[] = [{ id: 's1', day: '2026-09-01', score: 82, contributors: blob, timestamp: '2026-09-01T00:00:00+00:00' }];
+    const blob = JSON.stringify({
+      deep_sleep: 90,
+      efficiency: 88,
+      latency: 70,
+      rem_sleep: 80,
+      restfulness: 60,
+      timing: 95,
+      total_sleep: 85,
+    });
+    const rows: CachedRow[] = [
+      { id: 's1', day: '2026-09-01', score: 82, contributors: blob, timestamp: '2026-09-01T00:00:00+00:00' },
+    ];
     const table = stripAnsi(formatRows(sleep, rows, ' for 2026-09-01', 'table', HINT));
     expect(table).toContain(`${blob.slice(0, MAX_CELL - 1)}…`);
     expect(table).not.toContain(blob);
@@ -61,7 +77,18 @@ describe('formatRows (#73)', () => {
 
   it('keeps a newline or a tab in user text from breaking the row', () => {
     const tags = byName('tags')!;
-    const rows: CachedRow[] = [{ id: 't1', day: '2026-09-01', end_day: null, start_time: null, end_time: null, tag_type_code: null, comment: 'line one\nline\ttwo\r\nthree', custom_name: 'x' }];
+    const rows: CachedRow[] = [
+      {
+        id: 't1',
+        day: '2026-09-01',
+        end_day: null,
+        start_time: null,
+        end_time: null,
+        tag_type_code: null,
+        comment: 'line one\nline\ttwo\r\nthree',
+        custom_name: 'x',
+      },
+    ];
     const lines = stripAnsi(formatRows(tags, rows, '', 'table', HINT)).split('\n');
     expect(lines).toHaveLength(6); // blank, title, rule, header, rule, one row
     expect(lines[5]).toContain('line one⏎line two⏎three');
@@ -103,26 +130,41 @@ describe('formatRows (#73)', () => {
 
   it('uses the record layout for a wide collection on an 80-column screen, and keeps every column name whole', () => {
     const readiness = byName('readiness')!;
-    const row: CachedRow = Object.fromEntries(readiness.columns.map((k, i) => [k.name, k.type === 'TEXT' ? `v${i}` : i]));
+    const row: CachedRow = Object.fromEntries(
+      readiness.columns.map((k, i) => [k.name, k.type === 'TEXT' ? `v${i}` : i]),
+    );
     const out = stripAnsi(formatRows(readiness, [row], '', 'table', HINT, 80)).split('\n');
-    for (const k of readiness.columns) expect(out.some(l => l.startsWith(`  ${k.name} `)), k.name).toBe(true);
+    for (const k of readiness.columns)
+      expect(
+        out.some((l) => l.startsWith(`  ${k.name} `)),
+        k.name,
+      ).toBe(true);
     for (const l of out) expect(l.length, l).toBeLessThanOrEqual(80);
   });
 
   it('does not overflow the call stack on a year of heart rate in the block layout', () => {
     const hr = byName('hr')!;
-    const rows: CachedRow[] = Array.from({ length: 330_000 }, (_, i) => ({ bpm: 60 + (i % 40), source: 'awake', timestamp: `2026-01-01T00:00:${String(i % 60).padStart(2, '0')}+00:00`, day: '2026-01-01' }));
+    const rows: CachedRow[] = Array.from({ length: 330_000 }, (_, i) => ({
+      bpm: 60 + (i % 40),
+      source: 'awake',
+      timestamp: `2026-01-01T00:00:${String(i % 60).padStart(2, '0')}+00:00`,
+      day: '2026-01-01',
+    }));
     const out = formatRows(hr, rows, '', 'table', HINT, 30); // 30 columns: the headers alone do not fit, so blocks
     expect(out.split('\n').length).toBeGreaterThan(330_000 * 4);
     expect(formatRows(hr, rows, '', 'table', HINT, 80).split('\n')).toHaveLength(330_000 + 5);
   });
 
   it('says how many rows the range holds when --limit cut them', () => {
-    expect(stripAnsi(formatRows(battery, batteryRows.slice(0, 1), '', 'table', HINT, undefined, 625))).toContain('battery (ring_battery_level): 1 of 625 rows\n');
+    expect(stripAnsi(formatRows(battery, batteryRows.slice(0, 1), '', 'table', HINT, undefined, 625))).toContain(
+      'battery (ring_battery_level): 1 of 625 rows\n',
+    );
   });
 
   it('says "1 row" for one row', () => {
-    expect(stripAnsi(formatRows(battery, batteryRows.slice(0, 1), '', 'table', HINT))).toContain('battery (ring_battery_level): 1 row\n');
+    expect(stripAnsi(formatRows(battery, batteryRows.slice(0, 1), '', 'table', HINT))).toContain(
+      'battery (ring_battery_level): 1 row\n',
+    );
   });
 
   it('explains an empty result and carries the hint, with the scope it was asked for', () => {
@@ -140,9 +182,9 @@ describe('the empty-cache hint wraps at the screen width (#130)', () => {
   it('breaks the hint between words under the body indent, and leaves it whole on a pipe', () => {
     const narrow = stripAnsi(formatRows(byName('tags')!, [], ' for 2026-05-01', 'table', LONG, 50)).split('\n');
     for (const l of narrow) expect(l.length).toBeLessThanOrEqual(50);
-    expect(narrow.filter(l => l.trim() !== '').every(l => l.startsWith('  '))).toBe(true);
-    expect(narrow.map(l => l.trim()).join(' ')).toContain(LONG);
-    expect(narrow.some(l => l.includes('`sync --from <day>`'))).toBe(true); // a backticked command is never split
+    expect(narrow.filter((l) => l.trim() !== '').every((l) => l.startsWith('  '))).toBe(true);
+    expect(narrow.map((l) => l.trim()).join(' ')).toContain(LONG);
+    expect(narrow.some((l) => l.includes('`sync --from <day>`'))).toBe(true); // a backticked command is never split
 
     expect(stripAnsi(formatRows(byName('tags')!, [], '', 'table', LONG, undefined))).toContain(`  ${LONG}`);
   });

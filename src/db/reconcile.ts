@@ -83,15 +83,18 @@ function requestedRange(c: AnyCollection, query: Record<string, string>): (value
   if (c.rangeParams === 'datetime') {
     const from = Date.parse(query.start_datetime ?? '');
     const to = Date.parse(query.end_datetime ?? '');
-    return value => { const t = Date.parse(value); return t >= from && t <= to; }; // NaN fails both
+    return (value) => {
+      const t = Date.parse(value);
+      return t >= from && t <= to;
+    }; // NaN fails both
   }
   const from = query.start_date;
   const to = query.end_date;
-  return value => from !== undefined && to !== undefined && value >= from && value <= to;
+  return (value) => from !== undefined && to !== undefined && value >= from && value <= to;
 }
 
 function keyOf(values: readonly unknown[]): string {
-  return values.map(v => String(v)).join(KEY_SEPARATOR);
+  return values.map((v) => String(v)).join(KEY_SEPARATOR);
 }
 
 /**
@@ -103,51 +106,59 @@ function keyOf(values: readonly unknown[]): string {
  * Call before inserting; `applyWindowPlan` performs the deletes afterwards.
  */
 export function planWindow(
-  db: Database, c: AnyCollection, pieces: readonly Piece[], options: PlanOptions = {},
+  db: Database,
+  c: AnyCollection,
+  pieces: readonly Piece[],
+  options: PlanOptions = {},
 ): WindowPlan {
   const identity = identityColumns(c);
   if (identity.length === 0) return emptyPlan();
 
-  const pickOf = (name: string) => c.columns.find(col => col.name === name)?.pick;
+  const pickOf = (name: string) => c.columns.find((col) => col.name === name)?.pick;
   const identityPicks = identity.map(pickOf);
   // The daily endpoints are scoped by the day they describe, the timeseries by the instant.
   const scopeName = c.rangeParams === 'datetime' ? 'timestamp' : 'day';
   const scopePick = pickOf(scopeName);
-  if (scopePick === undefined || identityPicks.some(p => p === undefined)) return emptyPlan();
+  if (scopePick === undefined || identityPicks.some((p) => p === undefined)) return emptyPlan();
 
-  const keyFor = (row: unknown) => keyOf(identityPicks.map(pick => pick!(row)));
+  const keyFor = (row: unknown) => keyOf(identityPicks.map((pick) => pick!(row)));
   // Every row the API returned anywhere in this range. Union rather than per piece: a row is not
   // stale because the piece whose scope it falls in happens not to be the piece that returned it.
-  const wanted = new Set(pieces.flatMap(p => p.rows).map(keyFor));
+  const wanted = new Set(pieces.flatMap((p) => p.rows).map(keyFor));
   const plan = emptyPlan();
 
   // Judge every piece before deciding any row. Two pieces whose returned bounds overlap can cover
   // the same stale row and disagree about whether their own answer looks truncated, so a verdict
   // taken as pieces are walked would be settled by whichever came first — the same responses in a
   // different order deleting a row instead of keeping it.
-  const judged = pieces.map(piece => {
+  const judged = pieces.map((piece) => {
     if (piece.rows.length === 0) return null; // described nothing, so it vouches for nothing
     // Only values inside the request count towards the scope. A null would sort above every
     // timestamp; an empty string or a stray early sample sorts below every stored one, and a scope
     // taken from the returned bounds then reached back over the whole table: one such value made
     // 59 of 60 stored samples look stale (#111).
     const inRequested = requestedRange(c, piece.query);
-    const scopeValues = piece.rows.map(row => scopePick(row))
-      .filter(v => v !== null && v !== undefined).map(String).filter(inRequested);
+    const scopeValues = piece.rows
+      .map((row) => scopePick(row))
+      .filter((v) => v !== null && v !== undefined)
+      .map(String)
+      .filter(inRequested);
     if (scopeValues.length === 0) return null;
 
     const days = [...new Set(scopeValues)];
-    const [where, params] = c.rangeParams === 'datetime'
-      ? [`${scopeName} BETWEEN ? AND ?`, [minOf(scopeValues), maxOf(scopeValues)]] as const
-      : [`${scopeName} IN (${days.map(() => '?').join(', ')})`, days] as const;
+    const [where, params] =
+      c.rangeParams === 'datetime'
+        ? ([`${scopeName} BETWEEN ? AND ?`, [minOf(scopeValues), maxOf(scopeValues)]] as const)
+        : ([`${scopeName} IN (${days.map(() => '?').join(', ')})`, days] as const);
 
-    const stored = db.query(`SELECT ${identity.join(', ')} FROM ${c.table} WHERE ${where}`)
+    const stored = db
+      .query(`SELECT ${identity.join(', ')} FROM ${c.table} WHERE ${where}`)
       .all(...(params as never[])) as Array<Record<string, SqlValue>>;
 
     const storedKeys = new Set<string>();
     const stale: SqlValue[][] = [];
     for (const row of stored) {
-      const values = identity.map(name => row[name] ?? null);
+      const values = identity.map((name) => row[name] ?? null);
       const key = keyOf(values);
       storedKeys.add(key);
       if (!wanted.has(key)) stale.push(values);
@@ -155,7 +166,7 @@ export function planWindow(
     // The ratio is judged on everything this piece dropped: that is what says whether its own
     // answer looks truncated, independently of what any other piece said.
     const looksTruncated = stale.length > ALWAYS_SAFE_TO_REMOVE && stale.length > stored.length * MAX_REMOVED_SHARE;
-    const fresh = [...new Set(piece.rows.map(keyFor))].filter(key => !storedKeys.has(key));
+    const fresh = [...new Set(piece.rows.map(keyFor))].filter((key) => !storedKeys.has(key));
     return { stale, looksTruncated, fresh };
   });
 
@@ -201,7 +212,7 @@ export function planWindow(
 export function applyWindowPlan(db: Database, c: AnyCollection, plan: WindowPlan): number {
   if (plan.stale.length === 0) return 0;
   const identity = identityColumns(c);
-  const del = db.query(`DELETE FROM ${c.table} WHERE ${identity.map(name => `${name} IS ?`).join(' AND ')}`);
+  const del = db.query(`DELETE FROM ${c.table} WHERE ${identity.map((name) => `${name} IS ?`).join(' AND ')}`);
   let removed = 0;
   for (const values of plan.stale) removed += del.run(...(values as never[])).changes;
   return removed;

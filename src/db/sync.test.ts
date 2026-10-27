@@ -13,9 +13,15 @@ const TEST_DB = join(tmpdir(), `oura-import-test-${Date.now()}.db`);
 const TODAY = '2026-03-05';
 
 afterEach(() => {
-  try { unlinkSync(TEST_DB); } catch {}
-  try { unlinkSync(TEST_DB + '-wal'); } catch {}
-  try { unlinkSync(TEST_DB + '-shm'); } catch {}
+  try {
+    unlinkSync(TEST_DB);
+  } catch {}
+  try {
+    unlinkSync(TEST_DB + '-wal');
+  } catch {}
+  try {
+    unlinkSync(TEST_DB + '-shm');
+  } catch {}
 });
 
 describe('Import', () => {
@@ -25,10 +31,20 @@ describe('Import', () => {
       db.exec('PRAGMA journal_mode = WAL');
       ensureSchema(db);
 
-      db.query('INSERT OR REPLACE INTO daily_sleep VALUES (?,?,?,?,?)')
-        .run('id1', '2026-03-05', 80, '{}', '2026-03-05T00:00:00Z');
-      db.query('INSERT OR REPLACE INTO daily_sleep VALUES (?,?,?,?,?)')
-        .run('id1', '2026-03-05', 85, '{}', '2026-03-05T00:00:00Z');
+      db.query('INSERT OR REPLACE INTO daily_sleep VALUES (?,?,?,?,?)').run(
+        'id1',
+        '2026-03-05',
+        80,
+        '{}',
+        '2026-03-05T00:00:00Z',
+      );
+      db.query('INSERT OR REPLACE INTO daily_sleep VALUES (?,?,?,?,?)').run(
+        'id1',
+        '2026-03-05',
+        85,
+        '{}',
+        '2026-03-05T00:00:00Z',
+      );
 
       const row = db.query('SELECT score FROM daily_sleep WHERE id = ?').get('id1') as { score: number };
       expect(row.score).toBe(85);
@@ -42,21 +58,46 @@ describe('Import', () => {
     // as nullable; every column backing them is nullable TEXT.
     const rows: Partial<Record<OuraEndpoint, unknown[]>> = {
       daily_stress: [{ id: 's1', day: '2026-03-05', day_summary: null, recovery_high: null, stress_high: null }],
-      workout: [{
-        id: 'w1', day: '2026-03-05', activity: 'walking', calories: null, distance: null,
-        start_datetime: '2026-03-05T10:00:00Z', end_datetime: '2026-03-05T10:30:00Z',
-        intensity: 'easy', label: null, source: 'manual',
-      }],
-      sleep: [{
-        id: 'p1', day: '2026-03-05', average_breath: null, average_heart_rate: null, average_hrv: null,
-        awake_time: null, bedtime_end: '2026-03-05T07:00:00Z', bedtime_start: '2026-03-04T23:00:00Z',
-        deep_sleep_duration: null, efficiency: null, latency: null, light_sleep_duration: null,
-        lowest_heart_rate: null, period: null, rem_sleep_duration: null, restless_periods: null,
-        time_in_bed: null, total_sleep_duration: null, type: null,
-      }],
+      workout: [
+        {
+          id: 'w1',
+          day: '2026-03-05',
+          activity: 'walking',
+          calories: null,
+          distance: null,
+          start_datetime: '2026-03-05T10:00:00Z',
+          end_datetime: '2026-03-05T10:30:00Z',
+          intensity: 'easy',
+          label: null,
+          source: 'manual',
+        },
+      ],
+      sleep: [
+        {
+          id: 'p1',
+          day: '2026-03-05',
+          average_breath: null,
+          average_heart_rate: null,
+          average_hrv: null,
+          awake_time: null,
+          bedtime_end: '2026-03-05T07:00:00Z',
+          bedtime_start: '2026-03-04T23:00:00Z',
+          deep_sleep_duration: null,
+          efficiency: null,
+          latency: null,
+          light_sleep_duration: null,
+          lowest_heart_rate: null,
+          period: null,
+          rem_sleep_duration: null,
+          restless_periods: null,
+          time_in_bed: null,
+          total_sleep_duration: null,
+          type: null,
+        },
+      ],
     };
     const client = {
-      fetch: async <T,>(endpoint: OuraEndpoint) => (rows[endpoint] ?? []) as T[],
+      fetch: async <T>(endpoint: OuraEndpoint) => (rows[endpoint] ?? []) as T[],
     } as unknown as OuraClient;
 
     it('stores a null day_summary, label and sleep type without failing the sync', async () => {
@@ -65,7 +106,9 @@ describe('Import', () => {
 
       await importDaily(db, client, { today: TODAY, tz: 'UTC' });
 
-      const stress = db.query('SELECT day_summary FROM daily_stress WHERE id = ?').get('s1') as { day_summary: string | null };
+      const stress = db.query('SELECT day_summary FROM daily_stress WHERE id = ?').get('s1') as {
+        day_summary: string | null;
+      };
       expect(stress.day_summary).toBeNull();
 
       const sleep = db.query('SELECT type FROM sleep_model WHERE id = ?').get('p1') as { type: string | null };
@@ -82,22 +125,43 @@ describe('Import', () => {
     it('treats an omitted property the same as an explicit null, since the spec marks all three optional', async () => {
       const omitted: Partial<Record<OuraEndpoint, unknown[]>> = {
         daily_stress: [{ id: 's2', day: '2026-03-06', recovery_high: null, stress_high: null }],
-        sleep: [{
-          id: 'p2', day: '2026-03-06', average_breath: null, average_heart_rate: null, average_hrv: null,
-          awake_time: null, bedtime_end: '2026-03-06T07:00:00Z', bedtime_start: '2026-03-05T23:00:00Z',
-          deep_sleep_duration: null, efficiency: null, latency: null, light_sleep_duration: null,
-          lowest_heart_rate: null, period: null, rem_sleep_duration: null, restless_periods: null,
-          time_in_bed: null, total_sleep_duration: null,
-        }],
+        sleep: [
+          {
+            id: 'p2',
+            day: '2026-03-06',
+            average_breath: null,
+            average_heart_rate: null,
+            average_hrv: null,
+            awake_time: null,
+            bedtime_end: '2026-03-06T07:00:00Z',
+            bedtime_start: '2026-03-05T23:00:00Z',
+            deep_sleep_duration: null,
+            efficiency: null,
+            latency: null,
+            light_sleep_duration: null,
+            lowest_heart_rate: null,
+            period: null,
+            rem_sleep_duration: null,
+            restless_periods: null,
+            time_in_bed: null,
+            total_sleep_duration: null,
+          },
+        ],
       };
       const db = new Database(TEST_DB);
       ensureSchema(db);
 
-      await importDaily(db, {
-        fetch: async <T,>(endpoint: OuraEndpoint) => (omitted[endpoint] ?? []) as T[],
-      } as unknown as OuraClient, { today: TODAY, tz: 'UTC' });
+      await importDaily(
+        db,
+        {
+          fetch: async <T>(endpoint: OuraEndpoint) => (omitted[endpoint] ?? []) as T[],
+        } as unknown as OuraClient,
+        { today: TODAY, tz: 'UTC' },
+      );
 
-      const stress = db.query('SELECT day_summary FROM daily_stress WHERE id = ?').get('s2') as { day_summary: string | null };
+      const stress = db.query('SELECT day_summary FROM daily_stress WHERE id = ?').get('s2') as {
+        day_summary: string | null;
+      };
       expect(stress.day_summary).toBeNull();
 
       const sleep = db.query('SELECT type FROM sleep_model WHERE id = ?').get('p2') as { type: string | null };
@@ -118,17 +182,31 @@ describe('Import', () => {
       };
       // Like the real API, answer only with samples inside the requested window (heartrate is fetched in pieces).
       const client = {
-        fetch: async (endpoint: OuraEndpoint, query: Record<string, string>) => (rows[endpoint] ?? []).filter(r => {
-          const ts = (r as { timestamp?: string }).timestamp?.replace('+00:00', 'Z');
-          return !query.start_datetime || !ts || (query.start_datetime <= ts && ts <= query.end_datetime!);
-        }),
+        fetch: async (endpoint: OuraEndpoint, query: Record<string, string>) =>
+          (rows[endpoint] ?? []).filter((r) => {
+            const ts = (r as { timestamp?: string }).timestamp?.replace('+00:00', 'Z');
+            return !query.start_datetime || !ts || (query.start_datetime <= ts && ts <= query.end_datetime!);
+          }),
       } as unknown as OuraClient;
       const result = await importDaily(db, client, { today: '2026-06-15', tz: 'UTC' });
       expect(result.fetched).toEqual({
-        daily_sleep: 1, daily_readiness: 0, daily_activity: 0, heartrate: 1, daily_spo2: 0,
-        daily_stress: 0, workouts: 0, sleep_model: 0, cardiovascular_age: 1,
-        daily_resilience: 0, vo2max: 0, sleep_time: 0, sessions: 0, rest_mode_periods: 0, enhanced_tags: 0,
-        ring_configuration: 0, ring_battery_level: 0,
+        daily_sleep: 1,
+        daily_readiness: 0,
+        daily_activity: 0,
+        heartrate: 1,
+        daily_spo2: 0,
+        daily_stress: 0,
+        workouts: 0,
+        sleep_model: 0,
+        cardiovascular_age: 1,
+        daily_resilience: 0,
+        vo2max: 0,
+        sleep_time: 0,
+        sessions: 0,
+        rest_mode_periods: 0,
+        enhanced_tags: 0,
+        ring_configuration: 0,
+        ring_battery_level: 0,
       });
       expect(result.added).toEqual(result.fetched);
       expect(db.query('SELECT day FROM heartrate').get()).toEqual({ day: '2026-06-15' });
@@ -138,7 +216,10 @@ describe('Import', () => {
   describe('request parameters', () => {
     function recordingClient(calls: Array<[OuraEndpoint, Record<string, string>]>): OuraClient {
       return {
-        fetch: async (endpoint: OuraEndpoint, query: Record<string, string>) => { calls.push([endpoint, query]); return []; },
+        fetch: async (endpoint: OuraEndpoint, query: Record<string, string>) => {
+          calls.push([endpoint, query]);
+          return [];
+        },
       } as unknown as OuraClient;
     }
     const queriesFor = (calls: Array<[OuraEndpoint, Record<string, string>]>, e: OuraEndpoint) =>
@@ -183,12 +264,19 @@ describe('Import', () => {
       db.query("INSERT INTO ring_configuration (id) VALUES ('old-ring')").run();
       db.query("INSERT INTO ring_configuration (id) VALUES ('kept-ring')").run();
       const client = {
-        fetch: async (endpoint: OuraEndpoint) => endpoint === 'ring_configuration'
-          ? [{ id: 'kept-ring', color: 'silver' }, { id: 'new-ring', color: 'black' }] : [],
+        fetch: async (endpoint: OuraEndpoint) =>
+          endpoint === 'ring_configuration'
+            ? [
+                { id: 'kept-ring', color: 'silver' },
+                { id: 'new-ring', color: 'black' },
+              ]
+            : [],
       } as unknown as OuraClient;
 
       const result = await importDaily(db, client, { today: '2026-06-15', tz: 'UTC' });
-      const ids = (db.query('SELECT id FROM ring_configuration ORDER BY id').all() as { id: string }[]).map(r => r.id);
+      const ids = (db.query('SELECT id FROM ring_configuration ORDER BY id').all() as { id: string }[]).map(
+        (r) => r.id,
+      );
       db.close();
 
       expect(ids).toEqual(['kept-ring', 'new-ring']);
@@ -255,14 +343,16 @@ describe('Import', () => {
       // were never fetched — 8,004 of them over 9 days on the account this was found on.
       const db = new Database(':memory:');
       ensureSchema(db);
-      db.query("INSERT INTO heartrate (timestamp, bpm, source, day) VALUES ('2026-06-14T10:00:00+00:00', 60, 'awake', '2026-06-14')").run();
+      db.query(
+        "INSERT INTO heartrate (timestamp, bpm, source, day) VALUES ('2026-06-14T10:00:00+00:00', 60, 'awake', '2026-06-14')",
+      ).run();
       db.query("INSERT INTO daily_sleep (id, day) VALUES ('s', '2026-06-14')").run();
       const calls: Array<[OuraEndpoint, Record<string, string>]> = [];
       await importDaily(db, recordingClient(calls), { today: '2026-06-15', tz: 'UTC' });
       db.close();
 
       // The tail from the watermark day, then the fortnight behind it as its own request (#135).
-      expect(queriesFor(calls, 'heartrate').map(q => [q.start_datetime, q.end_datetime])).toEqual([
+      expect(queriesFor(calls, 'heartrate').map((q) => [q.start_datetime, q.end_datetime])).toEqual([
         ['2026-06-14T00:00:00.000Z', '2026-06-15T23:59:59.999Z'],
         ['2026-05-31T00:00:00.000Z', '2026-06-13T23:59:59.999Z'],
       ]);
@@ -275,9 +365,11 @@ describe('Import', () => {
       // sixteen of seventeen collections asked for a single day.
       const db = new Database(':memory:');
       ensureSchema(db);
-      for (const c of COLLECTIONS.filter(c => c.rangeParams !== 'none')) {
-        const cols = c.columns.map(col => col.name);
-        const values = cols.map(name => name === 'day' ? "'2026-06-15'" : name === 'timestamp' ? "'2026-06-15T10:00:00+00:00'" : "'x'");
+      for (const c of COLLECTIONS.filter((c) => c.rangeParams !== 'none')) {
+        const cols = c.columns.map((col) => col.name);
+        const values = cols.map((name) =>
+          name === 'day' ? "'2026-06-15'" : name === 'timestamp' ? "'2026-06-15T10:00:00+00:00'" : "'x'",
+        );
         db.query(`INSERT INTO ${c.table} (${cols.join(', ')}) VALUES (${values.join(', ')})`).run();
       }
       const calls: Array<[OuraEndpoint, Record<string, string>]> = [];
@@ -293,17 +385,19 @@ describe('Import', () => {
       // for one instant, and nothing could repair it afterwards.
       const db = new Database(':memory:');
       ensureSchema(db);
-      db.query("INSERT INTO heartrate (timestamp, bpm, source, day) VALUES ('2026-06-15T10:00:00+00:00', 70, 'awake', '2026-06-15')").run();
+      db.query(
+        "INSERT INTO heartrate (timestamp, bpm, source, day) VALUES ('2026-06-15T10:00:00+00:00', 70, 'awake', '2026-06-15')",
+      ).run();
       const client = {
-        fetch: async (endpoint: OuraEndpoint) => endpoint === 'heartrate'
-          ? [{ timestamp: '2026-06-15T10:00:00+00:00', bpm: 70, source: 'workout' }] : [],
+        fetch: async (endpoint: OuraEndpoint) =>
+          endpoint === 'heartrate' ? [{ timestamp: '2026-06-15T10:00:00+00:00', bpm: 70, source: 'workout' }] : [],
       } as unknown as OuraClient;
 
       const result = await importDaily(db, client, { today: '2026-06-15', tz: 'UTC' });
       const rows = db.query('SELECT source FROM heartrate').all() as Array<{ source: string }>;
       db.close();
 
-      expect(rows.map(r => r.source)).toEqual(['workout']);
+      expect(rows.map((r) => r.source)).toEqual(['workout']);
       expect(result.removed.heartrate).toBe(1);
       expect(result.added.heartrate).toBe(1);
     });
@@ -315,12 +409,27 @@ describe('Import', () => {
       ensureSchema(db);
       db.query("INSERT INTO workouts (id, day, activity) VALUES ('old', '2026-06-15', 'walking')").run();
       const client = {
-        fetch: async (endpoint: OuraEndpoint) => endpoint === 'workout'
-          ? [{ id: 'new', day: '2026-06-15', activity: 'walking', intensity: 'easy', start_datetime: null, end_datetime: null, calories: null, distance: null, label: null, source: 'manual' }] : [],
+        fetch: async (endpoint: OuraEndpoint) =>
+          endpoint === 'workout'
+            ? [
+                {
+                  id: 'new',
+                  day: '2026-06-15',
+                  activity: 'walking',
+                  intensity: 'easy',
+                  start_datetime: null,
+                  end_datetime: null,
+                  calories: null,
+                  distance: null,
+                  label: null,
+                  source: 'manual',
+                },
+              ]
+            : [],
       } as unknown as OuraClient;
 
       const result = await importDaily(db, client, { today: '2026-06-15', tz: 'UTC' });
-      const ids = (db.query('SELECT id FROM workouts').all() as Array<{ id: string }>).map(r => r.id);
+      const ids = (db.query('SELECT id FROM workouts').all() as Array<{ id: string }>).map((r) => r.id);
       db.close();
 
       expect(ids).toEqual(['new']);
@@ -334,8 +443,18 @@ describe('Import', () => {
       ensureSchema(db);
       db.query("INSERT INTO daily_sleep (id, day, score) VALUES ('old', '2026-06-15', 80)").run();
       const client = {
-        fetch: async (endpoint: OuraEndpoint) => endpoint === 'daily_sleep'
-          ? [{ id: 'reissued', day: '2026-06-15', score: 81, timestamp: '2026-06-15T00:00:00+00:00', contributors: {} }] : [],
+        fetch: async (endpoint: OuraEndpoint) =>
+          endpoint === 'daily_sleep'
+            ? [
+                {
+                  id: 'reissued',
+                  day: '2026-06-15',
+                  score: 81,
+                  timestamp: '2026-06-15T00:00:00+00:00',
+                  contributors: {},
+                },
+              ]
+            : [],
       } as unknown as OuraClient;
 
       const result = await importDaily(db, client, { today: '2026-06-15', tz: 'UTC' });
@@ -361,13 +480,13 @@ describe('Import', () => {
       // the run has to be recognisable as one that bypassed the guard.
       const db = new Database(':memory:');
       ensureSchema(db);
-      const stored = Array.from({ length: 20 }, (_, m) =>
-        `2026-06-15T10:${String(m).padStart(2, '0')}:00+00:00`);
-      for (const t of stored) db.query('INSERT INTO heartrate (timestamp, bpm, source) VALUES (?, 70, ?)').run(t, 'awake');
-      const kept = [0, 3, 6, 9, 12, 15, 18, 19].map(m => stored[m]!);
+      const stored = Array.from({ length: 20 }, (_, m) => `2026-06-15T10:${String(m).padStart(2, '0')}:00+00:00`);
+      for (const t of stored)
+        db.query('INSERT INTO heartrate (timestamp, bpm, source) VALUES (?, 70, ?)').run(t, 'awake');
+      const kept = [0, 3, 6, 9, 12, 15, 18, 19].map((m) => stored[m]!);
       const client = {
-        fetch: async (endpoint: OuraEndpoint) => endpoint === 'heartrate'
-          ? kept.map(timestamp => ({ timestamp, bpm: 70, source: 'awake' })) : [],
+        fetch: async (endpoint: OuraEndpoint) =>
+          endpoint === 'heartrate' ? kept.map((timestamp) => ({ timestamp, bpm: 70, source: 'awake' })) : [],
       } as unknown as OuraClient;
 
       const refusing = await importDaily(db, client, { today: '2026-06-15', tz: 'UTC' });
@@ -376,7 +495,13 @@ describe('Import', () => {
 
       const lines: string[] = [];
       const pruning = await importDaily(
-        db, client, { today: '2026-06-15', tz: 'UTC' }, m => lines.push(m), {}, { prune: 'all' });
+        db,
+        client,
+        { today: '2026-06-15', tz: 'UTC' },
+        (m) => lines.push(m),
+        {},
+        { prune: 'all' },
+      );
       const rows = (db.query('SELECT COUNT(*) AS n FROM heartrate').get() as { n: number }).n;
       db.close();
 
@@ -385,8 +510,8 @@ describe('Import', () => {
       // Reported apart from `removed`, so a bypass is never mistaken for ordinary reconciliation.
       expect(pruning.pruned).toEqual({ heartrate: { rows: 12, collection: 'hr' } });
       expect(rows).toBe(8);
-      expect(lines.find(l => l.startsWith('--prune:'))).toContain('every collection');
-      expect(lines.find(l => l.includes('heartrate'))).toContain('12 past the truncation guard');
+      expect(lines.find((l) => l.startsWith('--prune:'))).toContain('every collection');
+      expect(lines.find((l) => l.includes('heartrate'))).toContain('12 past the truncation guard');
     });
 
     it('records the requested scope, so a kept JSON log says whether the guard was lifted', async () => {
@@ -396,9 +521,21 @@ describe('Import', () => {
       ensureSchema(db);
       const plain = await importDaily(db, recordingClient([]), { today: '2026-06-15', tz: 'UTC' });
       const scoped = await importDaily(
-        db, recordingClient([]), { today: '2026-06-15', tz: 'UTC' }, undefined, {}, { prune: ['hr'] });
+        db,
+        recordingClient([]),
+        { today: '2026-06-15', tz: 'UTC' },
+        undefined,
+        {},
+        { prune: ['hr'] },
+      );
       const everything = await importDaily(
-        db, recordingClient([]), { today: '2026-06-15', tz: 'UTC' }, undefined, {}, { prune: 'all' });
+        db,
+        recordingClient([]),
+        { today: '2026-06-15', tz: 'UTC' },
+        undefined,
+        {},
+        { prune: 'all' },
+      );
       db.close();
 
       expect(plain.pruneScope).toBeUndefined();
@@ -412,24 +549,31 @@ describe('Import', () => {
       // and behind --from that loss never comes back.
       const db = new Database(':memory:');
       ensureSchema(db);
-      const stamps = Array.from({ length: 20 }, (_, m) =>
-        `2026-06-15T10:${String(m).padStart(2, '0')}:00+00:00`);
-      for (const t of stamps) db.query('INSERT INTO heartrate (timestamp, bpm, source) VALUES (?, 70, ?)').run(t, 'awake');
+      const stamps = Array.from({ length: 20 }, (_, m) => `2026-06-15T10:${String(m).padStart(2, '0')}:00+00:00`);
+      for (const t of stamps)
+        db.query('INSERT INTO heartrate (timestamp, bpm, source) VALUES (?, 70, ?)').run(t, 'awake');
       for (let i = 0; i < 12; i++) {
         db.query("INSERT INTO workouts (id, day, activity) VALUES (?, '2026-06-15', 'run')").run(`w${i}`);
       }
-      const keptHr = [0, 3, 6, 9, 12, 15, 18, 19].map(m => stamps[m]!);
+      const keptHr = [0, 3, 6, 9, 12, 15, 18, 19].map((m) => stamps[m]!);
       const client = {
         fetch: async (endpoint: OuraEndpoint) => {
-          if (endpoint === 'heartrate') return keptHr.map(timestamp => ({ timestamp, bpm: 70, source: 'awake' }));
+          if (endpoint === 'heartrate') return keptHr.map((timestamp) => ({ timestamp, bpm: 70, source: 'awake' }));
           // workouts answers short, the way a truncated page does
-          if (endpoint === 'workout') return [0, 1, 2].map(i => ({ id: `w${i}`, day: '2026-06-15', activity: 'run' }));
+          if (endpoint === 'workout')
+            return [0, 1, 2].map((i) => ({ id: `w${i}`, day: '2026-06-15', activity: 'run' }));
           return [];
         },
       } as unknown as OuraClient;
 
       const result = await importDaily(
-        db, client, { today: '2026-06-15', tz: 'UTC' }, undefined, {}, { prune: ['hr'] });
+        db,
+        client,
+        { today: '2026-06-15', tz: 'UTC' },
+        undefined,
+        {},
+        { prune: ['hr'] },
+      );
       const workoutsLeft = (db.query('SELECT COUNT(*) AS n FROM workouts').get() as { n: number }).n;
       const hrLeft = (db.query('SELECT COUNT(*) AS n FROM heartrate').get() as { n: number }).n;
       db.close();
@@ -445,28 +589,30 @@ describe('Import', () => {
     it('names the flag when it keeps rows back, so the situation is not a dead end', async () => {
       const db = new Database(':memory:');
       ensureSchema(db);
-      const stored = Array.from({ length: 20 }, (_, m) =>
-        `2026-06-15T10:${String(m).padStart(2, '0')}:00+00:00`);
-      for (const t of stored) db.query('INSERT INTO heartrate (timestamp, bpm, source) VALUES (?, 70, ?)').run(t, 'awake');
+      const stored = Array.from({ length: 20 }, (_, m) => `2026-06-15T10:${String(m).padStart(2, '0')}:00+00:00`);
+      for (const t of stored)
+        db.query('INSERT INTO heartrate (timestamp, bpm, source) VALUES (?, 70, ?)').run(t, 'awake');
       const client = {
-        fetch: async (endpoint: OuraEndpoint) => endpoint === 'heartrate'
-          ? [0, 3, 6, 9, 12, 15, 18, 19].map(m => ({ timestamp: stored[m]!, bpm: 70, source: 'awake' })) : [],
+        fetch: async (endpoint: OuraEndpoint) =>
+          endpoint === 'heartrate'
+            ? [0, 3, 6, 9, 12, 15, 18, 19].map((m) => ({ timestamp: stored[m]!, bpm: 70, source: 'awake' }))
+            : [],
       } as unknown as OuraClient;
 
       const lines: string[] = [];
-      await importDaily(db, client, { today: '2026-06-15', tz: 'UTC' }, m => lines.push(m));
+      await importDaily(db, client, { today: '2026-06-15', tz: 'UTC' }, (m) => lines.push(m));
       db.close();
 
-      expect(lines.find(l => l.includes('rows kept'))).toContain('re-run with --prune=hr');
+      expect(lines.find((l) => l.includes('rows kept'))).toContain('re-run with --prune=hr');
     });
 
     it('says nothing about prune on a run that did not pass it', async () => {
       const db = new Database(':memory:');
       ensureSchema(db);
       const lines: string[] = [];
-      await importDaily(db, recordingClient([]), { today: '2026-06-15', tz: 'UTC' }, m => lines.push(m));
+      await importDaily(db, recordingClient([]), { today: '2026-06-15', tz: 'UTC' }, (m) => lines.push(m));
       db.close();
-      expect(lines.some(l => l.includes('--prune'))).toBe(false);
+      expect(lines.some((l) => l.includes('--prune'))).toBe(false);
     });
 
     it('an explicit window replaces every watermark', async () => {
@@ -474,7 +620,10 @@ describe('Import', () => {
       ensureSchema(db);
       db.query("INSERT INTO daily_sleep (id, day) VALUES ('s', '2026-06-13')").run();
       const calls: Array<[OuraEndpoint, Record<string, string>]> = [];
-      const result = await importDaily(db, recordingClient(calls), { today: '2026-06-15', tz: 'UTC' }, undefined, { from: '2026-06-01', to: '2026-06-03' });
+      const result = await importDaily(db, recordingClient(calls), { today: '2026-06-15', tz: 'UTC' }, undefined, {
+        from: '2026-06-01',
+        to: '2026-06-03',
+      });
       db.close();
 
       expect(result.startDate).toBe('2026-06-01');
@@ -487,7 +636,13 @@ describe('Import', () => {
       const db = new Database(':memory:');
       ensureSchema(db);
       const lines: string[] = [];
-      const result = await importDaily(db, recordingClient([]), { today: '2026-06-15', tz: 'UTC' }, m => lines.push(m), { from: '2026-06-10', to: '2026-06-12' });
+      const result = await importDaily(
+        db,
+        recordingClient([]),
+        { today: '2026-06-15', tz: 'UTC' },
+        (m) => lines.push(m),
+        { from: '2026-06-10', to: '2026-06-12' },
+      );
       db.close();
 
       expect(result.isFirstSync).toBe(true);
@@ -503,8 +658,13 @@ describe('Import', () => {
       };
       // Answers like the API: a heart-rate sample only to the request whose window holds it.
       const client = {
-        fetch: async (endpoint: OuraEndpoint, query: Record<string, string>) => (rows[endpoint] ?? []).filter(r =>
-          endpoint !== 'heartrate' || (Date.parse((r as { timestamp: string }).timestamp) >= Date.parse(query.start_datetime!) && Date.parse((r as { timestamp: string }).timestamp) <= Date.parse(query.end_datetime!))),
+        fetch: async (endpoint: OuraEndpoint, query: Record<string, string>) =>
+          (rows[endpoint] ?? []).filter(
+            (r) =>
+              endpoint !== 'heartrate' ||
+              (Date.parse((r as { timestamp: string }).timestamp) >= Date.parse(query.start_datetime!) &&
+                Date.parse((r as { timestamp: string }).timestamp) <= Date.parse(query.end_datetime!)),
+          ),
       } as unknown as OuraClient;
 
       const first = await importDaily(db, client, { today: '2026-06-15', tz: 'UTC' });
@@ -515,7 +675,7 @@ describe('Import', () => {
       const second = await importDaily(db, client, { today: '2026-06-15', tz: 'UTC' });
       expect(second.fetched.daily_sleep).toBe(1); // re-fetched and replaced
       expect(second.added.daily_sleep).toBe(0);
-      expect(second.fetched.heartrate).toBe(1);   // re-fetched and ignored by the unique index
+      expect(second.fetched.heartrate).toBe(1); // re-fetched and ignored by the unique index
       expect(second.added.heartrate).toBe(0);
       db.close();
     });
@@ -531,17 +691,18 @@ describe('rows without an identity', () => {
     const log: string[] = [];
     const client = {
       fetch: async (endpoint: OuraEndpoint) => {
-        if (endpoint === 'heartrate') return [
-          { bpm: 60, source: 'awake', timestamp: '2026-06-15T10:00:00+00:00' },
-          { bpm: 61, source: 'awake', timestamp: null },
-          { bpm: 62, source: 'awake', timestamp: '2026-06-15T10:05:00+00:00' },
-        ];
+        if (endpoint === 'heartrate')
+          return [
+            { bpm: 60, source: 'awake', timestamp: '2026-06-15T10:00:00+00:00' },
+            { bpm: 61, source: 'awake', timestamp: null },
+            { bpm: 62, source: 'awake', timestamp: '2026-06-15T10:05:00+00:00' },
+          ];
         if (endpoint === 'ring_configuration') return [{ id: 'ring-1' }]; // after hr in the loop
         return [];
       },
     } as unknown as OuraClient;
 
-    const result = await importDaily(db, client, { today: '2026-06-15', tz: 'UTC' }, m => log.push(m));
+    const result = await importDaily(db, client, { today: '2026-06-15', tz: 'UTC' }, (m) => log.push(m));
     const stored = (db.query('SELECT COUNT(*) AS n FROM heartrate').get() as { n: number }).n;
     const rings = (db.query('SELECT COUNT(*) AS n FROM ring_configuration').get() as { n: number }).n;
     db.close();
@@ -551,9 +712,9 @@ describe('rows without an identity', () => {
     expect(result.fetched.heartrate).toBe(3); // what the API returned
     expect(result.added.heartrate).toBe(2);
     expect(result.dropped).toEqual({ heartrate: 1 });
-    expect(log.find(l => l.includes('(heartrate)'))).toContain('3 fetched, 2 new, 1 dropped (no timestamp/source)'); // the unique index, i.e. what the table keys on
+    expect(log.find((l) => l.includes('(heartrate)'))).toContain('3 fetched, 2 new, 1 dropped (no timestamp/source)'); // the unique index, i.e. what the table keys on
     // The only collection line: the ring snapshot stored its one row with nothing to add (#132).
-    expect(log.filter(l => l.startsWith('  + '))).toHaveLength(1);
+    expect(log.filter((l) => l.startsWith('  + '))).toHaveLength(1);
   });
 
   it('drops a sample whose timestamp is a number or an empty string instead of throwing', async () => {
@@ -562,11 +723,14 @@ describe('rows without an identity', () => {
     const db = new Database(':memory:');
     ensureSchema(db);
     const client = {
-      fetch: async (endpoint: OuraEndpoint) => endpoint === 'heartrate' ? [
-        { bpm: 60, source: 'awake', timestamp: 20260305 },
-        { bpm: 61, source: 'awake', timestamp: '' },
-        { bpm: 62, source: 'awake', timestamp: '2026-06-15T10:05:00+00:00' },
-      ] : [],
+      fetch: async (endpoint: OuraEndpoint) =>
+        endpoint === 'heartrate'
+          ? [
+              { bpm: 60, source: 'awake', timestamp: 20260305 },
+              { bpm: 61, source: 'awake', timestamp: '' },
+              { bpm: 62, source: 'awake', timestamp: '2026-06-15T10:05:00+00:00' },
+            ]
+          : [],
     } as unknown as OuraClient;
     const result = await importDaily(db, client, { today: '2026-06-15', tz: 'UTC' });
     const stored = (db.query('SELECT COUNT(*) AS n FROM heartrate').get() as { n: number }).n;
@@ -599,7 +763,7 @@ describe('an empty response to a snapshot collection', () => {
   it('keeps the rows, reports them as refused, and says what to do', async () => {
     const db = ringDb();
     const log: string[] = [];
-    const result = await importDaily(db, emptyClient, { today: '2026-06-15', tz: 'UTC' }, m => log.push(m));
+    const result = await importDaily(db, emptyClient, { today: '2026-06-15', tz: 'UTC' }, (m) => log.push(m));
     const n = (db.query('SELECT COUNT(*) AS n FROM ring_configuration').get() as { n: number }).n;
     db.close();
 
@@ -607,13 +771,20 @@ describe('an empty response to a snapshot collection', () => {
     expect(result.refused.ring_configuration).toEqual({ rows: 1, collection: 'ring' });
     expect(result.removed).toEqual({});
     expect(result.pruned).toEqual({});
-    expect(log.find(l => l.includes('(ring_configuration)'))).toContain('1 rows kept that the API did not return');
-    expect(log.find(l => l.includes('(ring_configuration)'))).toContain('--prune=ring');
+    expect(log.find((l) => l.includes('(ring_configuration)'))).toContain('1 rows kept that the API did not return');
+    expect(log.find((l) => l.includes('(ring_configuration)'))).toContain('--prune=ring');
   });
 
   it('clears the table under --prune=ring and reports the clear as pruned and removed', async () => {
     const db = ringDb();
-    const result = await importDaily(db, emptyClient, { today: '2026-06-15', tz: 'UTC' }, undefined, {}, { prune: ['ring'] });
+    const result = await importDaily(
+      db,
+      emptyClient,
+      { today: '2026-06-15', tz: 'UTC' },
+      undefined,
+      {},
+      { prune: ['ring'] },
+    );
     const n = (db.query('SELECT COUNT(*) AS n FROM ring_configuration').get() as { n: number }).n;
     db.close();
 
@@ -626,14 +797,23 @@ describe('an empty response to a snapshot collection', () => {
   it('keeps the rows when every returned row was dropped, and does not offer --prune for it', async () => {
     // Not an empty answer: a ring arrived, it just cannot be stored. Following a prune hint here would
     // delete the cached ring because a malformed one came back.
-    const malformed = { fetch: async (e: OuraEndpoint) => e === 'ring_configuration' ? [{ id: null, color: 'silver' }] : [] } as unknown as OuraClient;
+    const malformed = {
+      fetch: async (e: OuraEndpoint) => (e === 'ring_configuration' ? [{ id: null, color: 'silver' }] : []),
+    } as unknown as OuraClient;
     for (const options of [{}, { prune: ['ring'] as const }]) {
       const db = ringDb();
       const log: string[] = [];
-      const result = await importDaily(db, malformed, { today: '2026-06-15', tz: 'UTC' }, m => log.push(m), {}, options);
+      const result = await importDaily(
+        db,
+        malformed,
+        { today: '2026-06-15', tz: 'UTC' },
+        (m) => log.push(m),
+        {},
+        options,
+      );
       const n = (db.query('SELECT COUNT(*) AS n FROM ring_configuration').get() as { n: number }).n;
       db.close();
-      const line = log.find(l => l.includes('(ring_configuration)'))!;
+      const line = log.find((l) => l.includes('(ring_configuration)'))!;
       expect(n).toBe(1);
       expect(result.fetched.ring_configuration).toBe(1);
       expect(result.dropped.ring_configuration).toBe(1);

@@ -20,7 +20,11 @@ export interface PageProgress {
  * For a terminal only: on a pipe, stderr carries the one-line error envelope and must stay clean,
  * so the caller decides from `process.stderr.isTTY` whether to build one at all.
  */
-export function pageProgress(sink: ProgressSink, verb: string, label: (endpoint: string) => string = e => e): PageProgress {
+export function pageProgress(
+  sink: ProgressSink,
+  verb: string,
+  label: (endpoint: string) => string = (e) => e,
+): PageProgress {
   let endpoint: string | undefined;
   let pages = 0;
   let rows = 0;
@@ -32,17 +36,26 @@ export function pageProgress(sink: ProgressSink, verb: string, label: (endpoint:
     written = true;
     sink.write(`\r${text}`);
   };
-  const status = () => (pages === 0 ? `  ${verb} ${label(endpoint!)}` : `  ${verb} ${label(endpoint!)}: page ${pages}, ${rows} rows so far`);
+  const status = () =>
+    pages === 0 ? `  ${verb} ${label(endpoint!)}` : `  ${verb} ${label(endpoint!)}: page ${pages}, ${rows} rows so far`;
 
   return {
     onPage(page) {
-      if (page.endpoint !== endpoint) { endpoint = page.endpoint; pages = 0; rows = 0; }
+      if (page.endpoint !== endpoint) {
+        endpoint = page.endpoint;
+        pages = 0;
+        rows = 0;
+      }
       pages = page.page;
       rows += page.rows;
       show(`${status()}…`);
     },
     onRetry(retry) {
-      if (retry.endpoint !== endpoint) { endpoint = retry.endpoint; pages = 0; rows = 0; }
+      if (retry.endpoint !== endpoint) {
+        endpoint = retry.endpoint;
+        pages = 0;
+        rows = 0;
+      }
       show(`${status()}; rate limited, retrying in ${Math.ceil(retry.waitMs / 1_000)} s…`);
     },
     done() {

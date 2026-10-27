@@ -13,7 +13,7 @@ describe('docs/schemas/<collection>.json', () => {
     });
   }
   it('requires the identity fields and nothing else', () => {
-    const s = jsonSchema(COLLECTIONS.find(c => c.name === 'hr')!) as { items: { required: string[] } };
+    const s = jsonSchema(COLLECTIONS.find((c) => c.name === 'hr')!) as { items: { required: string[] } };
     expect(s.items.required).toEqual(['timestamp']);
   });
 });

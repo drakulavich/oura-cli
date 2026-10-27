@@ -8,9 +8,7 @@ import { unlinkSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-const TEST_MIGRATIONS: Migration[] = [
-  { version: 1, sql: 'CREATE TABLE IF NOT EXISTS t (id INTEGER PRIMARY KEY)' },
-];
+const TEST_MIGRATIONS: Migration[] = [{ version: 1, sql: 'CREATE TABLE IF NOT EXISTS t (id INTEGER PRIMARY KEY)' }];
 
 describe('ensureSchema', () => {
   describe('on first run', () => {
@@ -54,18 +52,29 @@ describe('ensureSchema', () => {
   it('applies only migrations newer than the recorded version', () => {
     const db = new Database(':memory:');
     ensureSchema(db, [{ version: 1, sql: 'CREATE TABLE a (x)' }]);
-    ensureSchema(db, [{ version: 1, sql: 'CREATE TABLE a (x)' }, { version: 2, sql: 'CREATE TABLE b (y)' }]);
-    const tables = db.query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all() as { name: string }[];
-    expect(tables.map(t => t.name)).toEqual(['_schema_version', 'a', 'b']);
+    ensureSchema(db, [
+      { version: 1, sql: 'CREATE TABLE a (x)' },
+      { version: 2, sql: 'CREATE TABLE b (y)' },
+    ]);
+    const tables = db.query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all() as {
+      name: string;
+    }[];
+    expect(tables.map((t) => t.name)).toEqual(['_schema_version', 'a', 'b']);
   });
 });
 
 const TEST_DB = join(tmpdir(), `oura-test-${Date.now()}.db`);
 
 afterEach(() => {
-  try { unlinkSync(TEST_DB); } catch {}
-  try { unlinkSync(TEST_DB + '-wal'); } catch {}
-  try { unlinkSync(TEST_DB + '-shm'); } catch {}
+  try {
+    unlinkSync(TEST_DB);
+  } catch {}
+  try {
+    unlinkSync(TEST_DB + '-wal');
+  } catch {}
+  try {
+    unlinkSync(TEST_DB + '-shm');
+  } catch {}
 });
 
 describe('applied migrations are validated against their checksum', () => {
@@ -81,15 +90,24 @@ describe('applied migrations are validated against their checksum', () => {
     ensureSchema(db, [v1, v2]);
     const rows = db.query('SELECT version, checksum FROM _schema_version ORDER BY version').all();
     db.close();
-    expect(rows).toEqual([{ version: 1, checksum: migrationChecksum(v1.sql) }, { version: 2, checksum: migrationChecksum(v2.sql) }]);
+    expect(rows).toEqual([
+      { version: 1, checksum: migrationChecksum(v1.sql) },
+      { version: 2, checksum: migrationChecksum(v2.sql) },
+    ]);
   });
 
   it('refuses a cache whose applied migration no longer matches the code, naming the version and the rule', () => {
     const db = new Database(':memory:');
     ensureSchema(db, [v1]);
     let err: unknown;
-    try { ensureSchema(db, [v1Edited, v2]); } catch (e) { err = e; }
-    const applied = (db.query('SELECT version FROM _schema_version').all() as Array<{ version: number }>).map(r => r.version);
+    try {
+      ensureSchema(db, [v1Edited, v2]);
+    } catch (e) {
+      err = e;
+    }
+    const applied = (db.query('SELECT version FROM _schema_version').all() as Array<{ version: number }>).map(
+      (r) => r.version,
+    );
     db.close();
     expect(err).toBeInstanceOf(CliError);
     expect((err as CliError).code).toBe('DB_ERROR');
@@ -105,7 +123,10 @@ describe('applied migrations are validated against their checksum', () => {
     ensureSchema(db, [v1, v2]);
     const rows = db.query('SELECT version, checksum FROM _schema_version ORDER BY version').all();
     db.close();
-    expect(rows).toEqual([{ version: 1, checksum: migrationChecksum(v1.sql) }, { version: 2, checksum: migrationChecksum(v2.sql) }]);
+    expect(rows).toEqual([
+      { version: 1, checksum: migrationChecksum(v1.sql) },
+      { version: 2, checksum: migrationChecksum(v2.sql) },
+    ]);
   });
 
   it('upgrades a cache from before checksums: adds the column, stamps the rows with the current SQL, then enforces', () => {
@@ -134,14 +155,12 @@ describe('Database', () => {
       const db = openDatabase(TEST_DB);
       ensureSchema(db);
 
-      const tables = db.query(
-        "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-      ).all() as { name: string }[];
-      const tableNames = tables.map(t => t.name);
+      const tables = db.query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all() as {
+        name: string;
+      }[];
+      const tableNames = tables.map((t) => t.name);
 
-      expect(tableNames).toEqual(expect.arrayContaining([
-        'daily_sleep', 'heartrate', 'workouts', '_schema_version',
-      ]));
+      expect(tableNames).toEqual(expect.arrayContaining(['daily_sleep', 'heartrate', 'workouts', '_schema_version']));
 
       db.close();
     });
@@ -162,12 +181,17 @@ describe('Database', () => {
 describe('getDbPath', () => {
   const saved = process.env.OURA_DB_PATH;
   afterEach(() => {
-    if (saved === undefined) delete process.env.OURA_DB_PATH; else process.env.OURA_DB_PATH = saved;
+    if (saved === undefined) delete process.env.OURA_DB_PATH;
+    else process.env.OURA_DB_PATH = saved;
   });
 
   it('rejects an empty --db instead of falling back to the home cache', () => {
     let err: unknown;
-    try { getDbPath(''); } catch (e) { err = e; }
+    try {
+      getDbPath('');
+    } catch (e) {
+      err = e;
+    }
     expect(err).toBeInstanceOf(CliError);
     expect((err as CliError).code).toBe('BAD_ARGS');
     expect((err as CliError).message).toContain('--db');
@@ -176,14 +200,22 @@ describe('getDbPath', () => {
 
   it('rejects a blank --db the same way as an empty one', () => {
     let err: unknown;
-    try { getDbPath('   '); } catch (e) { err = e; }
+    try {
+      getDbPath('   ');
+    } catch (e) {
+      err = e;
+    }
     expect((err as CliError).code).toBe('BAD_ARGS');
   });
 
   it('rejects an empty OURA_DB_PATH', () => {
     process.env.OURA_DB_PATH = '';
     let err: unknown;
-    try { getDbPath(); } catch (e) { err = e; }
+    try {
+      getDbPath();
+    } catch (e) {
+      err = e;
+    }
     expect(err).toBeInstanceOf(CliError);
     expect((err as CliError).code).toBe('BAD_ARGS');
     expect((err as CliError).message).toContain('OURA_DB_PATH');
@@ -202,13 +234,19 @@ describe('getDbPath', () => {
 
 describe('openDatabase errors', () => {
   const dir = mkdtempSync(join(tmpdir(), 'oura-open-'));
-  afterAll(() => { rmSync(dir, { recursive: true, force: true }); });
+  afterAll(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
 
   it('reports a file that is not a database as DB_ERROR with a hint', () => {
     const junk = join(dir, 'junk.db');
     writeFileSync(junk, 'this is not sqlite');
     let err: unknown;
-    try { openDatabase(junk); } catch (e) { err = e; }
+    try {
+      openDatabase(junk);
+    } catch (e) {
+      err = e;
+    }
     expect(err).toBeInstanceOf(CliError);
     expect((err as CliError).code).toBe('DB_ERROR');
     expect((err as CliError).message).toContain(junk);
@@ -218,7 +256,11 @@ describe('openDatabase errors', () => {
   it('says a path naming a directory is one, instead of blaming permissions (#151)', () => {
     const target = mkdtempSync(join(tmpdir(), 'oura-db-is-a-dir-'));
     let err: unknown;
-    try { openDatabase(target); } catch (e) { err = e; }
+    try {
+      openDatabase(target);
+    } catch (e) {
+      err = e;
+    }
     rmSync(target, { recursive: true, force: true });
     expect(err).toBeInstanceOf(CliError);
     expect({ code: (err as CliError).code, message: (err as CliError).message, hint: (err as CliError).hint }).toEqual({
@@ -241,7 +283,9 @@ describe('openDatabase errors', () => {
       const db = openDatabase(path);
       db.exec('CREATE TABLE t (x)');
       db.close();
-    } catch (e) { err = asDbError(e) ?? e; }
+    } catch (e) {
+      err = asDbError(e) ?? e;
+    }
     chmodSync(ro, 0o700); // so the temp dir can be removed
     expect(err).toBeInstanceOf(CliError);
     expect((err as CliError).code).toBe('DB_ERROR');
@@ -253,8 +297,15 @@ describe('openDatabase errors', () => {
     const path = join(dir, 'damaged.db');
     const seed = new Database(path);
     ensureSchema(seed);
-    const insert = seed.query("INSERT INTO heartrate (timestamp, bpm, source, day) VALUES (?, 60, 'awake', '2026-01-01')");
-    seed.transaction(() => { for (let i = 0; i < 400; i++) insert.run(`2026-01-01T${String(Math.floor(i / 60)).padStart(2, '0')}:${String(i % 60).padStart(2, '0')}:00+00:00`); })();
+    const insert = seed.query(
+      "INSERT INTO heartrate (timestamp, bpm, source, day) VALUES (?, 60, 'awake', '2026-01-01')",
+    );
+    seed.transaction(() => {
+      for (let i = 0; i < 400; i++)
+        insert.run(
+          `2026-01-01T${String(Math.floor(i / 60)).padStart(2, '0')}:${String(i % 60).padStart(2, '0')}:00+00:00`,
+        );
+    })();
     seed.exec('PRAGMA wal_checkpoint(TRUNCATE)');
     seed.close();
     const fd = openSync(path, 'r+');
@@ -264,7 +315,11 @@ describe('openDatabase errors', () => {
     const db = openDatabase(path);
     let err: CliError | undefined;
     // The zeroed pages hold the small tables' roots; the heartrate scan itself still answers.
-    try { db.query("SELECT score FROM daily_sleep WHERE day = '2026-01-01'").get(); } catch (e) { err = asDbError(e); }
+    try {
+      db.query("SELECT score FROM daily_sleep WHERE day = '2026-01-01'").get();
+    } catch (e) {
+      err = asDbError(e);
+    }
     db.close();
     expect(err).toBeInstanceOf(CliError);
     expect(err!.message).toContain('malformed');
@@ -278,7 +333,11 @@ describe('openDatabase errors', () => {
     const file = join(dir, 'afile');
     writeFileSync(file, '');
     let err: unknown;
-    try { openDatabase(join(file, 'x.db')); } catch (e) { err = e; }
+    try {
+      openDatabase(join(file, 'x.db'));
+    } catch (e) {
+      err = e;
+    }
     expect(err).toBeInstanceOf(CliError);
     expect((err as CliError).code).toBe('DB_ERROR');
   });
@@ -286,22 +345,29 @@ describe('openDatabase errors', () => {
 
 describe('concurrent migrations', () => {
   const dir = mkdtempSync(join(tmpdir(), 'oura-migrate-'));
-  afterAll(() => { rmSync(dir, { recursive: true, force: true }); });
+  afterAll(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
 
   it('records each migration once when several processes migrate the same cold cache', async () => {
     // #77: check-and-apply had no lock, so ten concurrent commands left 13 rows for 3 migrations.
     // Harmless while every migration is IF NOT EXISTS; the first ALTER TABLE would fail the loser.
     const path = join(dir, 'cold.db');
-    const procs = Array.from({ length: 4 }, () => Bun.spawn(
-      ['bun', 'run', join(import.meta.dir, '..', 'index.ts'), 'db', 'stats', '--db', path, '--format', 'json'],
-      { stdout: 'pipe', stderr: 'pipe' },
-    ));
-    const codes = await Promise.all(procs.map(p => p.exited));
-    const errs = await Promise.all(procs.map(async p => (await new Response(p.stderr).text()).trim()));
-    expect({ codes, errs: errs.filter(e => e.length > 0) }).toEqual({ codes: [0, 0, 0, 0], errs: [] });
+    const procs = Array.from({ length: 4 }, () =>
+      Bun.spawn(
+        ['bun', 'run', join(import.meta.dir, '..', 'index.ts'), 'db', 'stats', '--db', path, '--format', 'json'],
+        { stdout: 'pipe', stderr: 'pipe' },
+      ),
+    );
+    const codes = await Promise.all(procs.map((p) => p.exited));
+    const errs = await Promise.all(procs.map(async (p) => (await new Response(p.stderr).text()).trim()));
+    expect({ codes, errs: errs.filter((e) => e.length > 0) }).toEqual({ codes: [0, 0, 0, 0], errs: [] });
 
     const db = new Database(path);
-    const rows = db.query('SELECT version, COUNT(*) AS n FROM _schema_version GROUP BY version').all() as Array<{ version: number; n: number }>;
+    const rows = db.query('SELECT version, COUNT(*) AS n FROM _schema_version GROUP BY version').all() as Array<{
+      version: number;
+      n: number;
+    }>;
     db.close();
     expect(rows.length).toBeGreaterThan(0);
     for (const row of rows) expect(row.n).toBe(1);
@@ -328,7 +394,9 @@ describe('concurrent migrations', () => {
 
 describe('openDatabase concurrency and permissions', () => {
   const dir = mkdtempSync(join(tmpdir(), 'oura-open2-'));
-  afterAll(() => { rmSync(dir, { recursive: true, force: true }); });
+  afterAll(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
 
   it('creates the directory 0700 and the file 0600', () => {
     const path = join(dir, 'private', 'oura.db');
@@ -364,12 +432,18 @@ describe('openDatabase concurrency and permissions', () => {
     a.exec('BEGIN IMMEDIATE');
     try {
       let err: unknown;
-      try { b.exec("INSERT INTO daily_sleep (id, day) VALUES ('y', '2026-01-02')"); } catch (e) { err = asDbError(e); }
+      try {
+        b.exec("INSERT INTO daily_sleep (id, day) VALUES ('y', '2026-01-02')");
+      } catch (e) {
+        err = asDbError(e);
+      }
       expect(err).toBeInstanceOf(CliError);
       expect((err as CliError).code).toBe('DB_ERROR');
       expect((err as CliError).hint).toContain('Another oura-cli process');
     } finally {
-      a.exec('ROLLBACK'); a.close(); b.close();
+      a.exec('ROLLBACK');
+      a.close();
+      b.close();
     }
   });
 });

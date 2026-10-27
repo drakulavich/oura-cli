@@ -57,23 +57,34 @@ describe('localDateToUtcRange', () => {
 
   it('spans 25 hours on the DST fall-back day (Berlin, 2026-10-25)', () => {
     // Midnight is still CEST (+02:00); the next midnight is CET (+01:00).
-    expect(localDateToUtcRange('2026-10-25', 'Europe/Berlin')).toEqual(['2026-10-24T22:00:00Z', '2026-10-25T23:00:00Z']);
+    expect(localDateToUtcRange('2026-10-25', 'Europe/Berlin')).toEqual([
+      '2026-10-24T22:00:00Z',
+      '2026-10-25T23:00:00Z',
+    ]);
   });
 
   it('spans 23 hours on the DST spring-forward day (Berlin, 2026-03-29)', () => {
-    expect(localDateToUtcRange('2026-03-29', 'Europe/Berlin')).toEqual(['2026-03-28T23:00:00Z', '2026-03-29T22:00:00Z']);
+    expect(localDateToUtcRange('2026-03-29', 'Europe/Berlin')).toEqual([
+      '2026-03-28T23:00:00Z',
+      '2026-03-29T22:00:00Z',
+    ]);
   });
 
   it('chains without gaps around a transition: each day ends where the next begins', () => {
     for (const day of ['2026-10-24', '2026-10-25', '2026-03-28', '2026-03-29']) {
-      expect(localDateToUtcRange(day, 'America/New_York')[1]).toBe(localDateToUtcRange(shiftDay(day, 1), 'America/New_York')[0]);
+      expect(localDateToUtcRange(day, 'America/New_York')[1]).toBe(
+        localDateToUtcRange(shiftDay(day, 1), 'America/New_York')[0],
+      );
     }
   });
 });
 
 describe('resolveDefaultTimezone', () => {
   const savedTz = process.env.OURA_TZ;
-  afterEach(() => { if (savedTz === undefined) delete process.env.OURA_TZ; else process.env.OURA_TZ = savedTz; });
+  afterEach(() => {
+    if (savedTz === undefined) delete process.env.OURA_TZ;
+    else process.env.OURA_TZ = savedTz;
+  });
 
   it('returns a non-empty IANA timezone identifier', () => {
     delete process.env.OURA_TZ;
@@ -90,7 +101,11 @@ describe('resolveDefaultTimezone', () => {
   it('rejects an empty OURA_TZ instead of falling back to the system zone', () => {
     process.env.OURA_TZ = '';
     let err: unknown;
-    try { resolveDefaultTimezone(); } catch (e) { err = e; }
+    try {
+      resolveDefaultTimezone();
+    } catch (e) {
+      err = e;
+    }
     expect(err).toBeInstanceOf(CliError);
     expect((err as CliError).code).toBe('BAD_ARGS');
     expect((err as CliError).message).toContain('OURA_TZ');
@@ -122,16 +137,26 @@ describe('today', () => {
       expect(today()).toBe('2026-06-16');
     } finally {
       setSystemTime();
-      if (prev === undefined) delete process.env.OURA_TZ; else process.env.OURA_TZ = prev;
+      if (prev === undefined) delete process.env.OURA_TZ;
+      else process.env.OURA_TZ = prev;
     }
   });
 });
 
 describe('isCalendarDate', () => {
-  it.each(['2026-06-15', '2024-02-29', '2026-12-31'])('accepts %s', d => {
+  it.each(['2026-06-15', '2024-02-29', '2026-12-31'])('accepts %s', (d) => {
     expect(isCalendarDate(d)).toBe(true);
   });
-  it.each(['2026-02-30', '2025-02-29', '2026-13-01', '2026-00-10', '2026-6-15', '06/15/2026', '2026-06-15T00:00:00Z', ''])('rejects %j', d => {
+  it.each([
+    '2026-02-30',
+    '2025-02-29',
+    '2026-13-01',
+    '2026-00-10',
+    '2026-6-15',
+    '06/15/2026',
+    '2026-06-15T00:00:00Z',
+    '',
+  ])('rejects %j', (d) => {
     expect(isCalendarDate(d)).toBe(false);
   });
 });

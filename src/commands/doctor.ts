@@ -19,7 +19,12 @@ export async function runChecks(deps: DoctorDeps): Promise<DoctorResult> {
     // `source` is an env var name or a file path; homePath leaves the former alone.
     checks.push({ id: 'token', status: 'ok', detail: `Token found via ${homePath(source)}.` });
   } else {
-    checks.push({ id: 'token', status: 'fail', detail: `No token found (checked ${homePath(source)}).`, fix: 'oura-cli login' });
+    checks.push({
+      id: 'token',
+      status: 'fail',
+      detail: `No token found (checked ${homePath(source)}).`,
+      fix: 'oura-cli login',
+    });
   }
 
   // Once the token has been accepted, the data check can ask Oura whether it holds anything newer
@@ -47,7 +52,12 @@ export async function runChecks(deps: DoctorDeps): Promise<DoctorResult> {
       } else {
         const msg = err instanceof Error ? err.message : String(err);
         // A warn with no fix left `nextStep` null under `ok: false`, which read as "something is wrong, nothing to do".
-        checks.push({ id: 'token-valid', status: 'warn', detail: `Could not reach the Oura API: ${msg}`, fix: 'Check the network connection and run `oura-cli doctor` again in a few minutes.' });
+        checks.push({
+          id: 'token-valid',
+          status: 'warn',
+          detail: `Could not reach the Oura API: ${msg}`,
+          fix: 'Check the network connection and run `oura-cli doctor` again in a few minutes.',
+        });
       }
     }
   }
@@ -75,9 +85,11 @@ export async function runChecks(deps: DoctorDeps): Promise<DoctorResult> {
     // the pages without the cross-index work of integrity_check: 11 ms against 42 ms on a 7.5 MB
     // cache, which is what a month of heart rate looks like.
     const damage = quickCheck(db);
-    checks.push(damage === null
-      ? { id: 'integrity', status: 'ok', detail: 'Database passes SQLite quick_check.' }
-      : { id: 'integrity', status: 'fail', detail: `Database is damaged: ${damage}`, fix: REBUILD_HINT });
+    checks.push(
+      damage === null
+        ? { id: 'integrity', status: 'ok', detail: 'Database passes SQLite quick_check.' }
+        : { id: 'integrity', status: 'fail', detail: `Database is damaged: ${damage}`, fix: REBUILD_HINT },
+    );
 
     // A damaged file answers a query with an exception; the integrity check above has already
     // said so, and doctor must still finish rather than crash on its way to the summary.
@@ -116,8 +128,8 @@ export async function runChecks(deps: DoctorDeps): Promise<DoctorResult> {
   // unreachable). So nextStep takes the first non-ok check's fix, not the
   // first *fix* among non-ok checks.
   const settled = (s: string) => s === 'ok' || s === 'skip';
-  const ok = checks.every(c => settled(c.status));
-  const nextStep = checks.find(c => !settled(c.status))?.fix ?? null;
+  const ok = checks.every((c) => settled(c.status));
+  const nextStep = checks.find((c) => !settled(c.status))?.fix ?? null;
   return { ok, checks, nextStep };
 }
 
@@ -129,9 +141,12 @@ export async function runChecks(deps: DoctorDeps): Promise<DoctorResult> {
 function quickCheck(db: Database): string | null {
   try {
     const rows = db.query('PRAGMA quick_check(1)').all() as Array<Record<string, string>>;
-    const first = rows[0] === undefined ? 'ok' : Object.values(rows[0])[0] ?? 'ok';
+    const first = rows[0] === undefined ? 'ok' : (Object.values(rows[0])[0] ?? 'ok');
     if (first === 'ok') return null;
-    const problems = first.split('\n').map(l => l.trim()).filter(l => l !== '' && !l.startsWith('***'));
+    const problems = first
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l !== '' && !l.startsWith('***'));
     return problems[0] ?? first.trim();
   } catch (err) {
     // A file too damaged to answer the pragma is exactly what this check is for.
@@ -154,7 +169,8 @@ function hoursSinceDayEnded(day: string, now: string, tz: string): number {
   const ended = Date.parse(localDateToUtcRange(day, tz)[1]);
   const hours = (Date.parse(now) - ended) / 3_600_000;
   // NaN would compare false against the limit and call any cache current; say so instead.
-  if (!Number.isFinite(hours)) throw new Error(`hoursSinceDayEnded: cannot place ${JSON.stringify(now)} against day ${day}.`);
+  if (!Number.isFinite(hours))
+    throw new Error(`hoursSinceDayEnded: cannot place ${JSON.stringify(now)} against day ${day}.`);
   return hours;
 }
 
@@ -164,7 +180,12 @@ function hoursSinceDayEnded(day: string, now: string, tz: string): number {
  * sync again, and the two looped forever (#127). Live, Oura is asked whether it holds any day after
  * `last`; offline, or when the API could not be reached, both causes are named.
  */
-async function staleDataCheck(last: string, hours: number, hasNewer: ((from: string, to: string) => Promise<boolean>) | undefined, today: string): Promise<DoctorCheck> {
+async function staleDataCheck(
+  last: string,
+  hours: number,
+  hasNewer: ((from: string, to: string) => Promise<boolean>) | undefined,
+  today: string,
+): Promise<DoctorCheck> {
   const base = `Most recent data is from ${last}; that day ended over ${Math.floor(hours)} hours ago (the limit is ${STALE_AFTER_HOURS} hours).`;
   const newer = hasNewer === undefined ? undefined : await hasNewer(shiftDay(last, 1), today).catch(() => undefined);
   if (newer === true) {
@@ -172,13 +193,15 @@ async function staleDataCheck(last: string, hours: number, hasNewer: ((from: str
   }
   if (newer === false) {
     return {
-      id: 'data', status: 'warn',
+      id: 'data',
+      status: 'warn',
       detail: `${base} Oura has nothing newer, so the ring has not uploaded since then.`,
       fix: 'Open the Oura app so the ring uploads its data, then run `oura-cli sync`.',
     };
   }
   return {
-    id: 'data', status: 'warn',
+    id: 'data',
+    status: 'warn',
     detail: `${base} Either Oura has newer days, or the ring has not uploaded since then.`,
     fix: 'Run `oura-cli sync`; if it adds nothing, open the Oura app so the ring uploads its data.',
   };
@@ -194,7 +217,7 @@ function latestDataDay(db: Database): string | null {
 }
 
 export function exitCodeForChecks(checks: DoctorCheck[]): number {
-  const fail = checks.find(c => c.status === 'fail');
+  const fail = checks.find((c) => c.status === 'fail');
   if (!fail) return 0;
   if (fail.id === 'token' || fail.id === 'token-valid') return exitCodeFor(new CliError('TOKEN_MISSING', fail.detail));
   // Everything else is about the database: 'database' itself, 'integrity', and 'data', which only
@@ -230,9 +253,10 @@ export async function runDoctor(ctx: Ctx, args: { db?: string; token?: string; o
 export const doctorCommand = dataCommand({
   meta: { name: 'doctor', description: 'Check token, database and sync health; suggest a fix.' },
   args: { offline: { type: 'boolean', default: false, description: 'Skip the live Oura API token check' } },
-  run: (ctx, args) => runDoctor(ctx, {
-    db: args.db as string | undefined,
-    token: args.token as string | undefined,
-    offline: args.offline === true,
-  }),
+  run: (ctx, args) =>
+    runDoctor(ctx, {
+      db: args.db as string | undefined,
+      token: args.token as string | undefined,
+      offline: args.offline === true,
+    }),
 });

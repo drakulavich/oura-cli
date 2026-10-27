@@ -18,10 +18,17 @@ import { shiftDay } from '../lib/time.js';
  * 30,226 of 37,300 workout-source samples over four months lay outside every workout record, so
  * workouts do not predict where the late samples land.
  */
-export interface LookbackRange { start: string; end: string }
+export interface LookbackRange {
+  start: string;
+  end: string;
+}
 
 /** The days a lookback would re-read: up to and excluding the watermark day, which the tail covers. Null when there is none. */
-export function lookbackRange(c: AnyCollection, last: string | null, explicitFrom: string | undefined): LookbackRange | null {
+export function lookbackRange(
+  c: AnyCollection,
+  last: string | null,
+  explicitFrom: string | undefined,
+): LookbackRange | null {
   if (explicitFrom !== undefined || last === null || !c.syncLookbackDays) return null;
   return { start: shiftDay(last, -c.syncLookbackDays), end: shiftDay(last, -1) };
 }
@@ -38,23 +45,28 @@ function stateKey(c: AnyCollection): string {
  * maximum and fire once too often. Both harmless; neither has been seen in real data.
  */
 function uploadedSince(db: Database, c: AnyCollection, tail: readonly Piece[]): boolean {
-  const field = c.identity.find(i => i.format === 'date-time')?.field;
+  const field = c.identity.find((i) => i.format === 'date-time')?.field;
   if (field === undefined) return false;
   const stored = (db.query(`SELECT MAX(${field}) AS t FROM ${c.table}`).get() as { t: string | null }).t;
   const watermark = stored === null ? -Infinity : Date.parse(stored);
-  return tail.some(piece => piece.rows.some(r => {
-    const t = Date.parse(String((r as Record<string, unknown>)[field] ?? ''));
-    return t > watermark; // NaN compares false: a sample with no usable instant proves nothing
-  }));
+  return tail.some((piece) =>
+    piece.rows.some((r) => {
+      const t = Date.parse(String((r as Record<string, unknown>)[field] ?? ''));
+      return t > watermark; // NaN compares false: a sample with no usable instant proves nothing
+    }),
+  );
 }
 
 /** Whether this run should re-read the lookback range: the ring has uploaded since, or it has not run yet today. */
 export function lookbackDue(db: Database, c: AnyCollection, tail: readonly Piece[], today: string): boolean {
-  const ran = (db.query('SELECT value FROM _sync_state WHERE key = ?').get(stateKey(c)) as { value: string } | null)?.value;
+  const ran = (db.query('SELECT value FROM _sync_state WHERE key = ?').get(stateKey(c)) as { value: string } | null)
+    ?.value;
   return ran !== today || uploadedSince(db, c, tail);
 }
 
 /** Remember that the lookback ran today, so the daily safety net does not fire again until tomorrow. */
 export function markLookbackRan(db: Database, c: AnyCollection, today: string): void {
-  db.query('INSERT INTO _sync_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(stateKey(c), today);
+  db.query(
+    'INSERT INTO _sync_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+  ).run(stateKey(c), today);
 }

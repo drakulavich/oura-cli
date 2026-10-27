@@ -4,7 +4,11 @@ import { isCalendarDate } from './time.js';
 /** Return `value` when it is a real calendar date; otherwise throw BAD_ARGS naming `label`. */
 export function assertCalendarDate(value: string, label: string): string {
   if (!isCalendarDate(value)) {
-    throw new CliError('BAD_ARGS', `${label} must be a real YYYY-MM-DD date, got "${value}".`, `Write ${label} as a calendar day, e.g. 2026-09-01.`);
+    throw new CliError(
+      'BAD_ARGS',
+      `${label} must be a real YYYY-MM-DD date, got "${value}".`,
+      `Write ${label} as a calendar day, e.g. 2026-09-01.`,
+    );
   }
   return value;
 }
@@ -13,7 +17,11 @@ export function assertCalendarDate(value: string, label: string): string {
 export function assertPositiveInt(value: string, label: string): number {
   const n = Number(value);
   if (!/^\d+$/.test(value.trim()) || !Number.isSafeInteger(n) || n < 1) {
-    throw new CliError('BAD_ARGS', `${label} must be a positive integer, got "${value}".`, `Write ${label} as a whole number of 1 or more, e.g. 7.`);
+    throw new CliError(
+      'BAD_ARGS',
+      `${label} must be a positive integer, got "${value}".`,
+      `Write ${label} as a whole number of 1 or more, e.g. 7.`,
+    );
   }
   return n;
 }
@@ -24,6 +32,10 @@ export function assertTimezone(tz: string): string {
     new Intl.DateTimeFormat('en-US', { timeZone: tz });
     return tz;
   } catch {
-    throw new CliError('BAD_ARGS', `Unknown timezone "${tz}".`, 'Use an IANA name such as Europe/Berlin (env: OURA_TZ, flag: --tz).');
+    throw new CliError(
+      'BAD_ARGS',
+      `Unknown timezone "${tz}".`,
+      'Use an IANA name such as Europe/Berlin (env: OURA_TZ, flag: --tz).',
+    );
   }
 }

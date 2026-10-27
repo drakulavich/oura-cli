@@ -24,7 +24,9 @@ const DETAIL_COLUMN = 2 + 1 + 1 + ID_WIDTH + 1;
 export function formatDoctorTable(result: DoctorResult, max = screenWidth()): string {
   const lines = ['', chalk.bold('  Doctor'), RULE];
   for (const c of result.checks) {
-    lines.push(...wrap(c.detail, max, ' '.repeat(DETAIL_COLUMN), `  ${statusSymbol(c.status)} ${c.id.padEnd(ID_WIDTH)} `));
+    lines.push(
+      ...wrap(c.detail, max, ' '.repeat(DETAIL_COLUMN), `  ${statusSymbol(c.status)} ${c.id.padEnd(ID_WIDTH)} `),
+    );
   }
   lines.push('');
   const next = result.nextStep ?? (result.ok ? 'nothing — everything looks healthy.' : 'see the failing checks above.');

@@ -18,15 +18,15 @@ import { fetchCommand } from './fetch.js';
 export function buildRegistry(version: string): SubCommandsDef {
   // Null prototype: otherwise `oura-cli constructor` resolves to Object.prototype.constructor and exits 0 silently.
   const subCommands: SubCommandsDef = Object.assign(Object.create(null) as SubCommandsDef, {
-    login:       loginCommand,
-    describe:    describeCommand(version, () => subCommands),
+    login: loginCommand,
+    describe: describeCommand(version, () => subCommands),
     healthcheck: healthcheckCommand(version),
-    doctor:      doctorCommand,
-    manifest:    manifestCommand(version, () => subCommands),
-    fetch:       fetchCommand,
-    sync:        syncCommand,
-    db:          dbCommand,
-    report:      reportCommand,
+    doctor: doctorCommand,
+    manifest: manifestCommand(version, () => subCommands),
+    fetch: fetchCommand,
+    sync: syncCommand,
+    db: dbCommand,
+    report: reportCommand,
   });
   return subCommands;
 }

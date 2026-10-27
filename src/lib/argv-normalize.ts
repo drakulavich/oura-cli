@@ -1,8 +1,15 @@
 export const GLOBAL_FLAGS_WITH_VALUE = new Set(['--format', '--token', '--db', '--tz']);
 const GLOBAL_FLAGS_BOOLEAN = new Set(['--no-color']);
 export const SUBCOMMANDS = new Set([
-  'login', 'describe', 'healthcheck', 'doctor', 'manifest',
-  'fetch', 'sync', 'db', 'report',
+  'login',
+  'describe',
+  'healthcheck',
+  'doctor',
+  'manifest',
+  'fetch',
+  'sync',
+  'db',
+  'report',
 ]);
 
 /**
@@ -69,7 +76,10 @@ export function isVersionRequest(rawArgs: readonly string[]): boolean {
   for (let i = 0; i < rawArgs.length; i++) {
     const tok = rawArgs[i]!;
     if (SUBCOMMANDS.has(tok)) return false;
-    if (GLOBAL_FLAGS_WITH_VALUE.has(tok)) { i++; continue; }
+    if (GLOBAL_FLAGS_WITH_VALUE.has(tok)) {
+      i++;
+      continue;
+    }
     if (tok === '--version' || tok === '-v') return true;
   }
   return false;

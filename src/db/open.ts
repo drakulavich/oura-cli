@@ -11,7 +11,8 @@ const DB_HINT = 'Check the path in --db / OURA_DB_PATH and that the file is a SQ
 export const REBUILD_HINT = 'Delete the cache file (--db / OURA_DB_PATH) and run `oura-cli sync` to rebuild it.';
 const CORRUPT_HINT = `The cache file is damaged. ${REBUILD_HINT} \`oura-cli doctor\` shows what is wrong with it.`;
 const BUSY_HINT = 'Another oura-cli process is using this database; wait for it to finish and retry.';
-const PERMISSION_HINT = 'Check that you can write both the file and the directory holding it — SQLite creates -wal and -shm files alongside the database.';
+const PERMISSION_HINT =
+  'Check that you can write both the file and the directory holding it — SQLite creates -wal and -shm files alongside the database.';
 /** How long a statement waits for a lock held by another process before failing with SQLITE_BUSY. */
 const BUSY_TIMEOUT_MS = 5000;
 /** Retries for the exclusive lock the WAL switch needs; SQLITE_BUSY there ignores busy_timeout. */
@@ -26,7 +27,8 @@ function hintFor(detail: string): string {
   if (/malformed|SQLITE_CORRUPT/i.test(detail)) return CORRUPT_HINT;
   // SQLite reports a directory it cannot write as a read-only *database*, which sends the user
   // looking at a file that is fine: WAL and SHM are new files created next to it.
-  if (/readonly database|read-only|EACCES|permission denied|unable to open database file/i.test(detail)) return PERMISSION_HINT;
+  if (/readonly database|read-only|EACCES|permission denied|unable to open database file/i.test(detail))
+    return PERMISSION_HINT;
   return DB_HINT;
 }
 
@@ -52,7 +54,11 @@ export function getDbPath(explicit?: string): string {
 export function openDatabase(explicit?: string): Database {
   const dbPath = getDbPath(explicit);
   if (dbPath !== ':memory:' && existsSync(dbPath) && statSync(dbPath).isDirectory()) {
-    throw new CliError('DB_ERROR', `Cannot open database ${dbPath}: it is a directory.`, `Point --db / OURA_DB_PATH at a file, such as ${join(dbPath, 'oura.db')}.`);
+    throw new CliError(
+      'DB_ERROR',
+      `Cannot open database ${dbPath}: it is a directory.`,
+      `Point --db / OURA_DB_PATH at a file, such as ${join(dbPath, 'oura.db')}.`,
+    );
   }
   try {
     const onDisk = dbPath !== ':memory:';
@@ -112,16 +118,22 @@ export function migrationChecksum(sql: string): string {
  */
 function versionTable(db: Database): Array<{ version: number; checksum: string | null }> {
   db.exec('CREATE TABLE IF NOT EXISTS _schema_version (version INTEGER NOT NULL, checksum TEXT)');
-  const columns = (db.query('PRAGMA table_info(_schema_version)').all() as Array<{ name: string }>).map(c => c.name);
+  const columns = (db.query('PRAGMA table_info(_schema_version)').all() as Array<{ name: string }>).map((c) => c.name);
   if (!columns.includes('checksum')) {
-    try { db.exec('ALTER TABLE _schema_version ADD COLUMN checksum TEXT'); }
-    catch (err) { if (!/duplicate column/i.test(err instanceof Error ? err.message : String(err))) throw err; }
+    try {
+      db.exec('ALTER TABLE _schema_version ADD COLUMN checksum TEXT');
+    } catch (err) {
+      if (!/duplicate column/i.test(err instanceof Error ? err.message : String(err))) throw err;
+    }
   }
-  return db.query('SELECT version, checksum FROM _schema_version ORDER BY version').all() as Array<{ version: number; checksum: string | null }>;
+  return db.query('SELECT version, checksum FROM _schema_version ORDER BY version').all() as Array<{
+    version: number;
+    checksum: string | null;
+  }>;
 }
 
 function schemaVersion(db: Database): number {
-  return Math.max(0, ...versionTable(db).map(r => r.version));
+  return Math.max(0, ...versionTable(db).map((r) => r.version));
 }
 
 /**
@@ -133,16 +145,21 @@ function schemaVersion(db: Database): number {
  * stamped with the current SQL's checksum, since that is the only SQL they can have run.
  */
 function validateApplied(db: Database, migrations: Migration[]): void {
-  const byVersion = new Map(migrations.map(m => [m.version, migrationChecksum(m.sql)]));
+  const byVersion = new Map(migrations.map((m) => [m.version, migrationChecksum(m.sql)]));
   for (const row of versionTable(db)) {
     const expected = byVersion.get(row.version);
     if (expected === undefined) continue; // a version this binary does not know: a newer one wrote it, and downgrades are its problem, not ours
     if (row.checksum === null) {
-      db.query('UPDATE _schema_version SET checksum = ? WHERE version = ? AND checksum IS NULL').run(expected, row.version);
+      db.query('UPDATE _schema_version SET checksum = ? WHERE version = ? AND checksum IS NULL').run(
+        expected,
+        row.version,
+      );
     } else if (row.checksum !== expected) {
-      throw new CliError('DB_ERROR',
+      throw new CliError(
+        'DB_ERROR',
         `Schema migration ${row.version} was changed after it was applied to this cache (recorded ${row.checksum}, code ${expected}).`,
-        'Migrations are append-only: restore the shipped SQL and add a new version instead. To start over, delete the cache file (--db / OURA_DB_PATH) and run `oura-cli sync`.');
+        'Migrations are append-only: restore the shipped SQL and add a new version instead. To start over, delete the cache file (--db / OURA_DB_PATH) and run `oura-cli sync`.',
+      );
     }
   }
 }
@@ -162,7 +179,7 @@ export function ensureSchema(db: Database, migrations: Migration[] = MIGRATIONS)
     // Outside the transaction: CREATE TABLE IF NOT EXISTS is safe to race, and reading the
     // version first means an up-to-date cache takes no write lock at all.
     validateApplied(db, migrations);
-    if (schemaVersion(db) >= Math.max(0, ...migrations.map(m => m.version))) return;
+    if (schemaVersion(db) >= Math.max(0, ...migrations.map((m) => m.version))) return;
 
     db.exec('BEGIN IMMEDIATE');
     try {
@@ -170,14 +187,21 @@ export function ensureSchema(db: Database, migrations: Migration[] = MIGRATIONS)
       for (const m of migrations) {
         if (m.version > current) {
           db.exec(m.sql);
-          db.query('INSERT INTO _schema_version (version, checksum) VALUES (?, ?)').run(m.version, migrationChecksum(m.sql));
+          db.query('INSERT INTO _schema_version (version, checksum) VALUES (?, ?)').run(
+            m.version,
+            migrationChecksum(m.sql),
+          );
         }
       }
       db.exec('COMMIT');
     } catch (err) {
       // SQLite rolls back by itself on SQLITE_FULL, IOERR and NOMEM; asking again then throws
       // "cannot rollback - no transaction is active" and buries the failure the user needs.
-      try { db.exec('ROLLBACK'); } catch { /* already rolled back */ }
+      try {
+        db.exec('ROLLBACK');
+      } catch {
+        /* already rolled back */
+      }
       throw err;
     }
   } catch (err) {

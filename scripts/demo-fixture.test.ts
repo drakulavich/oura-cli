@@ -63,18 +63,21 @@ describe('scripts/demo-fixture.ts', () => {
     expect(newest).toBe(today(tz));
     expect(query<{ n: number }>(dir, 'SELECT COUNT(*) AS n FROM daily_sleep')[0]!.n).toBe(60);
     // Today is still accumulating, so the demo shows the `*`.
-    expect(query<{ slots: number }>(dir, `SELECT class_5_min_slots AS slots FROM daily_activity WHERE day = '${newest}'`)[0]!.slots).toBeLessThan(288);
+    expect(
+      query<{ slots: number }>(dir, `SELECT class_5_min_slots AS slots FROM daily_activity WHERE day = '${newest}'`)[0]!
+        .slots,
+    ).toBeLessThan(288);
     for (const { id } of query<{ id: string }>(dir, 'SELECT id FROM daily_spo2 LIMIT 3')) expect(id).toEndWith('-demo');
 
     // The printed command must survive copy-paste even though the path has a space.
-    const line = stdout.split('\n').find(l => l.startsWith('record with:'))!;
+    const line = stdout.split('\n').find((l) => l.startsWith('record with:'))!;
     expect(line).toContain(`HOME='${dir}'`);
     expect(line).toContain(`PATH='${join(dir, 'bin')}':"$PATH"`);
   });
 
   // UTC+14 and UTC-11 are 25 hours apart, so at any moment at least one of them is on a different
   // calendar day from UTC: a fixture that took "today" from UTC would fail one of these whatever the hour.
-  it.each(['Pacific/Kiritimati', 'Pacific/Pago_Pago'])('ends on today in %s, not UTC', async tz => {
+  it.each(['Pacific/Kiritimati', 'Pacific/Pago_Pago'])('ends on today in %s, not UTC', async (tz) => {
     const dir = join(parent, `tz ${tz.replace('/', '-')}`);
     expect((await run([dir], { OURA_TZ: tz })).code).toBe(0);
     expect(newestDay(dir)).toBe(today(tz));

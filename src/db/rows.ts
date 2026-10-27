@@ -17,9 +17,15 @@ export type CachedRow = Record<string, SqlValue>;
  * for local day D; so those are bounded on the sample instant instead, with the UTC days that can
  * hold the window as the SQL pre-filter.
  */
-export function getRows(db: Database, c: AnyCollection, range: { start: string; end: string } | null, tz: string): CachedRow[] {
-  const cols = c.columns.map(k => k.name);
-  if (range !== null && !cols.includes('day')) throw new Error(`getRows: ${c.name} has no day column to bound a range on.`);
+export function getRows(
+  db: Database,
+  c: AnyCollection,
+  range: { start: string; end: string } | null,
+  tz: string,
+): CachedRow[] {
+  const cols = c.columns.map((k) => k.name);
+  if (range !== null && !cols.includes('day'))
+    throw new Error(`getRows: ${c.name} has no day column to bound a range on.`);
   // Days first, then whatever identifies a row within the day, so the order is stable across runs.
   const order = [...new Set([...(cols.includes('day') ? ['day'] : []), ...identityColumns(c)])].join(', ');
   const select = `SELECT ${cols.join(', ')} FROM ${c.table}`;
@@ -32,6 +38,9 @@ export function getRows(db: Database, c: AnyCollection, range: { start: string; 
   const toMs = Date.parse(localDateToUtcRange(range.end, tz)[1]);
   const instant = (r: CachedRow) => Date.parse(String(r.timestamp));
   return (between.all(shiftDay(range.start, -1), shiftDay(range.end, 1)) as CachedRow[])
-    .filter(r => { const t = instant(r); return t >= fromMs && t < toMs; })
+    .filter((r) => {
+      const t = instant(r);
+      return t >= fromMs && t < toMs;
+    })
     .sort((a, b) => instant(a) - instant(b));
 }

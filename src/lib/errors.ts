@@ -7,7 +7,11 @@ export const ERROR_CODES = ['BAD_ARGS', 'TOKEN_MISSING', 'TOKEN_INVALID', 'API_E
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
 export class CliError extends Error {
-  constructor(public code: ErrorCode, message: string, public hint?: string) {
+  constructor(
+    public code: ErrorCode,
+    message: string,
+    public hint?: string,
+  ) {
     super(message);
     this.name = 'CliError';
   }
@@ -21,12 +25,17 @@ export interface ErrorEnvelope {
 export function exitCodeFor(err: unknown): number {
   if (!(err instanceof CliError)) return 1;
   switch (err.code) {
-    case 'BAD_ARGS':       return 1;
+    case 'BAD_ARGS':
+      return 1;
     case 'TOKEN_MISSING':
-    case 'TOKEN_INVALID':  return 2;
-    case 'API_ERROR':      return 3;
-    case 'DB_ERROR':       return 4;
-    case 'UNKNOWN':        return 1;
+    case 'TOKEN_INVALID':
+      return 2;
+    case 'API_ERROR':
+      return 3;
+    case 'DB_ERROR':
+      return 4;
+    case 'UNKNOWN':
+      return 1;
   }
 }
 
@@ -37,7 +46,9 @@ export function redactSecrets(s: string): string {
 }
 
 export function formatError(
-  err: unknown, format: 'json' | 'table', width = screenWidth(process.stderr),
+  err: unknown,
+  format: 'json' | 'table',
+  width = screenWidth(process.stderr),
   colour = !shouldDisableColor(process.argv, process.env, process.stderr.isTTY === true),
 ): ErrorEnvelope {
   const code = err instanceof CliError ? err.code : 'UNKNOWN';
@@ -55,7 +66,10 @@ export function formatError(
   const head = colour ? chalk.red(`error: ${message}`) : `error: ${message}`;
   // A hint is prose, often a full sentence with a command in it: on a terminal it breaks between
   // words at the screen width and continues under its own text (#130).
-  return { kind: 'text', text: hint ? [head, ...wrap(hint, width, ' '.repeat('  hint: '.length), '  hint: ')].join('\n') : head };
+  return {
+    kind: 'text',
+    text: hint ? [head, ...wrap(hint, width, ' '.repeat('  hint: '.length), '  hint: ')].join('\n') : head,
+  };
 }
 
 export function emitError(err: unknown, format: 'json' | 'table'): void {

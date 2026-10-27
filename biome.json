@@ -2,11 +2,7 @@
   "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
   "root": true,
   "files": {
-    "includes": [
-      "src/**",
-      "scripts/**",
-      "skills/**"
-    ]
+    "includes": ["src/**", "scripts/**", "skills/**"]
   },
   "formatter": {
     "enabled": false
@@ -30,9 +26,7 @@
   },
   "overrides": [
     {
-      "includes": [
-        "src/lib/**"
-      ],
+      "includes": ["src/lib/**"],
       "linter": {
         "rules": {
           "style": {
@@ -41,13 +35,7 @@
               "options": {
                 "patterns": [
                   {
-                    "group": [
-                      "../api/*",
-                      "../collections/*",
-                      "../db/*",
-                      "../render/*",
-                      "../commands/*"
-                    ],
+                    "group": ["../api/*", "../collections/*", "../db/*", "../render/*", "../commands/*"],
                     "message": "src/lib may import only from lib: layers depend only downward (lib → api → collections → db → render → commands → index)."
                   }
                 ]
@@ -58,9 +46,7 @@
       }
     },
     {
-      "includes": [
-        "src/api/**"
-      ],
+      "includes": ["src/api/**"],
       "linter": {
         "rules": {
           "style": {
@@ -69,12 +55,7 @@
               "options": {
                 "patterns": [
                   {
-                    "group": [
-                      "../collections/*",
-                      "../db/*",
-                      "../render/*",
-                      "../commands/*"
-                    ],
+                    "group": ["../collections/*", "../db/*", "../render/*", "../commands/*"],
                     "message": "src/api may import only from lib, api: layers depend only downward (lib → api → collections → db → render → commands → index)."
                   }
                 ]
@@ -85,9 +66,7 @@
       }
     },
     {
-      "includes": [
-        "src/collections/**"
-      ],
+      "includes": ["src/collections/**"],
       "linter": {
         "rules": {
           "style": {
@@ -96,11 +75,7 @@
               "options": {
                 "patterns": [
                   {
-                    "group": [
-                      "../db/*",
-                      "../render/*",
-                      "../commands/*"
-                    ],
+                    "group": ["../db/*", "../render/*", "../commands/*"],
                     "message": "src/collections may import only from lib, api, collections: layers depend only downward (lib → api → collections → db → render → commands → index)."
                   }
                 ]
@@ -111,9 +86,7 @@
       }
     },
     {
-      "includes": [
-        "src/db/**"
-      ],
+      "includes": ["src/db/**"],
       "linter": {
         "rules": {
           "style": {
@@ -122,10 +95,7 @@
               "options": {
                 "patterns": [
                   {
-                    "group": [
-                      "../render/*",
-                      "../commands/*"
-                    ],
+                    "group": ["../render/*", "../commands/*"],
                     "message": "src/db may import only from lib, api, collections, db: layers depend only downward (lib → api → collections → db → render → commands → index)."
                   }
                 ]
@@ -136,9 +106,7 @@
       }
     },
     {
-      "includes": [
-        "src/render/**"
-      ],
+      "includes": ["src/render/**"],
       "linter": {
         "rules": {
           "style": {
@@ -147,9 +115,7 @@
               "options": {
                 "patterns": [
                   {
-                    "group": [
-                      "../commands/*"
-                    ],
+                    "group": ["../commands/*"],
                     "message": "src/render may import only from lib, api, collections, db, render: layers depend only downward (lib → api → collections → db → render → commands → index)."
                   }
                 ]

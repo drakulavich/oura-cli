@@ -12,13 +12,22 @@ const COMMAND_NAME = /^[a-z][a-z0-9-]{0,19}$/;
 
 function editDistanceAtMostOne(a: string, b: string): boolean {
   if (Math.abs(a.length - b.length) > 1) return false;
-  let i = 0, j = 0, edits = 0;
+  let i = 0,
+    j = 0,
+    edits = 0;
   while (i < a.length && j < b.length) {
-    if (a[i] === b[j]) { i++; j++; continue; }
+    if (a[i] === b[j]) {
+      i++;
+      j++;
+      continue;
+    }
     if (++edits > 1) return false;
     if (a.length > b.length) i++;
     else if (a.length < b.length) j++;
-    else { i++; j++; }
+    else {
+      i++;
+      j++;
+    }
   }
   return edits + (a.length - i) + (b.length - j) <= 1;
 }
@@ -32,8 +41,9 @@ function editDistanceAtMostOne(a: string, b: string): boolean {
  */
 function nearestGlobalFlag(token: string): string | undefined {
   if (!token.startsWith('--') || token.length < 4) return undefined;
-  return [...GLOBAL_FLAGS_WITH_VALUE].find(flag =>
-    flag !== token && (editDistanceAtMostOne(flag, token) || flag.startsWith(token)));
+  return [...GLOBAL_FLAGS_WITH_VALUE].find(
+    (flag) => flag !== token && (editDistanceAtMostOne(flag, token) || flag.startsWith(token)),
+  );
 }
 
 /** Commands that take a subcommand (`db`), each with the names it accepts. */
@@ -47,7 +57,10 @@ export function commandTokens(rawArgs: readonly string[]): string[] {
   const tokens: string[] = [];
   for (let i = 0; i < rawArgs.length; i++) {
     const tok = rawArgs[i]!;
-    if (GLOBAL_FLAGS_WITH_VALUE.has(tok)) { i++; continue; }
+    if (GLOBAL_FLAGS_WITH_VALUE.has(tok)) {
+      i++;
+      continue;
+    }
     if (tok.startsWith('-')) continue;
     tokens.push(tok);
   }
@@ -84,8 +97,10 @@ export function fromCittyError(
   // hasOwn: a name like "constructor" must not read Object.prototype.
   const first = commandTokens(rawArgs)[0];
   const parent = first !== undefined && Object.hasOwn(parents, first) ? first : undefined;
-  const parentHelp = parent === undefined ? undefined
-    : `\`oura-cli ${parent}\` takes one of: ${parents[parent]!.join(', ')}. Run \`oura-cli ${parent} --help\` for details.`;
+  const parentHelp =
+    parent === undefined
+      ? undefined
+      : `\`oura-cli ${parent}\` takes one of: ${parents[parent]!.join(', ')}. Run \`oura-cli ${parent} --help\` for details.`;
   switch (code) {
     case 'E_UNKNOWN_COMMAND': {
       const name = message.replace(/^Unknown command\s*/, '').trim();
@@ -96,7 +111,11 @@ export function fromCittyError(
       const before = rawArgs[rawArgs.lastIndexOf(name) - 1];
       const meant = before === undefined ? undefined : nearestGlobalFlag(before);
       if (meant) {
-        return new CliError('BAD_ARGS', `Unknown flag "${before}".`, `Did you mean ${meant}? Its value was read as a command name.`);
+        return new CliError(
+          'BAD_ARGS',
+          `Unknown flag "${before}".`,
+          `Did you mean ${meant}? Its value was read as a command name.`,
+        );
       }
 
       // `oura-cli db --db x`: citty takes the first token after `db` that does not start with "-"
@@ -109,19 +128,24 @@ export function fromCittyError(
       // Anything that cannot be a command name is not quoted back either: a path, a token, a
       // date. Naming it helps nobody and may put a secret in a log.
       if (!COMMAND_NAME.test(name)) {
-        return new CliError('BAD_ARGS', 'Unknown command.', 'A value was read as a command name. Check the flags before it, and run `oura-cli --help` for the list of commands.');
+        return new CliError(
+          'BAD_ARGS',
+          'Unknown command.',
+          'A value was read as a command name. Check the flags before it, and run `oura-cli --help` for the list of commands.',
+        );
       }
 
       const hint = Object.hasOwn(removedCommandHints, name)
         ? removedCommandHints[name]
-        : parentHelp ?? 'Run `oura-cli --help` for the list of commands.';
+        : (parentHelp ?? 'Run `oura-cli --help` for the list of commands.');
       return new CliError('BAD_ARGS', `Unknown command "${name}".`, hint);
     }
     case 'EARG': {
       const positional = /^Missing required positional argument: (\S+?)\.?$/.exec(message)?.[1];
-      const hint = positional !== undefined && Object.hasOwn(positionalHints, positional)
-        ? positionalHints[positional]!
-        : 'Run the command with --help to see its arguments.';
+      const hint =
+        positional !== undefined && Object.hasOwn(positionalHints, positional)
+          ? positionalHints[positional]!
+          : 'Run the command with --help to see its arguments.';
       return new CliError('BAD_ARGS', message.endsWith('.') ? message : `${message}.`, hint);
     }
     case 'E_NO_COMMAND':
