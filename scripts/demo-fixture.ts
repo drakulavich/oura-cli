@@ -38,10 +38,7 @@ mkdirSync(join(home, 'bin'), { recursive: true });
 
 // A token that authenticates nowhere: the tape runs `doctor --offline`, so it is only found, never sent.
 writeFileSync(join(home, '.oura-token'), 'demo-token-not-a-real-credential\n', { mode: 0o600 });
-writeFileSync(
-  join(home, 'bin', 'oura-cli'),
-  `#!/bin/sh\nexec bun ${shellQuote(resolve(import.meta.dir, '../src/index.ts'))} "$@"\n`,
-);
+writeFileSync(join(home, 'bin', 'oura-cli'), `#!/bin/sh\nexec bun ${shellQuote(resolve(import.meta.dir, '../src/index.ts'))} "$@"\n`);
 chmodSync(join(home, 'bin', 'oura-cli'), 0o755);
 
 // mulberry32: small, seeded, good enough for plausible-looking numbers.
@@ -55,8 +52,7 @@ function rand(): number {
 const between = (lo: number, hi: number) => Math.round(lo + rand() * (hi - lo));
 const id = (prefix: string, day: string) => `${prefix}-${day.replace(/-/g, '')}-demo`;
 /** `2026-09-14T07:05:00+00:00`: the timestamp shape Oura uses, at a whole minute. */
-const at = (day: string, hour: number, minute: number) =>
-  `${day}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00+00:00`;
+const at = (day: string, hour: number, minute: number) => `${day}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00+00:00`;
 
 const today = todayIn(); // the CLI's own rule: OURA_TZ, else the system zone
 const DAYS = 60;
@@ -158,8 +154,7 @@ db.transaction(() => {
       stress_high: between(600, 5_400),
     });
 
-    for (let hour = 0; hour < 24; hour += 3)
-      insert('heartrate', { timestamp: at(day, hour, 0), bpm: between(50, 95), source: 'awake', day });
+    for (let hour = 0; hour < 24; hour += 3) insert('heartrate', { timestamp: at(day, hour, 0), bpm: between(50, 95), source: 'awake', day });
 
     if (!isToday && rand() < 0.35) {
       const start = between(7, 19);
@@ -180,6 +175,4 @@ db.transaction(() => {
 db.close();
 
 console.log(`demo home ready at ${home} (${DAYS} days of synthetic data through ${today})`);
-console.log(
-  `record with:  HOME=${shellQuote(home)} PATH=${shellQuote(join(home, 'bin'))}:"$PATH" vhs assets/demo.tape`,
-);
+console.log(`record with:  HOME=${shellQuote(home)} PATH=${shellQuote(join(home, 'bin'))}:"$PATH" vhs assets/demo.tape`);

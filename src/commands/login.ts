@@ -24,11 +24,7 @@ type TerminalOutput = {
 
 export async function readHiddenToken(input: HiddenTokenInput, output: TerminalOutput): Promise<string> {
   if (!input.isTTY || !input.setRawMode) {
-    throw new CliError(
-      'BAD_ARGS',
-      'Interactive login requires a terminal.',
-      'Use `oura-cli login --token` for non-interactive use.',
-    );
+    throw new CliError('BAD_ARGS', 'Interactive login requires a terminal.', 'Use `oura-cli login --token` for non-interactive use.');
   }
 
   output.write('Paste your token (input hidden): ');
@@ -76,11 +72,7 @@ export function writeToken(path: string, token: string): void {
     writeFileSync(path, trimmed, { encoding: 'utf-8' });
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== 'EISDIR') throw err;
-    throw new CliError(
-      'BAD_ARGS',
-      `${path} is a directory.`,
-      `Pass a file path with --path or OURA_TOKEN_PATH, such as ${join(path, '.oura-token')}.`,
-    );
+    throw new CliError('BAD_ARGS', `${path} is a directory.`, `Pass a file path with --path or OURA_TOKEN_PATH, such as ${join(path, '.oura-token')}.`);
   }
   if (process.platform !== 'win32') {
     chmodSync(path, 0o600);

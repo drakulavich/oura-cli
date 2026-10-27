@@ -17,15 +17,9 @@ export type CachedRow = Record<string, SqlValue>;
  * for local day D; so those are bounded on the sample instant instead, with the UTC days that can
  * hold the window as the SQL pre-filter.
  */
-export function getRows(
-  db: Database,
-  c: AnyCollection,
-  range: { start: string; end: string } | null,
-  tz: string,
-): CachedRow[] {
+export function getRows(db: Database, c: AnyCollection, range: { start: string; end: string } | null, tz: string): CachedRow[] {
   const cols = c.columns.map((k) => k.name);
-  if (range !== null && !cols.includes('day'))
-    throw new Error(`getRows: ${c.name} has no day column to bound a range on.`);
+  if (range !== null && !cols.includes('day')) throw new Error(`getRows: ${c.name} has no day column to bound a range on.`);
   // Days first, then whatever identifies a row within the day, so the order is stable across runs.
   const order = [...new Set([...(cols.includes('day') ? ['day'] : []), ...identityColumns(c)])].join(', ');
   const select = `SELECT ${cols.join(', ')} FROM ${c.table}`;

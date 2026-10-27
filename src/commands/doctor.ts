@@ -169,8 +169,7 @@ function hoursSinceDayEnded(day: string, now: string, tz: string): number {
   const ended = Date.parse(localDateToUtcRange(day, tz)[1]);
   const hours = (Date.parse(now) - ended) / 3_600_000;
   // NaN would compare false against the limit and call any cache current; say so instead.
-  if (!Number.isFinite(hours))
-    throw new Error(`hoursSinceDayEnded: cannot place ${JSON.stringify(now)} against day ${day}.`);
+  if (!Number.isFinite(hours)) throw new Error(`hoursSinceDayEnded: cannot place ${JSON.stringify(now)} against day ${day}.`);
   return hours;
 }
 

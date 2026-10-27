@@ -194,9 +194,7 @@ describe('a range fetched in several pieces', () => {
 
     const result = syncPieces(db, hr, [early, [], late]);
 
-    const stored = (
-      db.query('SELECT timestamp FROM heartrate ORDER BY timestamp').all() as Array<{ timestamp: string }>
-    ).length;
+    const stored = (db.query('SELECT timestamp FROM heartrate ORDER BY timestamp').all() as Array<{ timestamp: string }>).length;
     db.close();
     expect(stored).toBe(6); // the middle piece described nothing, so it removed nothing
     expect(result).toEqual({ added: 0, removed: 0, refused: 0, bypassed: 0 });
@@ -208,9 +206,7 @@ describe('a range fetched in several pieces', () => {
 
     const result = syncPieces(db, hr, [[sample(0, 'workout')], []]);
 
-    const rows = (db.query('SELECT source FROM heartrate ORDER BY timestamp').all() as Array<{ source: string }>).map(
-      (r) => r.source,
-    );
+    const rows = (db.query('SELECT source FROM heartrate ORDER BY timestamp').all() as Array<{ source: string }>).map((r) => r.source);
     db.close();
     expect(rows).toEqual(['workout', 'awake']);
     expect(result).toEqual({ added: 1, removed: 1, refused: 0, bypassed: 0 });
@@ -226,8 +222,7 @@ describe('a range fetched in several pieces', () => {
     // A pathological split: the first piece's scope brackets a sample only the second returned.
     const result = syncPieces(db, hr, [[sample(0, 'awake'), sample(9, 'awake')], [sample(5, 'awake')]]);
 
-    const kept = (db.query('SELECT timestamp FROM heartrate ORDER BY timestamp').all() as Array<{ timestamp: string }>)
-      .length;
+    const kept = (db.query('SELECT timestamp FROM heartrate ORDER BY timestamp').all() as Array<{ timestamp: string }>).length;
     db.close();
     expect(kept).toBe(3);
     expect(result).toEqual({ added: 0, removed: 0, refused: 0, bypassed: 0 });
@@ -321,9 +316,7 @@ describe('a response that looks truncated', () => {
 
     syncWindow(db, hr, [sample(0, 'awake'), sample(9, 'awake')], { prune: true });
 
-    const days = (
-      db.query("SELECT COUNT(*) AS n FROM heartrate WHERE timestamp LIKE '2026-08-01%'").get() as { n: number }
-    ).n;
+    const days = (db.query("SELECT COUNT(*) AS n FROM heartrate WHERE timestamp LIKE '2026-08-01%'").get() as { n: number }).n;
     db.close();
     expect(days).toBe(1);
   });
@@ -424,9 +417,7 @@ describe('a piece vouches only for the range its request asked for (#111)', () =
     const db = withFourDays();
     // Two real samples bound the scope (a single one covers only itself); the empty string must not
     // stretch it downwards over the three earlier days.
-    const plan = planWindow(db, hr, [
-      { query: request('04'), rows: [{ timestamp: '', bpm: 1, source: 'awake' }, at('04', 0), at('04', 14)] },
-    ]);
+    const plan = planWindow(db, hr, [{ query: request('04'), rows: [{ timestamp: '', bpm: 1, source: 'awake' }, at('04', 0), at('04', 14)] }]);
     db.close();
     // Only 10:00..10:14 of 03-04 is in scope: the 13 unreturned samples between them look like a
     // truncated answer (13 of 15), so they are refused, and nothing from the other days is touched.
@@ -470,9 +461,7 @@ describe('a piece vouches only for the range its request asked for (#111)', () =
     });
     const db = seeded();
     syncWindow(db, workout, [w('w1', '2026-02-01'), w('w2', '2026-02-01'), w('w3', '2026-02-01')]);
-    const plan = planWindow(db, workout, [
-      { query: { start_date: '2026-03-04', end_date: '2026-03-05' }, rows: [w('w-stray', '2026-02-01')] },
-    ]);
+    const plan = planWindow(db, workout, [{ query: { start_date: '2026-03-04', end_date: '2026-03-05' }, rows: [w('w-stray', '2026-02-01')] }]);
     db.close();
     expect(plan.stale).toEqual([]);
   });

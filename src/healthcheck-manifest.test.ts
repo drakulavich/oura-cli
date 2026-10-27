@@ -32,10 +32,7 @@ describe('healthcheck and manifest commands', () => {
 
   describe('doctor', () => {
     it('emits --offline --format json output that validates against docs/schemas/doctor.json', async () => {
-      const proc = Bun.spawn(
-        ['bun', 'run', 'src/index.ts', '--db', ':memory:', 'doctor', '--offline', '--format', 'json'],
-        { stdout: 'pipe' },
-      );
+      const proc = Bun.spawn(['bun', 'run', 'src/index.ts', '--db', ':memory:', 'doctor', '--offline', '--format', 'json'], { stdout: 'pipe' });
       const out = await new Response(proc.stdout).text();
       await proc.exited;
 
@@ -53,22 +50,10 @@ describe('healthcheck and manifest commands', () => {
       const env: Record<string, string> = { ...process.env } as Record<string, string>;
       delete env.OURA_TOKEN;
       env.OURA_TOKEN_PATH = '/nonexistent/for-doctor-token-e2e-test';
-      const proc = Bun.spawn(
-        [
-          'bun',
-          'run',
-          'src/index.ts',
-          '--db',
-          ':memory:',
-          'doctor',
-          '--offline',
-          '--token',
-          'e2e-test-token-abc',
-          '--format',
-          'json',
-        ],
-        { stdout: 'pipe', env },
-      );
+      const proc = Bun.spawn(['bun', 'run', 'src/index.ts', '--db', ':memory:', 'doctor', '--offline', '--token', 'e2e-test-token-abc', '--format', 'json'], {
+        stdout: 'pipe',
+        env,
+      });
       const out = await new Response(proc.stdout).text();
       await proc.exited;
 
@@ -83,10 +68,7 @@ describe('healthcheck and manifest commands', () => {
       const env: Record<string, string> = { ...process.env } as Record<string, string>;
       delete env.OURA_TOKEN;
       env.OURA_TOKEN_PATH = '/nonexistent/for-doctor-exit-e2e-test';
-      const proc = Bun.spawn(
-        ['bun', 'run', 'src/index.ts', '--db', ':memory:', 'doctor', '--offline', '--format', 'json'],
-        { stdout: 'pipe', env },
-      );
+      const proc = Bun.spawn(['bun', 'run', 'src/index.ts', '--db', ':memory:', 'doctor', '--offline', '--format', 'json'], { stdout: 'pipe', env });
       await new Response(proc.stdout).text();
       await proc.exited;
 
@@ -94,22 +76,9 @@ describe('healthcheck and manifest commands', () => {
     });
 
     it('exits 0 when only a warning is present, not a failure', async () => {
-      const proc = Bun.spawn(
-        [
-          'bun',
-          'run',
-          'src/index.ts',
-          '--db',
-          ':memory:',
-          'doctor',
-          '--offline',
-          '--token',
-          'e2e-ok-token',
-          '--format',
-          'json',
-        ],
-        { stdout: 'pipe' },
-      );
+      const proc = Bun.spawn(['bun', 'run', 'src/index.ts', '--db', ':memory:', 'doctor', '--offline', '--token', 'e2e-ok-token', '--format', 'json'], {
+        stdout: 'pipe',
+      });
       const out = await new Response(proc.stdout).text();
       await proc.exited;
 
@@ -121,20 +90,7 @@ describe('healthcheck and manifest commands', () => {
 
     it('prints the doctor table with per-check lines and a Next: line in table mode', async () => {
       const proc = Bun.spawn(
-        [
-          'bun',
-          'run',
-          'src/index.ts',
-          '--db',
-          ':memory:',
-          'doctor',
-          '--offline',
-          '--token',
-          'e2e-table-token',
-          '--no-color',
-          '--format',
-          'table',
-        ],
+        ['bun', 'run', 'src/index.ts', '--db', ':memory:', 'doctor', '--offline', '--token', 'e2e-table-token', '--no-color', '--format', 'table'],
         { stdout: 'pipe' },
       );
       const out = await new Response(proc.stdout).text();

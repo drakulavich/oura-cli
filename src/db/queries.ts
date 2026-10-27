@@ -51,12 +51,9 @@ export function getDaySummary(db: Database, day: string, complete: DayCompletene
   const sl = db.query('SELECT score FROM daily_sleep WHERE day=?').get(day) as { score: number | null } | undefined;
   const rd = db.query('SELECT score, temperature_deviation FROM daily_readiness WHERE day=?').get(day) as
     { score: number | null; temperature_deviation: number | null } | undefined;
-  const ac = db.query('SELECT score, steps FROM daily_activity WHERE day=?').get(day) as
-    { score: number | null; steps: number | null } | undefined;
-  const st = db.query('SELECT day_summary FROM daily_stress WHERE day=?').get(day) as
-    { day_summary: string | null } | undefined;
-  const sp = db.query('SELECT spo2_average FROM daily_spo2 WHERE day=?').get(day) as
-    { spo2_average: number | null } | undefined;
+  const ac = db.query('SELECT score, steps FROM daily_activity WHERE day=?').get(day) as { score: number | null; steps: number | null } | undefined;
+  const st = db.query('SELECT day_summary FROM daily_stress WHERE day=?').get(day) as { day_summary: string | null } | undefined;
+  const sp = db.query('SELECT spo2_average FROM daily_spo2 WHERE day=?').get(day) as { spo2_average: number | null } | undefined;
   const sm = db
     .query(
       `SELECT total_sleep_duration, deep_sleep_duration, rem_sleep_duration, average_hrv, lowest_heart_rate, efficiency FROM sleep_model WHERE day=? AND type='long_sleep'`,
@@ -120,9 +117,7 @@ export function getTrends(db: Database, days: number, today: string): TrendRow[]
   for (const [label, table, col, accumulates] of metrics) {
     const end = accumulates ? activityEnd : today;
     const row = db
-      .query(
-        `SELECT AVG(${col}) as avg, MIN(${col}) as min, MAX(${col}) as max, COUNT(${col}) as count FROM ${table} WHERE day BETWEEN ? AND ?`,
-      )
+      .query(`SELECT AVG(${col}) as avg, MIN(${col}) as min, MAX(${col}) as max, COUNT(${col}) as count FROM ${table} WHERE day BETWEEN ? AND ?`)
       .get(start, end) as { avg: number | null; min: number | null; max: number | null; count: number };
     if (row.count > 0 && row.avg !== null) {
       results.push({ label, avg: +row.avg.toFixed(0), min: row.min!, max: row.max!, count: row.count });
@@ -175,12 +170,10 @@ export function getStats(db: Database, today: string): DbStats {
   };
   const trends = getTrends(db, 99999, today);
 
-  const mostSteps = db
-    .query('SELECT day, steps FROM daily_activity WHERE steps IS NOT NULL ORDER BY steps DESC LIMIT 1')
-    .get() as { day: string; steps: number } | undefined;
-  const bestSleep = db
-    .query('SELECT day, score FROM daily_sleep WHERE score IS NOT NULL ORDER BY score DESC LIMIT 1')
-    .get() as { day: string; score: number } | undefined;
+  const mostSteps = db.query('SELECT day, steps FROM daily_activity WHERE steps IS NOT NULL ORDER BY steps DESC LIMIT 1').get() as
+    { day: string; steps: number } | undefined;
+  const bestSleep = db.query('SELECT day, score FROM daily_sleep WHERE score IS NOT NULL ORDER BY score DESC LIMIT 1').get() as
+    { day: string; score: number } | undefined;
 
   return {
     tables,

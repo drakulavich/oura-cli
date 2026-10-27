@@ -1,16 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import { Database } from 'bun:sqlite';
-import {
-  COLLECTIONS,
-  ddl,
-  insertSql,
-  rowValues,
-  hasIdentity,
-  identityColumns,
-  names,
-  byName,
-  rangeQueries,
-} from './index.js';
+import { COLLECTIONS, ddl, insertSql, rowValues, hasIdentity, identityColumns, names, byName, rangeQueries } from './index.js';
 
 describe('the activity slot count', () => {
   // The column the completeness rule reads (#74). Only the length is stored — that is all the rule
@@ -88,9 +78,7 @@ describe('rangeQueries', () => {
   const span = (q: Record<string, string>) => Date.parse(q.end_datetime!) - Date.parse(q.start_datetime!) + 1;
 
   it('uses one start_date/end_date query for daily collections, however long the range', () => {
-    expect(rangeQueries(byName('sleep')!, '2025-01-01', '2026-09-05', 'Europe/Berlin')).toEqual([
-      { start_date: '2025-01-01', end_date: '2026-09-05' },
-    ]);
+    expect(rangeQueries(byName('sleep')!, '2025-01-01', '2026-09-05', 'Europe/Berlin')).toEqual([{ start_date: '2025-01-01', end_date: '2026-09-05' }]);
   });
 
   it('covers the local day with inclusive UTC instants for heartrate: local midnight to 1 ms before the next', () => {
@@ -113,11 +101,7 @@ describe('rangeQueries', () => {
       { start_datetime: '2026-09-05T00:00:00.000Z', end_datetime: '2026-09-05T23:59:59.999Z' },
     ]);
     const pieces = rangeQueries(hr, '2026-01-01', '2026-03-15', 'UTC');
-    expect(pieces.map((q) => q.start_datetime)).toEqual([
-      '2026-01-01T00:00:00.000Z',
-      '2026-01-31T00:00:00.000Z',
-      '2026-03-02T00:00:00.000Z',
-    ]);
+    expect(pieces.map((q) => q.start_datetime)).toEqual(['2026-01-01T00:00:00.000Z', '2026-01-31T00:00:00.000Z', '2026-03-02T00:00:00.000Z']);
     for (let i = 1; i < pieces.length; i++) {
       expect(Date.parse(pieces[i]!.start_datetime!)).toBe(Date.parse(pieces[i - 1]!.end_datetime!) + 1);
     }
@@ -134,17 +118,11 @@ describe('rangeQueries', () => {
 
   it('shifts the bounds for endpoints with exclusive bounds so a single day is one day', () => {
     // sleep: start exclusive, end inclusive → ask from the day before.
-    expect(rangeQueries(byName('sleep-periods')!, '2026-09-02', '2026-09-02', 'UTC')).toEqual([
-      { start_date: '2026-09-01', end_date: '2026-09-02' },
-    ]);
+    expect(rangeQueries(byName('sleep-periods')!, '2026-09-02', '2026-09-02', 'UTC')).toEqual([{ start_date: '2026-09-01', end_date: '2026-09-02' }]);
     // workout: start inclusive, end exclusive → ask until the day after.
-    expect(rangeQueries(byName('workout')!, '2026-08-20', '2026-08-20', 'UTC')).toEqual([
-      { start_date: '2026-08-20', end_date: '2026-08-21' },
-    ]);
+    expect(rangeQueries(byName('workout')!, '2026-08-20', '2026-08-20', 'UTC')).toEqual([{ start_date: '2026-08-20', end_date: '2026-08-21' }]);
     // daily endpoints are inclusive on both sides and get no shift.
-    expect(rangeQueries(byName('sleep')!, '2026-09-02', '2026-09-02', 'UTC')).toEqual([
-      { start_date: '2026-09-02', end_date: '2026-09-02' },
-    ]);
+    expect(rangeQueries(byName('sleep')!, '2026-09-02', '2026-09-02', 'UTC')).toEqual([{ start_date: '2026-09-02', end_date: '2026-09-02' }]);
   });
 
   it('returns no queries for an inverted range, for both parameter styles', () => {
@@ -183,12 +161,7 @@ describe('rangeQueries', () => {
 
   it('every registered collection declares valid range parameters', () => {
     for (const c of COLLECTIONS) {
-      const expected =
-        c.endpoint === 'heartrate' || c.endpoint === 'ring_battery_level'
-          ? 'datetime'
-          : c.endpoint === 'ring_configuration'
-            ? 'none'
-            : 'date';
+      const expected = c.endpoint === 'heartrate' || c.endpoint === 'ring_battery_level' ? 'datetime' : c.endpoint === 'ring_configuration' ? 'none' : 'date';
       expect(c.rangeParams).toBe(expected);
       if (c.maxRangeDays !== undefined) expect(Number.isInteger(c.maxRangeDays) && c.maxRangeDays > 0).toBe(true);
       if (c.dayRangeOffset) expect(c.dayRangeOffset.every((o) => Number.isInteger(o) && Math.abs(o) <= 1)).toBe(true);
@@ -225,8 +198,7 @@ describe('hasIdentity', () => {
     // Probes follow the column type, so a future numeric key is judged by its own rule rather than
     // failing this test with "the wrong type was accepted".
     for (const c of COLLECTIONS) {
-      const keyed = (f: (type: string) => unknown) =>
-        Object.fromEntries(identityColumns(c).map((k) => [k, f(c.columns.find((col) => col.name === k)!.type)]));
+      const keyed = (f: (type: string) => unknown) => Object.fromEntries(identityColumns(c).map((k) => [k, f(c.columns.find((col) => col.name === k)!.type)]));
       const right = (t: string) => (t === 'TEXT' ? 'x' : 1);
       const wrong = (t: string) => (t === 'TEXT' ? 20260305 : '1');
       expect([c.name, hasIdentity(c, keyed(wrong))]).toEqual([c.name, false]);

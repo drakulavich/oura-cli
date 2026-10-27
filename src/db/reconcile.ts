@@ -105,12 +105,7 @@ function keyOf(values: readonly unknown[]): string {
  * rows the request never covered (#111). A piece whose query carries no bounds vouches for nothing.
  * Call before inserting; `applyWindowPlan` performs the deletes afterwards.
  */
-export function planWindow(
-  db: Database,
-  c: AnyCollection,
-  pieces: readonly Piece[],
-  options: PlanOptions = {},
-): WindowPlan {
+export function planWindow(db: Database, c: AnyCollection, pieces: readonly Piece[], options: PlanOptions = {}): WindowPlan {
   const identity = identityColumns(c);
   if (identity.length === 0) return emptyPlan();
 
@@ -151,9 +146,7 @@ export function planWindow(
         ? ([`${scopeName} BETWEEN ? AND ?`, [minOf(scopeValues), maxOf(scopeValues)]] as const)
         : ([`${scopeName} IN (${days.map(() => '?').join(', ')})`, days] as const);
 
-    const stored = db
-      .query(`SELECT ${identity.join(', ')} FROM ${c.table} WHERE ${where}`)
-      .all(...(params as never[])) as Array<Record<string, SqlValue>>;
+    const stored = db.query(`SELECT ${identity.join(', ')} FROM ${c.table} WHERE ${where}`).all(...(params as never[])) as Array<Record<string, SqlValue>>;
 
     const storedKeys = new Set<string>();
     const stale: SqlValue[][] = [];

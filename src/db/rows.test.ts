@@ -7,26 +7,13 @@ import { byName } from '../collections/index.js';
 function seeded(): Database {
   const db = new Database(':memory:');
   ensureSchema(db);
-  const tag = db.query(
-    'INSERT INTO enhanced_tags (id, day, end_day, start_time, end_time, tag_type_code, comment, custom_name) VALUES (?,?,?,?,?,?,?,?)',
-  );
+  const tag = db.query('INSERT INTO enhanced_tags (id, day, end_day, start_time, end_time, tag_type_code, comment, custom_name) VALUES (?,?,?,?,?,?,?,?)');
   tag.run('t3', '2026-09-03', null, '2026-09-03T08:00:00+02:00', null, 'tag_generic_coffee', null, null);
   tag.run('t1b', '2026-09-01', null, '2026-09-01T21:00:00+02:00', null, 'tag_generic_alcohol', 'two glasses', null);
-  tag.run(
-    't1a',
-    '2026-09-01',
-    '2026-09-02',
-    '2026-09-01T09:00:00+02:00',
-    '2026-09-02T09:00:00+02:00',
-    null,
-    null,
-    'sick',
-  );
+  tag.run('t1a', '2026-09-01', '2026-09-02', '2026-09-01T09:00:00+02:00', '2026-09-02T09:00:00+02:00', null, null, 'sick');
   tag.run('t4', '2026-09-04', null, null, null, 'tag_generic_nap', null, null);
   tag.run('a0', '2026-09-03', null, null, null, 'tag_generic_coffee', null, null); // sorts first by id, third by day
-  const ring = db.query(
-    'INSERT INTO ring_configuration (id, color, design, firmware_version, hardware_type, set_up_at, size) VALUES (?,?,?,?,?,?,?)',
-  );
+  const ring = db.query('INSERT INTO ring_configuration (id, color, design, firmware_version, hardware_type, set_up_at, size) VALUES (?,?,?,?,?,?,?)');
   ring.run('r2', 'silver', 'horizon', '2.9.30', 'gen3', '2025-01-01T00:00:00+00:00', 9);
   ring.run('r1', 'black', 'heritage', '2.9.30', 'gen3', '2023-06-01T00:00:00+00:00', 10);
   const hr = db.query('INSERT INTO heartrate (bpm, source, timestamp, day) VALUES (?,?,?,?)');
@@ -42,16 +29,7 @@ describe('getRows (#73)', () => {
   it('returns the collection columns as stored, filtered on day with both ends inclusive, oldest day first', () => {
     const rows = getRows(seeded(), byName('tags')!, { start: '2026-09-01', end: '2026-09-03' }, 'UTC');
     expect(rows.map((r) => r.id)).toEqual(['t1a', 't1b', 'a0', 't3']); // day first, then id within the day: a0 does not jump the queue
-    expect(Object.keys(rows[0]!)).toEqual([
-      'id',
-      'day',
-      'end_day',
-      'start_time',
-      'end_time',
-      'tag_type_code',
-      'comment',
-      'custom_name',
-    ]);
+    expect(Object.keys(rows[0]!)).toEqual(['id', 'day', 'end_day', 'start_time', 'end_time', 'tag_type_code', 'comment', 'custom_name']);
     expect(rows[0]).toEqual({
       id: 't1a',
       day: '2026-09-01',
@@ -65,9 +43,7 @@ describe('getRows (#73)', () => {
   });
 
   it('keeps a single-day range to that day', () => {
-    expect(
-      getRows(seeded(), byName('tags')!, { start: '2026-09-03', end: '2026-09-03' }, 'UTC').map((r) => r.id),
-    ).toEqual(['a0', 't3']);
+    expect(getRows(seeded(), byName('tags')!, { start: '2026-09-03', end: '2026-09-03' }, 'UTC').map((r) => r.id)).toEqual(['a0', 't3']);
     expect(getRows(seeded(), byName('tags')!, { start: '2026-09-05', end: '2026-09-09' }, 'UTC')).toEqual([]);
   });
 
@@ -91,8 +67,6 @@ describe('getRows (#73)', () => {
   });
 
   it('refuses a range for a collection without a day column instead of building bad SQL', () => {
-    expect(() => getRows(seeded(), byName('ring')!, { start: '2026-09-01', end: '2026-09-01' }, 'UTC')).toThrow(
-      /no day column/,
-    );
+    expect(() => getRows(seeded(), byName('ring')!, { start: '2026-09-01', end: '2026-09-01' }, 'UTC')).toThrow(/no day column/);
   });
 });

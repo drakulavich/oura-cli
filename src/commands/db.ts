@@ -127,12 +127,7 @@ export const dbCommand = defineCommand({
       needs: { db: true },
       run(ctx, args) {
         const c = byName(String(args.collection));
-        if (!c)
-          throw new CliError(
-            'BAD_ARGS',
-            `Unknown collection "${args.collection}".`,
-            `Valid collections: ${names().join(', ')}`,
-          );
+        if (!c) throw new CliError('BAD_ARGS', `Unknown collection "${args.collection}".`, `Valid collections: ${names().join(', ')}`);
         const opts = {
           day: args.day as string | undefined,
           from: args.from as string | undefined,
@@ -144,12 +139,7 @@ export const dbCommand = defineCommand({
         const limit = args.limit === undefined ? undefined : assertPositiveInt(String(args.limit), '--limit');
         const all = getRows(ctx.db!, c, range, ctx.tz);
         const rows = limit === undefined ? all : all.slice(0, limit);
-        const scope =
-          range === null
-            ? ''
-            : range.start === range.end
-              ? ` for ${range.start}`
-              : ` for ${range.start} → ${range.end}`;
+        const scope = range === null ? '' : range.start === range.end ? ` for ${range.start}` : ` for ${range.start} → ${range.end}`;
         // A snapshot has no history to reach back into, so it gets no `--from` hint.
         const hint =
           range === null
@@ -157,11 +147,7 @@ export const dbCommand = defineCommand({
             : `Run \`oura-cli sync\` (\`sync --from <day>\` for older days), or \`oura-cli fetch ${c.name}\` to read the API.`;
         const utcNote =
           range !== null && c.rangeParams === 'datetime' && rows.length > 0
-            ? wrap(
-                `day is the UTC date of each sample; rows are selected by the local day in ${ctx.tz}.`,
-                screenWidth(),
-                '  ',
-              )
+            ? wrap(`day is the UTC date of each sample; rows are selected by the local day in ${ctx.tz}.`, screenWidth(), '  ')
             : [];
         return {
           json: rows,

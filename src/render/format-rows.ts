@@ -61,9 +61,7 @@ function records(names: readonly string[], texts: readonly string[][], max: numb
   const lines: string[] = [];
   texts.forEach((row, r) => {
     if (r > 0) lines.push('');
-    names.forEach((name, i) =>
-      lines.push(`${INDENT}${padRight(name, nameW)}${' '.repeat(GAP)}${clip(row[i]!, valueW)}`.trimEnd()),
-    );
+    names.forEach((name, i) => lines.push(`${INDENT}${padRight(name, nameW)}${' '.repeat(GAP)}${clip(row[i]!, valueW)}`.trimEnd()));
   });
   return lines;
 }
@@ -92,9 +90,7 @@ export function formatRows(
   const count = rows.length === all ? `${all} row${all === 1 ? '' : 's'}` : `${rows.length} of ${all} rows`;
   const title = chalk.bold(`  ${c.name} (${c.table}): ${count}${scope}`);
   if (rows.length === 0) {
-    return finish(['', title, RULE, `  No cached ${c.name} rows${scope}.`, ...wrap(emptyHint, max, INDENT)], max).join(
-      '\n',
-    );
+    return finish(['', title, RULE, `  No cached ${c.name} rows${scope}.`, ...wrap(emptyHint, max, INDENT)], max).join('\n');
   }
 
   const names = c.columns.map((k) => k.name);

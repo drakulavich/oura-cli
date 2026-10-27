@@ -22,10 +22,7 @@ export interface DoctorDeps {
   resolveToken: () => TokenResolution;
   openDb: () => { db: Database; path: string };
   createClient: (token: string) => {
-    fetch: (
-      endpoint: 'daily_sleep' | 'daily_readiness' | 'daily_activity',
-      query: Record<string, string>,
-    ) => Promise<unknown[]>;
+    fetch: (endpoint: 'daily_sleep' | 'daily_readiness' | 'daily_activity', query: Record<string, string>) => Promise<unknown[]>;
   };
   offline: boolean;
   /** YYYY-MM-DD in `tz`; the day the live token probe asks for. */

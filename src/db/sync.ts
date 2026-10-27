@@ -1,14 +1,6 @@
 import type { Database } from './open.js';
 import type { OuraClient } from '../api/client.js';
-import {
-  COLLECTIONS,
-  fetchCollectionByPiece,
-  hasIdentity,
-  identityColumns,
-  insertSql,
-  rowValues,
-  type Piece,
-} from '../collections/index.js';
+import { COLLECTIONS, fetchCollectionByPiece, hasIdentity, identityColumns, insertSql, rowValues, type Piece } from '../collections/index.js';
 import { shiftDay } from '../lib/time.js';
 import { planWindow, applyWindowPlan, type WindowPlan } from './reconcile.js';
 import { lookbackDue, lookbackRange, markLookbackRan } from './lookback.js';
@@ -199,12 +191,8 @@ export async function importDaily(
       // not clear a table that has rows (#105). A ring genuinely removed leaves the account with zero
       // rings, which looks identical from here; `--prune=ring` is how the user says which it was.
       const pk = c.columns.find((col) => col.pk)?.name;
-      if (!pk)
-        throw new Error(
-          `Snapshot collection ${c.name} must declare a primary-key column (enforced by the registry tests).`,
-        );
-      const ids = () =>
-        new Set((db.query(`SELECT ${pk} AS id FROM ${c.table}`).all() as { id: string }[]).map((r) => r.id));
+      if (!pk) throw new Error(`Snapshot collection ${c.name} must declare a primary-key column (enforced by the registry tests).`);
+      const ids = () => new Set((db.query(`SELECT ${pk} AS id FROM ${c.table}`).all() as { id: string }[]).map((r) => r.id));
       const known = ids();
       // Nothing storable arrived. If rows did arrive and were all dropped, that is not an empty answer
       // and there is no correction for --prune to apply: the table is left alone, `dropped` says why,
@@ -230,10 +218,7 @@ export async function importDaily(
         : unstorable
           ? `, ${known.size} rows kept: the response held no storable rows`
           : `, ${known.size} rows kept that the API did not return — an empty answer describes nothing; re-run with --prune=${c.name} to apply it`;
-      if (droppedTail || tail || kept)
-        _log(
-          `  + ${c.name} (${c.table}): ${fetched[c.table]} fetched, ${added[c.table]} new${droppedTail}${tail}${kept}`,
-        );
+      if (droppedTail || tail || kept) _log(`  + ${c.name} (${c.table}): ${fetched[c.table]} fetched, ${added[c.table]} new${droppedTail}${tail}${kept}`);
       continue;
     }
     // Insert and reconcile in one transaction: the window ends up holding exactly what the API
@@ -263,10 +248,7 @@ export async function importDaily(
     // `db stats` and the schema speak in table names.
     // A bypass is named on its own line's tail: "12 stale removed" alone reads like any other
     // reconciliation, and under --from those rows do not come back on the next sync.
-    const tail =
-      gone > 0
-        ? `, ${gone} stale removed${windowPlan.bypassed > 0 ? ` (${windowPlan.bypassed} past the truncation guard)` : ''}`
-        : '';
+    const tail = gone > 0 ? `, ${gone} stale removed${windowPlan.bypassed > 0 ? ` (${windowPlan.bypassed} past the truncation guard)` : ''}` : '';
     // Still not a diagnosis — the guard cannot tell a truncated response from a genuine large
     // correction, and only the user can. But there is now something to do about it either way, and
     // naming it here is the only place the situation is visible.
@@ -274,10 +256,7 @@ export async function importDaily(
       windowPlan.refused > 0
         ? `, ${windowPlan.refused} rows kept that the API did not return — too many to drop on one response; re-run with --prune=${c.name} to apply them`
         : '';
-    if (droppedTail || tail || kept)
-      _log(
-        `  + ${c.name} (${c.table}): ${fetched[c.table]} fetched, ${added[c.table]} new${droppedTail}${tail}${kept}`,
-      );
+    if (droppedTail || tail || kept) _log(`  + ${c.name} (${c.table}): ${fetched[c.table]} fetched, ${added[c.table]} new${droppedTail}${tail}${kept}`);
   }
 
   return {

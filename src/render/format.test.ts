@@ -1,13 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import chalk from 'chalk';
-import {
-  formatDaySummary,
-  formatWeekTable,
-  formatTrends,
-  formatStats,
-  formatImportSummary,
-  PARTIAL_NOTE,
-} from './format.js';
+import { formatDaySummary, formatWeekTable, formatTrends, formatStats, formatImportSummary, PARTIAL_NOTE } from './format.js';
 import type { DaySummary, TrendRow, DbStats } from '../db/queries.js';
 import type { ImportResult } from '../db/sync.js';
 import { formatDoctorTable } from './doctor-table.js';
@@ -121,10 +114,7 @@ describe('formatDaySummary', () => {
 
   it('renders the sleep-detail block (hours + HRV line) only when sleep_hours is non-null', () => {
     const withSleep = stripAnsi(
-      formatDaySummary(
-        makeDay({ sleep_hours: 7.5, deep_hours: 1.2, rem_hours: 1.8, avg_hrv: 45, lowest_hr: 52, efficiency: 91 }),
-        'table',
-      ),
+      formatDaySummary(makeDay({ sleep_hours: 7.5, deep_hours: 1.2, rem_hours: 1.8, avg_hrv: 45, lowest_hr: 52, efficiency: 91 }), 'table'),
     );
     expect(withSleep).toContain('7.5h total | 1.2h deep | 1.8h REM');
     expect(withSleep).toContain('HRV:       45');
@@ -180,9 +170,7 @@ function makeEmptyDay(day: string): DaySummary {
 
 describe('formatDaySummary empty state', () => {
   it('shows the empty-state message and hint when every metric is null and a hint is given', () => {
-    const out = stripAnsi(
-      formatDaySummary(makeEmptyDay('2026-08-30'), 'table', 'Run `oura-cli sync` to download your data.'),
-    );
+    const out = stripAnsi(formatDaySummary(makeEmptyDay('2026-08-30'), 'table', 'Run `oura-cli sync` to download your data.'));
     expect(out).toContain('2026-08-30');
     expect(out).toContain('No Oura data for 2026-08-30 yet.');
     expect(out).toContain('Run `oura-cli sync` to download your data.');
@@ -286,9 +274,7 @@ describe('formatWeekTable column alignment', () => {
 
 describe('formatWeekTable empty state', () => {
   it('shows the empty-state message and hint when every day is empty and a hint is given', () => {
-    const days = ['2026-08-24', '2026-08-25', '2026-08-26', '2026-08-27', '2026-08-28', '2026-08-29', '2026-08-30'].map(
-      makeEmptyDay,
-    );
+    const days = ['2026-08-24', '2026-08-25', '2026-08-26', '2026-08-27', '2026-08-28', '2026-08-29', '2026-08-30'].map(makeEmptyDay);
     const out = stripAnsi(formatWeekTable(days, 'table', 'Run `oura-cli sync`, then `oura-cli db week` again.'));
     expect(out).toContain('No Oura data for the last 7 days yet.');
     expect(out).toContain('Run `oura-cli sync`, then `oura-cli db week` again.');
@@ -303,9 +289,7 @@ describe('formatWeekTable empty state', () => {
   });
 
   it('renders the normal dash table for all-empty days when no hint is passed', () => {
-    const days = ['2026-08-24', '2026-08-25', '2026-08-26', '2026-08-27', '2026-08-28', '2026-08-29', '2026-08-30'].map(
-      makeEmptyDay,
-    );
+    const days = ['2026-08-24', '2026-08-25', '2026-08-26', '2026-08-27', '2026-08-28', '2026-08-29', '2026-08-30'].map(makeEmptyDay);
     const out = stripAnsi(formatWeekTable(days, 'table'));
     expect(out).toContain('Last 7 Days');
     expect(out).not.toContain('No Oura data');
@@ -543,9 +527,7 @@ describe('formatDaySummary partial day', () => {
     const out = stripAnsi(formatDaySummary(makeDay({ day: '2026-05-07', partial: true }), 'table'));
     expect(out).toContain('2026-05-07*');
     expect(out).toContain(PARTIAL_NOTE.trim());
-    expect(stripAnsi(formatWeekTable([makeDay({ day: '2026-05-07', partial: true })], 'table'))).toContain(
-      PARTIAL_NOTE.trim(),
-    );
+    expect(stripAnsi(formatWeekTable([makeDay({ day: '2026-05-07', partial: true })], 'table'))).toContain(PARTIAL_NOTE.trim());
   });
   it('prints neither for a complete day', () => {
     const out = stripAnsi(formatDaySummary(makeDay({ day: '2026-05-07', partial: false }), 'table'));
@@ -600,9 +582,7 @@ describe('formatStats naming and hints (#72)', () => {
 // column 0, and the week table padded its last column into up to nine trailing spaces per row.
 describe('rules and whitespace in the text views (#61)', () => {
   const day = makeDay();
-  const week = Array.from({ length: 7 }, (_, i) =>
-    makeDay({ day: `2026-05-0${i + 1}`, stress: i % 2 ? 'stressful' : null }),
-  );
+  const week = Array.from({ length: 7 }, (_, i) => makeDay({ day: `2026-05-0${i + 1}`, stress: i % 2 ? 'stressful' : null }));
   const trends: TrendRow[] = [{ label: 'Sleep score', avg: 80, min: 70, max: 90, count: 7 }];
   const stats: DbStats = {
     tables: [{ collection: 'sleep', table: 'daily_sleep', rows: 7 }],
@@ -612,11 +592,7 @@ describe('rules and whitespace in the text views (#61)', () => {
   };
   const views = (): Record<string, string> => ({
     day: formatDaySummary(day, 'table'),
-    emptyDay: formatDaySummary(
-      makeDay({ sleep_score: null, readiness_score: null, activity_score: null, steps: null, stress: null }),
-      'table',
-      'Run sync.',
-    ),
+    emptyDay: formatDaySummary(makeDay({ sleep_score: null, readiness_score: null, activity_score: null, steps: null, stress: null }), 'table', 'Run sync.'),
     week: formatWeekTable(week, 'table'),
     trends: formatTrends(trends, 7, 'table'),
     stats: formatStats(stats, 'table'),
@@ -698,8 +674,7 @@ describe('rules and whitespace in the text views (#61)', () => {
 });
 
 describe('hints wrap at the screen width (#130)', () => {
-  const HINT =
-    "Run `oura-cli sync` to download your data. Oura publishes a day's summary after that night's sleep syncs from the ring.";
+  const HINT = "Run `oura-cli sync` to download your data. Oura publishes a day's summary after that night's sleep syncs from the ring.";
   const ANSI = new RegExp(String.fromCharCode(27) + '\\[[0-9;]*m', 'g');
   const visible = (out: string) => out.split('\n').map((l) => l.replace(ANSI, ''));
   const empty = makeDay({
@@ -736,14 +711,10 @@ describe('hints wrap at the screen width (#130)', () => {
     expect(visible(wide)).toContain(`  ${HINT}`);
   }
 
-  it('the day view', () =>
-    expectWrapped(formatDaySummary(empty, 'table', HINT, undefined), formatDaySummary(empty, 'table', HINT, 60), 60));
-  it('the week view', () =>
-    expectWrapped(formatWeekTable([empty], 'table', HINT, undefined), formatWeekTable([empty], 'table', HINT, 60), 60));
-  it('the trends view', () =>
-    expectWrapped(formatTrends([], 30, 'table', HINT, undefined), formatTrends([], 30, 'table', HINT, 60), 60));
-  it('the stats view with no rows at all', () =>
-    expectWrapped(formatStats(noRows, 'table', HINT, undefined), formatStats(noRows, 'table', HINT, 60), 60));
+  it('the day view', () => expectWrapped(formatDaySummary(empty, 'table', HINT, undefined), formatDaySummary(empty, 'table', HINT, 60), 60));
+  it('the week view', () => expectWrapped(formatWeekTable([empty], 'table', HINT, undefined), formatWeekTable([empty], 'table', HINT, 60), 60));
+  it('the trends view', () => expectWrapped(formatTrends([], 30, 'table', HINT, undefined), formatTrends([], 30, 'table', HINT, 60), 60));
+  it('the stats view with no rows at all', () => expectWrapped(formatStats(noRows, 'table', HINT, undefined), formatStats(noRows, 'table', HINT, 60), 60));
   it('the stats view with rows but no daily summaries', () =>
     expectWrapped(formatStats(noDays, 'table', HINT, undefined), formatStats(noDays, 'table', HINT, 60), 60));
 });

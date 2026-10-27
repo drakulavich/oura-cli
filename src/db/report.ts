@@ -90,8 +90,7 @@ export function getReport(db: Database, days: number, today: string): ReportData
   for (const d of windowDays) {
     const sl = db.query('SELECT score FROM daily_sleep WHERE day=?').get(d) as { score: number | null } | undefined;
     const rd = db.query('SELECT score FROM daily_readiness WHERE day=?').get(d) as { score: number | null } | undefined;
-    const ac = db.query('SELECT score, steps FROM daily_activity WHERE day=?').get(d) as
-      { score: number | null; steps: number | null } | undefined;
+    const ac = db.query('SELECT score, steps FROM daily_activity WHERE day=?').get(d) as { score: number | null; steps: number | null } | undefined;
     dailyRows.push({
       day: d,
       dayLabel: dayLabel(d),
@@ -115,13 +114,9 @@ export function getReport(db: Database, days: number, today: string): ReportData
   for (const [label, table, col, isSteps] of metrics) {
     const end = table === 'daily_activity' ? activityEnd : weekEnd;
     const curr = db
-      .query(
-        `SELECT AVG(${col}) as avg, MIN(${col}) as min, MAX(${col}) as max, COUNT(${col}) as cnt FROM ${table} WHERE day BETWEEN ? AND ?`,
-      )
+      .query(`SELECT AVG(${col}) as avg, MIN(${col}) as min, MAX(${col}) as max, COUNT(${col}) as cnt FROM ${table} WHERE day BETWEEN ? AND ?`)
       .get(weekStart, end) as { avg: number | null; min: number | null; max: number | null; cnt: number };
-    const prev = db
-      .query(`SELECT AVG(${col}) as avg FROM ${table} WHERE day BETWEEN ? AND ?`)
-      .get(prevWeekStart, prevWeekEnd) as { avg: number | null };
+    const prev = db.query(`SELECT AVG(${col}) as avg FROM ${table} WHERE day BETWEEN ? AND ?`).get(prevWeekStart, prevWeekEnd) as { avg: number | null };
 
     if (curr.cnt > 0 && curr.avg !== null) {
       const diff = prev.avg !== null ? curr.avg - prev.avg : null;
@@ -145,30 +140,29 @@ export function getReport(db: Database, days: number, today: string): ReportData
       'SELECT AVG(spo2_average) as avg, MIN(spo2_average) as min, MAX(spo2_average) as max, COUNT(spo2_average) as cnt FROM daily_spo2 WHERE day BETWEEN ? AND ?',
     )
     .get(weekStart, weekEnd) as { avg: number | null; min: number | null; max: number | null; cnt: number };
-  const spo2 =
-    sp.cnt > 0 && sp.avg !== null
-      ? { avg: +sp.avg.toFixed(1), min: +sp.min!.toFixed(1), max: +sp.max!.toFixed(1), count: sp.cnt }
-      : null;
+  const spo2 = sp.cnt > 0 && sp.avg !== null ? { avg: +sp.avg.toFixed(1), min: +sp.min!.toFixed(1), max: +sp.max!.toFixed(1), count: sp.cnt } : null;
 
   // Patterns
   const lowSleep = (
-    db
-      .query('SELECT day, score FROM daily_sleep WHERE day BETWEEN ? AND ? AND score < 70 ORDER BY score')
-      .all(weekStart, weekEnd) as { day: string; score: number }[]
+    db.query('SELECT day, score FROM daily_sleep WHERE day BETWEEN ? AND ? AND score < 70 ORDER BY score').all(weekStart, weekEnd) as {
+      day: string;
+      score: number;
+    }[]
   ).map((r) => ({ ...r, dayLabel: dayLabel(r.day) }));
 
   const lowReadiness = (
-    db
-      .query('SELECT day, score FROM daily_readiness WHERE day BETWEEN ? AND ? AND score < 70 ORDER BY score')
-      .all(weekStart, weekEnd) as { day: string; score: number }[]
+    db.query('SELECT day, score FROM daily_readiness WHERE day BETWEEN ? AND ? AND score < 70 ORDER BY score').all(weekStart, weekEnd) as {
+      day: string;
+      score: number;
+    }[]
   ).map((r) => ({ ...r, dayLabel: dayLabel(r.day) }));
 
   const highActivity = (
-    db
-      .query(
-        'SELECT day, score, steps FROM daily_activity WHERE day BETWEEN ? AND ? AND score >= 90 ORDER BY score DESC',
-      )
-      .all(weekStart, activityEnd) as { day: string; score: number; steps: number | null }[]
+    db.query('SELECT day, score, steps FROM daily_activity WHERE day BETWEEN ? AND ? AND score >= 90 ORDER BY score DESC').all(weekStart, activityEnd) as {
+      day: string;
+      score: number;
+      steps: number | null;
+    }[]
   ).map((r) => ({ ...r, dayLabel: dayLabel(r.day) }));
 
   // Sleep details
@@ -192,15 +186,9 @@ export function getReport(db: Database, days: number, today: string): ReportData
 
   // Recommendations
   const recommendations: string[] = [];
-  const avgSleep = db
-    .query('SELECT AVG(score) as avg FROM daily_sleep WHERE day BETWEEN ? AND ?')
-    .get(weekStart, weekEnd) as { avg: number | null };
-  const avgReady = db
-    .query('SELECT AVG(score) as avg FROM daily_readiness WHERE day BETWEEN ? AND ?')
-    .get(weekStart, weekEnd) as { avg: number | null };
-  const avgSteps = db
-    .query('SELECT AVG(steps) as avg FROM daily_activity WHERE day BETWEEN ? AND ?')
-    .get(weekStart, activityEnd) as { avg: number | null };
+  const avgSleep = db.query('SELECT AVG(score) as avg FROM daily_sleep WHERE day BETWEEN ? AND ?').get(weekStart, weekEnd) as { avg: number | null };
+  const avgReady = db.query('SELECT AVG(score) as avg FROM daily_readiness WHERE day BETWEEN ? AND ?').get(weekStart, weekEnd) as { avg: number | null };
+  const avgSteps = db.query('SELECT AVG(steps) as avg FROM daily_activity WHERE day BETWEEN ? AND ?').get(weekStart, activityEnd) as { avg: number | null };
 
   if (avgSleep.avg !== null && avgSleep.avg < 75) {
     recommendations.push('sleep_low');

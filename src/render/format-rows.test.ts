@@ -29,9 +29,7 @@ describe('formatRows (#73)', () => {
   });
 
   it('lays out one column per stored column, numbers right-aligned and text left, with the rules at the body indent', () => {
-    const lines = stripAnsi(withColor(() => formatRows(battery, batteryRows, ' for 2026-09-01', 'table', HINT))).split(
-      '\n',
-    );
+    const lines = stripAnsi(withColor(() => formatRows(battery, batteryRows, ' for 2026-09-01', 'table', HINT))).split('\n');
     expect(lines[1]).toBe('  battery (ring_battery_level): 2 rows for 2026-09-01');
     expect(lines[3]).toBe('  timestamp                  level  charging  in_charger  day');
     expect(lines[5]).toBe('  2026-09-01T07:00:00+00:00    100         0           1  2026-09-01');
@@ -54,9 +52,7 @@ describe('formatRows (#73)', () => {
       timing: 95,
       total_sleep: 85,
     });
-    const rows: CachedRow[] = [
-      { id: 's1', day: '2026-09-01', score: 82, contributors: blob, timestamp: '2026-09-01T00:00:00+00:00' },
-    ];
+    const rows: CachedRow[] = [{ id: 's1', day: '2026-09-01', score: 82, contributors: blob, timestamp: '2026-09-01T00:00:00+00:00' }];
     const table = stripAnsi(formatRows(sleep, rows, ' for 2026-09-01', 'table', HINT));
     expect(table).toContain(`${blob.slice(0, MAX_CELL - 1)}…`);
     expect(table).not.toContain(blob);
@@ -130,9 +126,7 @@ describe('formatRows (#73)', () => {
 
   it('uses the record layout for a wide collection on an 80-column screen, and keeps every column name whole', () => {
     const readiness = byName('readiness')!;
-    const row: CachedRow = Object.fromEntries(
-      readiness.columns.map((k, i) => [k.name, k.type === 'TEXT' ? `v${i}` : i]),
-    );
+    const row: CachedRow = Object.fromEntries(readiness.columns.map((k, i) => [k.name, k.type === 'TEXT' ? `v${i}` : i]));
     const out = stripAnsi(formatRows(readiness, [row], '', 'table', HINT, 80)).split('\n');
     for (const k of readiness.columns)
       expect(
@@ -162,9 +156,7 @@ describe('formatRows (#73)', () => {
   });
 
   it('says "1 row" for one row', () => {
-    expect(stripAnsi(formatRows(battery, batteryRows.slice(0, 1), '', 'table', HINT))).toContain(
-      'battery (ring_battery_level): 1 row\n',
-    );
+    expect(stripAnsi(formatRows(battery, batteryRows.slice(0, 1), '', 'table', HINT))).toContain('battery (ring_battery_level): 1 row\n');
   });
 
   it('explains an empty result and carries the hint, with the scope it was asked for', () => {

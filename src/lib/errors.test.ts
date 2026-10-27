@@ -45,10 +45,7 @@ describe('CliError', () => {
 
   describe('formatError', () => {
     it('redacts a bearer token quoted by an unexpected non-CliError', () => {
-      const env = formatError(
-        new TypeError("Header 'Authorization' has invalid value: 'Bearer FAKETOKEN123456789\nnote'"),
-        'json',
-      );
+      const env = formatError(new TypeError("Header 'Authorization' has invalid value: 'Bearer FAKETOKEN123456789\nnote'"), 'json');
       expect(env.text).not.toContain('FAKETOKEN123456789');
       expect(JSON.parse(env.text).error.message).toContain('[REDACTED]');
     });
@@ -107,8 +104,7 @@ describe('CliError', () => {
 
 describe('formatError wraps the hint at the terminal width (#130)', () => {
   const ANSI = new RegExp(String.fromCharCode(27) + '\\[[0-9;]*m', 'g');
-  const hint =
-    'Use --prune=<collection> (for example --prune=hr), a comma-separated list, or --prune=all for every collection.';
+  const hint = 'Use --prune=<collection> (for example --prune=hr), a comma-separated list, or --prune=all for every collection.';
 
   it('breaks the hint between words and continues under its text', () => {
     const lines = formatError(new CliError('BAD_ARGS', 'boom', hint), 'table', 40)
@@ -132,9 +128,7 @@ describe('formatError wraps the hint at the terminal width (#130)', () => {
     chalk.level = 1;
     try {
       expect(formatError(new CliError('BAD_ARGS', 'boom'), 'table', undefined, false).text).toBe('error: boom');
-      expect(formatError(new CliError('BAD_ARGS', 'boom'), 'table', undefined, true).text).toBe(
-        '\u001b[31merror: boom\u001b[39m',
-      );
+      expect(formatError(new CliError('BAD_ARGS', 'boom'), 'table', undefined, true).text).toBe('\u001b[31merror: boom\u001b[39m');
     } finally {
       chalk.level = level;
     }

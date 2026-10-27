@@ -312,9 +312,7 @@ describe('a malformed response body (#112)', () => {
 
   async function failure(body: string): Promise<CliError> {
     mockFetch({ status: 200, body });
-    const outcome: unknown = await new OuraClient()
-      .fetch('heartrate', { start_datetime: 'x', end_datetime: 'y' })
-      .catch((e) => e);
+    const outcome: unknown = await new OuraClient().fetch('heartrate', { start_datetime: 'x', end_datetime: 'y' }).catch((e) => e);
     if (!(outcome instanceof CliError)) throw new Error(`expected a CliError, got ${JSON.stringify(outcome)}`);
     return outcome;
   }
@@ -368,9 +366,7 @@ describe('rate limiting and progress (#45)', () => {
   });
 
   /** Serves `answers` in order (a 429 with optional Retry-After, or a 200 page) and records every URL. */
-  function serve(
-    answers: Array<{ status: 429; retryAfter?: string } | { status: 200; data: unknown[]; next_token?: string | null }>,
-  ): string[] {
+  function serve(answers: Array<{ status: 429; retryAfter?: string } | { status: 200; data: unknown[]; next_token?: string | null }>): string[] {
     const urls: string[] = [];
     globalThis.fetch = (async (url: unknown) => {
       urls.push(String(url));
@@ -427,26 +423,16 @@ describe('rate limiting and progress (#45)', () => {
   });
 
   it('falls back to a doubling backoff without a usable Retry-After', () => {
-    expect(
-      [null, 'soon', 'Sun, 13 Sep 2026 09:00:00 GMT', '0', '-5'].map((h) =>
-        retryDelayMs(h, 0, Date.parse('2026-09-13T10:00:00Z')),
-      ),
-    ).toEqual([1_000, 1_000, 1_000, 1_000, 1_000]);
+    expect([null, 'soon', 'Sun, 13 Sep 2026 09:00:00 GMT', '0', '-5'].map((h) => retryDelayMs(h, 0, Date.parse('2026-09-13T10:00:00Z')))).toEqual([
+      1_000, 1_000, 1_000, 1_000, 1_000,
+    ]);
     expect([0, 1, 2, 9].map((attempt) => retryDelayMs(null, attempt))).toEqual([1_000, 2_000, 4_000, 4_000]);
   });
 
   it('gives up after RETRY_LIMIT retries with an API_ERROR that says so', async () => {
-    const urls = serve([
-      { status: 429 },
-      { status: 429 },
-      { status: 429 },
-      { status: 429 },
-      { status: 200, data: [1] },
-    ]);
+    const urls = serve([{ status: 429 }, { status: 429 }, { status: 429 }, { status: 429 }, { status: 200, data: [1] }]);
     const { waits, sleep } = recorder();
-    const err = await new OuraClient({ sleep })
-      .fetch('daily_sleep', { start_date: '2026-05-01' })
-      .catch((e) => e as unknown);
+    const err = await new OuraClient({ sleep }).fetch('daily_sleep', { start_date: '2026-05-01' }).catch((e) => e as unknown);
     expect(err).toBeInstanceOf(CliError);
     expect((err as CliError).code).toBe('API_ERROR');
     expect((err as CliError).message).toBe('Oura API 429: {"detail":"Too Many Requests"}');
@@ -458,20 +444,13 @@ describe('rate limiting and progress (#45)', () => {
   it('does not retry other failures, and still reads 401 as TOKEN_INVALID', async () => {
     mockFetch({ status: 500, body: 'boom' });
     const { waits, sleep } = recorder();
-    const err = await new OuraClient({ sleep })
-      .fetch('daily_sleep', { start_date: '2026-05-01' })
-      .catch((e) => e as unknown);
+    const err = await new OuraClient({ sleep }).fetch('daily_sleep', { start_date: '2026-05-01' }).catch((e) => e as unknown);
     expect((err as CliError).code).toBe('API_ERROR');
     expect(waits).toEqual([]);
   });
 
   it('reports every page as it arrives, with the rows it carried', async () => {
-    serve([
-      { status: 200, data: [1, 2], next_token: 'p2' },
-      { status: 429 },
-      { status: 200, data: [], next_token: 'p3' },
-      { status: 200, data: [3] },
-    ]);
+    serve([{ status: 200, data: [1, 2], next_token: 'p2' }, { status: 429 }, { status: 200, data: [], next_token: 'p3' }, { status: 200, data: [3] }]);
     const seen: Array<{ endpoint: string; rows: number; page: number }> = [];
     const client = new OuraClient({ sleep: async () => {}, onPage: (p) => seen.push(p) });
     await client.fetch('heartrate', { start_datetime: 'a', end_datetime: 'b' });
@@ -511,14 +490,10 @@ describe('the 429 wait is bounded per command, and transport faults are classifi
         waits.push(ms);
       },
     });
-    const first = await client
-      .fetch('heartrate', { start_datetime: 'a', end_datetime: 'b' })
-      .catch((e) => e as CliError);
+    const first = await client.fetch('heartrate', { start_datetime: 'a', end_datetime: 'b' }).catch((e) => e as CliError);
     expect((first as CliError).hint).toContain('waited 180 s on 429 answers (the most it will is 180 s)');
     expect(waits).toEqual([60_000, 60_000, 60_000]);
-    const second = await client
-      .fetch('heartrate', { start_datetime: 'c', end_datetime: 'd' })
-      .catch((e) => e as CliError);
+    const second = await client.fetch('heartrate', { start_datetime: 'c', end_datetime: 'd' }).catch((e) => e as CliError);
     expect((second as CliError).code).toBe('API_ERROR');
     expect((second as CliError).hint).toContain('retried 0 times');
     expect(waits).toHaveLength(3); // no further sleep
@@ -550,9 +525,7 @@ describe('the 429 wait is bounded per command, and transport faults are classifi
   it('redacts the literal token from an error body even when it is not behind "Bearer"', async () => {
     process.env.OURA_TOKEN = 'pat-abcdefghijklmnop';
     mockFetch({ status: 429, body: 'denied for token=pat-abcdefghijklmnop&x=1' });
-    const err = await new OuraClient({ sleep: async () => {} })
-      .fetch('daily_sleep', { start_date: '2026-05-01' })
-      .catch((e) => e as CliError);
+    const err = await new OuraClient({ sleep: async () => {} }).fetch('daily_sleep', { start_date: '2026-05-01' }).catch((e) => e as CliError);
     expect((err as CliError).message).toBe('Oura API 429: denied for token=[REDACTED]&x=1');
   });
 

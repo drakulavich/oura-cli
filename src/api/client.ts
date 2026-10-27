@@ -96,11 +96,7 @@ export class OuraClient {
     this.sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
     const { token, source } = resolveToken(options.token, options.tokenPath);
     if (!token) {
-      throw new CliError(
-        'TOKEN_MISSING',
-        `No Oura access token at ${homePath(source)}.`,
-        'Run `oura-cli login` or set OURA_TOKEN.',
-      );
+      throw new CliError('TOKEN_MISSING', `No Oura access token at ${homePath(source)}.`, 'Run `oura-cli login` or set OURA_TOKEN.');
     }
     if (/\s/.test(token)) {
       // A multi-line token file would otherwise reach fetch() and come back as a header error quoting the token.
@@ -129,18 +125,12 @@ export class OuraClient {
       }
       const params = new URLSearchParams(query);
       if (nextToken) params.set('next_token', nextToken);
-      const page: { data: T[]; next_token: string | null } = await this.getPage(
-        endpoint,
-        `${BASE_URL}/${endpoint}?${params}`,
-      );
+      const page: { data: T[]; next_token: string | null } = await this.getPage(endpoint, `${BASE_URL}/${endpoint}?${params}`);
       this.onPage?.({ endpoint, rows: page.data.length, page: ++pageNo });
       for (const row of page.data) rows.push(row);
       nextToken = page.next_token;
       if (nextToken && seenTokens.has(nextToken)) {
-        throw new CliError(
-          'API_ERROR',
-          `Oura API repeated pagination token for ${endpoint}; stopping to avoid a loop.`,
-        );
+        throw new CliError('API_ERROR', `Oura API repeated pagination token for ${endpoint}; stopping to avoid a loop.`);
       }
       if (nextToken) seenTokens.add(nextToken);
     } while (nextToken);
@@ -153,11 +143,7 @@ export class OuraClient {
       return await fetch(url, { headers: { Authorization: `Bearer ${this.token}` } });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      throw new CliError(
-        'API_ERROR',
-        `Could not reach the Oura API: ${msg}`,
-        'Check the network connection and try again.',
-      );
+      throw new CliError('API_ERROR', `Could not reach the Oura API: ${msg}`, 'Check the network connection and try again.');
     }
   }
 
@@ -210,16 +196,10 @@ export class OuraClient {
     // iterated per character and reported as dropped samples that never existed (#112).
     const body = json as { data?: unknown; next_token?: unknown } | null;
     if (body === null || typeof body !== 'object' || Array.isArray(body)) {
-      throw new CliError(
-        'API_ERROR',
-        `Oura API returned a malformed body for ${endpoint}: expected an object, got ${kindOf(body)}.`,
-      );
+      throw new CliError('API_ERROR', `Oura API returned a malformed body for ${endpoint}: expected an object, got ${kindOf(body)}.`);
     }
     if (body.data != null && !Array.isArray(body.data)) {
-      throw new CliError(
-        'API_ERROR',
-        `Oura API returned a malformed body for ${endpoint}: expected an array under "data", got ${kindOf(body.data)}.`,
-      );
+      throw new CliError('API_ERROR', `Oura API returned a malformed body for ${endpoint}: expected an array under "data", got ${kindOf(body.data)}.`);
     }
     // Same rule for the cursor: a non-string there is not "last page", it is a body we do not understand,
     // and treating it as the end would report a short, exit-0 sync with rows missing.

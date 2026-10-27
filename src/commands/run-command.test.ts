@@ -271,11 +271,7 @@ describe('execute', () => {
     it('accepts declared flags, their camelCase twins, the no- negation and the declared positional', async () => {
       const { io, out, exits } = fakeIo(false);
       // The three keys are exactly what citty produces for `--no-color`.
-      await execute(
-        def,
-        { ...baseArgs, day: '2026-01-01', _: ['a'], name: 'a', 'no-color': false, noColor: false, color: false } as any,
-        io,
-      );
+      await execute(def, { ...baseArgs, day: '2026-01-01', _: ['a'], name: 'a', 'no-color': false, noColor: false, color: false } as any, io);
       expect(JSON.parse(out[0])).toBe('ran');
       expect(exits).toEqual([]);
     });

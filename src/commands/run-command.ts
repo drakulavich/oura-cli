@@ -68,8 +68,7 @@ const processIo: RunnerIo = {
 };
 
 /** The collection an endpoint serves, for the progress line: `daily_sleep` is `sleep`, `sleep` is `sleep-periods` (#129). */
-export const collectionOf = (endpoint: string): string =>
-  COLLECTIONS.find((c) => c.endpoint === endpoint)?.name ?? endpoint;
+export const collectionOf = (endpoint: string): string => COLLECTIONS.find((c) => c.endpoint === endpoint)?.name ?? endpoint;
 
 const camel = (s: string) => s.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
 
@@ -110,14 +109,9 @@ export function assertKnownArgs(declared: ArgsDef, args: Record<string, unknown>
   }
 }
 
-export async function execute<A extends ArgsDef>(
-  def: DataCommandDef<A>,
-  args: ParsedArgs<A & CommonArgsDef>,
-  io: RunnerIo = processIo,
-): Promise<void> {
+export async function execute<A extends ArgsDef>(def: DataCommandDef<A>, args: ParsedArgs<A & CommonArgsDef>, io: RunnerIo = processIo): Promise<void> {
   // citty parses --no-color as { 'no-color': false, color: false }, so check the negation key too.
-  if (args['no-color'] === true || (args as { color?: unknown }).color === false || process.env.NO_COLOR)
-    chalk.level = 0;
+  if (args['no-color'] === true || (args as { color?: unknown }).color === false || process.env.NO_COLOR) chalk.level = 0;
   let db: Database | undefined;
   let format: OutputFormat = io.isTty ? 'table' : 'json';
   let exitCode = 0;
@@ -128,9 +122,7 @@ export async function execute<A extends ArgsDef>(
     assertKnownArgs({ ...commonArgs, ...(def.args ?? {}) } as ArgsDef, args as Record<string, unknown>);
     const outputFormat: OutputFormat = def.jsonOnly ? 'json' : format;
     const tzFlag = args.tz as string | undefined;
-    const tz = assertTimezone(
-      tzFlag !== undefined ? requireValue(tzFlag, '--tz', 'OURA_TZ or the system timezone') : resolveDefaultTimezone(),
-    );
+    const tz = assertTimezone(tzFlag !== undefined ? requireValue(tzFlag, '--tz', 'OURA_TZ or the system timezone') : resolveDefaultTimezone());
     if (args.token !== undefined) requireValue(args.token as string, '--token', 'the token file');
     const ctx: Ctx = { format: outputFormat, tz, today: today(tz), ...(io.progress ? { progress: io.progress } : {}) };
     def.validate?.(ctx, args);

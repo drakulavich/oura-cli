@@ -31,10 +31,7 @@ function insertActivity(dayStr: string, score: number | null, steps: number | nu
   db.query('INSERT INTO daily_activity (id, day, score, steps) VALUES (?,?,?,?)').run(nextId(), dayStr, score, steps);
 }
 function insertHeartrate(timestamp: string): void {
-  db.query("INSERT INTO heartrate (timestamp, bpm, source, day) VALUES (?, 60, 'awake', ?)").run(
-    timestamp,
-    timestamp.slice(0, 10),
-  );
+  db.query("INSERT INTO heartrate (timestamp, bpm, source, day) VALUES (?, 60, 'awake', ?)").run(timestamp, timestamp.slice(0, 10));
 }
 function insertSpo2(dayStr: string, avg: number | null): void {
   db.query('INSERT INTO daily_spo2 (id, day, spo2_average) VALUES (?,?,?)').run(nextId(), dayStr, avg);
@@ -280,9 +277,7 @@ describe('getReport recommendations', () => {
     insertActivity(day(1), 80, 5000); // steps < 8000
     insertActivity(day(0), 50, 100); // today's own record is what makes yesterday complete
 
-    expect(getReport(db, 7, TODAY).recommendations).toEqual(
-      expect.arrayContaining(['sleep_low', 'readiness_low', 'steps_low']),
-    );
+    expect(getReport(db, 7, TODAY).recommendations).toEqual(expect.arrayContaining(['sleep_low', 'readiness_low', 'steps_low']));
   });
 
   it('flags great sleep, readiness, and steps when averages meet their high thresholds', () => {
@@ -291,9 +286,7 @@ describe('getReport recommendations', () => {
     insertActivity(day(1), 95, 12000); // steps >= 10000
     insertActivity(day(0), 50, 100); // today's own record is what makes yesterday complete
 
-    expect(getReport(db, 7, TODAY).recommendations).toEqual(
-      expect.arrayContaining(['sleep_great', 'readiness_great', 'steps_great']),
-    );
+    expect(getReport(db, 7, TODAY).recommendations).toEqual(expect.arrayContaining(['sleep_great', 'readiness_great', 'steps_great']));
   });
 
   it('emits no recommendations for mid-range averages inside the threshold gaps', () => {

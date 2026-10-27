@@ -16,11 +16,7 @@ describe('wrap (#130)', () => {
   });
 
   it('keeps a backticked command whole, spaces and clinging punctuation included', () => {
-    const lines = wrap(
-      'Run `oura-cli sync` (`sync --from <day>` for older days), or `oura-cli fetch tags` to read the API.',
-      30,
-      '  ',
-    );
+    const lines = wrap('Run `oura-cli sync` (`sync --from <day>` for older days), or `oura-cli fetch tags` to read the API.', 30, '  ');
     for (const l of lines) {
       expect(l.length).toBeLessThanOrEqual(30);
       expect((l.match(/`/g) ?? []).length % 2).toBe(0);
@@ -40,11 +36,7 @@ describe('wrap (#130)', () => {
   });
 
   it('puts a word wider than the room on a line of its own rather than dropping it', () => {
-    expect(wrap('a /very/long/path/that/does/not/fit b', 12, '')).toEqual([
-      'a',
-      '/very/long/path/that/does/not/fit',
-      'b',
-    ]);
+    expect(wrap('a /very/long/path/that/does/not/fit b', 12, '')).toEqual(['a', '/very/long/path/that/does/not/fit', 'b']);
   });
 
   it('yields no lines for empty or blank text, so a prefix never stands alone as trailing whitespace', () => {

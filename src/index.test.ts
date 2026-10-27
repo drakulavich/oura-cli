@@ -67,9 +67,7 @@ describe('errors raised before a command runs', () => {
     const bare = await run('db'); // run() adds `--db :memory:`, which citty used to report as the unknown command ":memory:"
     expect(bare.stdout).toBe('');
     expect(envelope(bare.stderr).message).toBe('"db" needs a subcommand.');
-    expect(envelope(bare.stderr).hint).toBe(
-      '`oura-cli db` takes one of: today, date, week, trends, stats, rows. Run `oura-cli db --help` for details.',
-    );
+    expect(envelope(bare.stderr).hint).toBe('`oura-cli db` takes one of: today, date, week, trends, stats, rows. Run `oura-cli db --help` for details.');
     expect(bare.code).toBe(1);
 
     const typo = await run('db', 'toady');
@@ -150,16 +148,15 @@ describe('undeclared arguments end to end', () => {
 describe('a global flag between a command and its subcommand', () => {
   // #79: the flag's value was read as a sub-subcommand name, so `db --format json today`
   // failed with Unknown command "json" — and with --db it echoed the whole path back.
-  it.each([
-    [['db', '--format', 'json', 'today']],
-    [['db', '--tz', 'UTC', 'today', '--format', 'json']],
-    [['db', '--no-color', 'today', '--format', 'json']],
-  ])('accepts %j', async (argv) => {
-    const { stdout, stderr, code } = await run(...argv);
-    expect(stderr).toBe('');
-    expect(code).toBe(0);
-    expect(JSON.parse(stdout).day).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-  });
+  it.each([[['db', '--format', 'json', 'today']], [['db', '--tz', 'UTC', 'today', '--format', 'json']], [['db', '--no-color', 'today', '--format', 'json']]])(
+    'accepts %j',
+    async (argv) => {
+      const { stdout, stderr, code } = await run(...argv);
+      expect(stderr).toBe('');
+      expect(code).toBe(0);
+      expect(JSON.parse(stdout).day).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    },
+  );
 });
 
 describe('a global flag whose value is missing swallows the next flag', () => {
@@ -372,9 +369,7 @@ describe('a flag given without a value says so (#148)', () => {
   it('login --token "" refuses instead of falling through to the prompt', async () => {
     const { stdout, stderr, code } = await runWithoutToken('login', '--token', '');
     expect(stdout).toBe('');
-    expect(stderr).toBe(
-      'error: --token has no value\n  hint: Pass a value, or remove --token to fall back to the interactive prompt.\n',
-    );
+    expect(stderr).toBe('error: --token has no value\n  hint: Pass a value, or remove --token to fall back to the interactive prompt.\n');
     expect(code).toBe(1);
   });
 });

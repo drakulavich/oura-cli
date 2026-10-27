@@ -1,16 +1,6 @@
 export const GLOBAL_FLAGS_WITH_VALUE = new Set(['--format', '--token', '--db', '--tz']);
 const GLOBAL_FLAGS_BOOLEAN = new Set(['--no-color']);
-export const SUBCOMMANDS = new Set([
-  'login',
-  'describe',
-  'healthcheck',
-  'doctor',
-  'manifest',
-  'fetch',
-  'sync',
-  'db',
-  'report',
-]);
+export const SUBCOMMANDS = new Set(['login', 'describe', 'healthcheck', 'doctor', 'manifest', 'fetch', 'sync', 'db', 'report']);
 
 /**
  * citty parses args per-command, and root-level args do not reach subcommands: it also resolves

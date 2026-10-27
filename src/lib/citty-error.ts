@@ -41,9 +41,7 @@ function editDistanceAtMostOne(a: string, b: string): boolean {
  */
 function nearestGlobalFlag(token: string): string | undefined {
   if (!token.startsWith('--') || token.length < 4) return undefined;
-  return [...GLOBAL_FLAGS_WITH_VALUE].find(
-    (flag) => flag !== token && (editDistanceAtMostOne(flag, token) || flag.startsWith(token)),
-  );
+  return [...GLOBAL_FLAGS_WITH_VALUE].find((flag) => flag !== token && (editDistanceAtMostOne(flag, token) || flag.startsWith(token)));
 }
 
 /** Commands that take a subcommand (`db`), each with the names it accepts. */
@@ -98,9 +96,7 @@ export function fromCittyError(
   const first = commandTokens(rawArgs)[0];
   const parent = first !== undefined && Object.hasOwn(parents, first) ? first : undefined;
   const parentHelp =
-    parent === undefined
-      ? undefined
-      : `\`oura-cli ${parent}\` takes one of: ${parents[parent]!.join(', ')}. Run \`oura-cli ${parent} --help\` for details.`;
+    parent === undefined ? undefined : `\`oura-cli ${parent}\` takes one of: ${parents[parent]!.join(', ')}. Run \`oura-cli ${parent} --help\` for details.`;
   switch (code) {
     case 'E_UNKNOWN_COMMAND': {
       const name = message.replace(/^Unknown command\s*/, '').trim();
@@ -111,11 +107,7 @@ export function fromCittyError(
       const before = rawArgs[rawArgs.lastIndexOf(name) - 1];
       const meant = before === undefined ? undefined : nearestGlobalFlag(before);
       if (meant) {
-        return new CliError(
-          'BAD_ARGS',
-          `Unknown flag "${before}".`,
-          `Did you mean ${meant}? Its value was read as a command name.`,
-        );
+        return new CliError('BAD_ARGS', `Unknown flag "${before}".`, `Did you mean ${meant}? Its value was read as a command name.`);
       }
 
       // `oura-cli db --db x`: citty takes the first token after `db` that does not start with "-"
@@ -135,9 +127,7 @@ export function fromCittyError(
         );
       }
 
-      const hint = Object.hasOwn(removedCommandHints, name)
-        ? removedCommandHints[name]
-        : (parentHelp ?? 'Run `oura-cli --help` for the list of commands.');
+      const hint = Object.hasOwn(removedCommandHints, name) ? removedCommandHints[name] : (parentHelp ?? 'Run `oura-cli --help` for the list of commands.');
       return new CliError('BAD_ARGS', `Unknown command "${name}".`, hint);
     }
     case 'EARG': {

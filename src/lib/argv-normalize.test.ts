@@ -29,16 +29,7 @@ describe('normalizeArgv', () => {
 
   it('hoists multiple flags, preserves their relative order', () => {
     const argv = ['bun', '/path/index.ts', '--format', 'json', '--no-color', 'report', '--period', 'week'];
-    expect(normalizeArgv(argv)).toEqual([
-      'bun',
-      '/path/index.ts',
-      'report',
-      '--period',
-      'week',
-      '--format',
-      'json',
-      '--no-color',
-    ]);
+    expect(normalizeArgv(argv)).toEqual(['bun', '/path/index.ts', 'report', '--period', 'week', '--format', 'json', '--no-color']);
   });
 
   it('moves --format placed before the doctor subcommand to after it', () => {
@@ -55,16 +46,7 @@ describe('normalizeArgv', () => {
 
 describe('normalizeArgv and `--`', () => {
   it('keeps hoisted global flags before a `--` separator', () => {
-    expect(normalizeArgv(['bun', 's', '--db', 'x', 'db', 'today', '--', 'foo'])).toEqual([
-      'bun',
-      's',
-      'db',
-      'today',
-      '--db',
-      'x',
-      '--',
-      'foo',
-    ]);
+    expect(normalizeArgv(['bun', 's', '--db', 'x', 'db', 'today', '--', 'foo'])).toEqual(['bun', 's', 'db', 'today', '--db', 'x', '--', 'foo']);
   });
 });
 
@@ -112,14 +94,7 @@ describe('normalizeArgv with a flag between a command and its subcommand', () =>
   });
 
   it('leaves a command-specific flag where it is', () => {
-    expect(normalizeArgv(['bun', 's', 'fetch', 'sleep', '--day', '2026-09-01'])).toEqual([
-      'bun',
-      's',
-      'fetch',
-      'sleep',
-      '--day',
-      '2026-09-01',
-    ]);
+    expect(normalizeArgv(['bun', 's', 'fetch', 'sleep', '--day', '2026-09-01'])).toEqual(['bun', 's', 'fetch', 'sleep', '--day', '2026-09-01']);
   });
 
   it.each([
@@ -163,25 +138,14 @@ describe('normalizeArgv with a flag between a command and its subcommand', () =>
   });
 
   it('does not touch a global flag name that appears after `--`', () => {
-    expect(normalizeArgv(['bun', 's', 'db', 'today', '--', '--format', 'json'])).toEqual([
-      'bun',
-      's',
-      'db',
-      'today',
-      '--',
-      '--format',
-      'json',
-    ]);
+    expect(normalizeArgv(['bun', 's', 'db', 'today', '--', '--format', 'json'])).toEqual(['bun', 's', 'db', 'today', '--', '--format', 'json']);
   });
 });
 
 describe('isVersionRequest', () => {
-  it.each([[['--version']], [['-v']], [['--db', 'x', '--version']], [['--no-color', '--version', '--db', 'x']]])(
-    'is true for %j',
-    (argv) => {
-      expect(isVersionRequest(argv)).toBe(true);
-    },
-  );
+  it.each([[['--version']], [['-v']], [['--db', 'x', '--version']], [['--no-color', '--version', '--db', 'x']]])('is true for %j', (argv) => {
+    expect(isVersionRequest(argv)).toBe(true);
+  });
 
   it.each([
     [[]],

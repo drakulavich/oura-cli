@@ -18,16 +18,15 @@ function seeded(): Database {
   const week = daysBack(TODAY, 7);
   for (const [i, day] of week.entries()) {
     const last = day === TODAY;
-    db.query(
-      'INSERT INTO daily_activity (id, day, score, steps, active_calories, class_5_min_slots) VALUES (?,?,?,?,?,?)',
-    ).run(`a${i}`, day, 70, last ? 809 : 9000, 300, last ? 150 : SLOTS_PER_DAY);
-    db.query('INSERT INTO daily_sleep (id, day, score, contributors, timestamp) VALUES (?,?,?,?,?)').run(
-      `s${i}`,
+    db.query('INSERT INTO daily_activity (id, day, score, steps, active_calories, class_5_min_slots) VALUES (?,?,?,?,?,?)').run(
+      `a${i}`,
       day,
-      80,
-      '{}',
-      '',
+      70,
+      last ? 809 : 9000,
+      300,
+      last ? 150 : SLOTS_PER_DAY,
     );
+    db.query('INSERT INTO daily_sleep (id, day, score, contributors, timestamp) VALUES (?,?,?,?,?)').run(`s${i}`, day, 80, '{}', '');
   }
   return db;
 }
@@ -66,13 +65,7 @@ describe('report, trends and the week table on one cache', () => {
     // Nothing after 06-10, but that day's slots prove it is over: it belongs in every average.
     const db = new Database(':memory:');
     ensureSchema(db);
-    db.query('INSERT INTO daily_activity (id, day, score, steps, class_5_min_slots) VALUES (?,?,?,?,?)').run(
-      'a',
-      '2026-06-10',
-      70,
-      12000,
-      SLOTS_PER_DAY,
-    );
+    db.query('INSERT INTO daily_activity (id, day, score, steps, class_5_min_slots) VALUES (?,?,?,?,?)').run('a', '2026-06-10', 70, 12000, SLOTS_PER_DAY);
 
     const report = getReport(db, 7, TODAY);
     const trends = getTrends(db, 7, TODAY);
@@ -93,16 +86,8 @@ describe('trends with nothing complete in the window', () => {
     // line could be replaced by `?? today` and the suite would still pass: #75 reopened silently.
     const db = new Database(':memory:');
     ensureSchema(db);
-    db.query(
-      'INSERT INTO daily_activity (id, day, score, steps, active_calories, class_5_min_slots) VALUES (?,?,?,?,?,?)',
-    ).run('a', TODAY, 70, 809, 300, 150);
-    db.query('INSERT INTO daily_sleep (id, day, score, contributors, timestamp) VALUES (?,?,?,?,?)').run(
-      's',
-      TODAY,
-      80,
-      '{}',
-      '',
-    );
+    db.query('INSERT INTO daily_activity (id, day, score, steps, active_calories, class_5_min_slots) VALUES (?,?,?,?,?,?)').run('a', TODAY, 70, 809, 300, 150);
+    db.query('INSERT INTO daily_sleep (id, day, score, contributors, timestamp) VALUES (?,?,?,?,?)').run('s', TODAY, 80, '{}', '');
 
     const trends = getTrends(db, 7, TODAY);
     const report = getReport(db, 7, TODAY);

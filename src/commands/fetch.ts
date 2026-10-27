@@ -11,19 +11,14 @@ export function resolveRange(opts: { day?: string; from?: string; to?: string; d
   start: string;
   end: string;
 } {
-  const modes = [
-    opts.day !== undefined,
-    opts.from !== undefined || opts.to !== undefined,
-    opts.days !== undefined,
-  ].filter(Boolean).length;
+  const modes = [opts.day !== undefined, opts.from !== undefined || opts.to !== undefined, opts.days !== undefined].filter(Boolean).length;
   if (modes > 1) throw new CliError('BAD_ARGS', 'Use only one of --day, --from/--to, or --days.');
   if (opts.day !== undefined) {
     const d = assertCalendarDate(opts.day, '--day');
     return { start: d, end: d };
   }
   if (opts.from !== undefined || opts.to !== undefined) {
-    if (opts.from === undefined || opts.to === undefined)
-      throw new CliError('BAD_ARGS', '--from and --to must be given together.');
+    if (opts.from === undefined || opts.to === undefined) throw new CliError('BAD_ARGS', '--from and --to must be given together.');
     const start = assertCalendarDate(opts.from, '--from');
     const end = assertCalendarDate(opts.to, '--to');
     if (start > end) throw new CliError('BAD_ARGS', `--from (${start}) must not be after --to (${end}).`);
@@ -37,15 +32,9 @@ export function resolveRange(opts: { day?: string; from?: string; to?: string; d
 }
 
 /** A snapshot collection (`rangeParams: 'none'`) takes no range flags; silently ignoring them would be #50 again. */
-export function assertRangeAllowed(
-  c: AnyCollection,
-  opts: { day?: string; from?: string; to?: string; days?: string },
-): void {
+export function assertRangeAllowed(c: AnyCollection, opts: { day?: string; from?: string; to?: string; days?: string }): void {
   if (c.rangeParams === 'none' && [opts.day, opts.from, opts.to, opts.days].some((v) => v !== undefined)) {
-    throw new CliError(
-      'BAD_ARGS',
-      `"${c.name}" is a snapshot, not a day range; it takes no --day, --from/--to or --days.`,
-    );
+    throw new CliError('BAD_ARGS', `"${c.name}" is a snapshot, not a day range; it takes no --day, --from/--to or --days.`);
   }
 }
 
@@ -67,12 +56,7 @@ export const fetchCommand = dataCommand({
   async run(ctx, args) {
     // Validate arguments before touching the token so BAD_ARGS wins over TOKEN_MISSING.
     const c = byName(args.collection);
-    if (!c)
-      throw new CliError(
-        'BAD_ARGS',
-        `Unknown collection "${args.collection}".`,
-        `Valid collections: ${names().join(', ')}`,
-      );
+    if (!c) throw new CliError('BAD_ARGS', `Unknown collection "${args.collection}".`, `Valid collections: ${names().join(', ')}`);
     const opts = {
       day: args.day as string | undefined,
       from: args.from as string | undefined,

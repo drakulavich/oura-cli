@@ -3,15 +3,7 @@ import { Database } from 'bun:sqlite';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { unlinkSync } from 'fs';
-import {
-  runSync,
-  resolveWindow,
-  resolvePruneScope,
-  syncCommand,
-  syncDef,
-  PRUNE_ALL,
-  TODAY_HINT_AFTER_SYNC,
-} from './sync.js';
+import { runSync, resolveWindow, resolvePruneScope, syncCommand, syncDef, PRUNE_ALL, TODAY_HINT_AFTER_SYNC } from './sync.js';
 import { names } from '../collections/index.js';
 import { buildManifest } from './describe.js';
 import { CliError } from '../lib/errors.js';
@@ -477,8 +469,7 @@ describe('runSync', () => {
       const { db } = await runSyncFor('json');
 
       const sleep = db.query('SELECT score FROM daily_sleep WHERE day = ?').get(TODAY) as { score: number } | undefined;
-      const activity = db.query('SELECT steps FROM daily_activity WHERE day = ?').get(TODAY) as
-        { steps: number } | undefined;
+      const activity = db.query('SELECT steps FROM daily_activity WHERE day = ?').get(TODAY) as { steps: number } | undefined;
       db.close();
 
       expect(sleep?.score).toBe(88);

@@ -17,12 +17,9 @@ describe('homePath (#130)', () => {
   });
 
   it('shortens every home path quoted inside a sentence, and nothing else', () => {
-    expect(
-      homePathsIn(
-        'Cannot open database /Users/x/.oura-cli/oura.db: malformed (see /Users/x/a and /Users/xy/b)',
-        '/Users/x',
-      ),
-    ).toBe('Cannot open database ~/.oura-cli/oura.db: malformed (see ~/a and /Users/xy/b)');
+    expect(homePathsIn('Cannot open database /Users/x/.oura-cli/oura.db: malformed (see /Users/x/a and /Users/xy/b)', '/Users/x')).toBe(
+      'Cannot open database ~/.oura-cli/oura.db: malformed (see ~/a and /Users/xy/b)',
+    );
     expect(homePathsIn('no paths here', '/Users/x')).toBe('no paths here');
     expect(homePathsIn('/Users/x/a', '')).toBe('/Users/x/a');
   });

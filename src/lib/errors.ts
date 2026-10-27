@@ -40,9 +40,7 @@ export function exitCodeFor(err: unknown): number {
 }
 
 export function redactSecrets(s: string): string {
-  return s
-    .replace(/Bearer\s+[A-Za-z0-9._\-]{8,}/g, 'Bearer [REDACTED]')
-    .replace(/"token"\s*:\s*"[^"]{8,}"/g, '"token":"[REDACTED]"');
+  return s.replace(/Bearer\s+[A-Za-z0-9._\-]{8,}/g, 'Bearer [REDACTED]').replace(/"token"\s*:\s*"[^"]{8,}"/g, '"token":"[REDACTED]"');
 }
 
 export function formatError(

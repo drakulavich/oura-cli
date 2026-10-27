@@ -42,25 +42,11 @@ function isEmptyDay(s: DaySummary): boolean {
 
 // `max`: the screen width, which the tests pass since they never run on one. Hints are prose and
 // break between words at it; on a pipe (undefined) nothing wraps (#130). Same for the views below.
-export function formatDaySummary(
-  summary: DaySummary,
-  format: OutputFormat,
-  emptyHint?: string,
-  max = screenWidth(),
-): string {
+export function formatDaySummary(summary: DaySummary, format: OutputFormat, emptyHint?: string, max = screenWidth()): string {
   if (format === 'json') return JSON.stringify(summary, null, 2);
 
   if (emptyHint && isEmptyDay(summary)) {
-    return finish(
-      [
-        '',
-        chalk.bold(`  ${summary.day}`),
-        RULE,
-        `  No Oura data for ${summary.day} yet.`,
-        ...wrap(emptyHint, max, INDENT),
-      ],
-      max,
-    ).join('\n');
+    return finish(['', chalk.bold(`  ${summary.day}`), RULE, `  No Oura data for ${summary.day} yet.`, ...wrap(emptyHint, max, INDENT)], max).join('\n');
   }
 
   // The same `*` the week table and `report` put on this day: without it, drilling from a marked
@@ -84,12 +70,8 @@ export function formatDaySummary(
 
   if (summary.sleep_hours !== null) {
     lines.push('');
-    lines.push(
-      `  Sleep:     ${fmtHours(summary.sleep_hours)} total | ${fmtHours(summary.deep_hours)} deep | ${fmtHours(summary.rem_hours)} REM`,
-    );
-    lines.push(
-      `  HRV:       ${summary.avg_hrv ?? '—'}    Lowest HR: ${summary.lowest_hr ?? '—'}    Efficiency: ${summary.efficiency ?? '—'}%`,
-    );
+    lines.push(`  Sleep:     ${fmtHours(summary.sleep_hours)} total | ${fmtHours(summary.deep_hours)} deep | ${fmtHours(summary.rem_hours)} REM`);
+    lines.push(`  HRV:       ${summary.avg_hrv ?? '—'}    Lowest HR: ${summary.lowest_hr ?? '—'}    Efficiency: ${summary.efficiency ?? '—'}%`);
   }
   if (summary.partial) lines.push('', PARTIAL_NOTE);
 
@@ -156,12 +138,7 @@ export function formatImportSummary(result: ImportResult, width = terminalWidth(
   return [head, ...rowsOf(cells, columns)].join('\n');
 }
 
-export function formatWeekTable(
-  days: DaySummary[],
-  format: OutputFormat,
-  emptyHint?: string,
-  max = screenWidth(),
-): string {
+export function formatWeekTable(days: DaySummary[], format: OutputFormat, emptyHint?: string, max = screenWidth()): string {
   if (format === 'json') return JSON.stringify(days, null, 2);
 
   if (emptyHint && days.length > 0 && days.every(isEmptyDay)) {
@@ -185,19 +162,12 @@ export function formatWeekTable(
   return ['\n  Last 7 Days', sep, `  ${header}`, sep, ...rows.map((r) => `  ${r}`), ...note].join('\n');
 }
 
-export function formatTrends(
-  trends: TrendRow[],
-  days: number,
-  format: OutputFormat,
-  emptyHint?: string,
-  max = screenWidth(),
-): string {
+export function formatTrends(trends: TrendRow[], days: number, format: OutputFormat, emptyHint?: string, max = screenWidth()): string {
   if (format === 'json') return JSON.stringify(trends, null, 2);
 
   const lines = ['', chalk.bold(`  Trends: last ${days} days`), RULE];
   // A header over nothing read like a crash (#85); say what is missing, as the day and week views do.
-  if (emptyHint && trends.length === 0)
-    lines.push(`  No Oura data for the last ${days} days yet.`, ...wrap(emptyHint, max, INDENT));
+  if (emptyHint && trends.length === 0) lines.push(`  No Oura data for the last ${days} days yet.`, ...wrap(emptyHint, max, INDENT));
   for (const t of trends) {
     lines.push(
       `  ${t.label.padEnd(15)} avg: ${String(t.avg).padStart(5)}  min: ${String(t.min).padStart(5)}  max: ${String(t.max).padStart(5)}  (${t.count} days)`,
@@ -217,28 +187,19 @@ export function formatStats(stats: DbStats, format: OutputFormat, emptyHint?: st
   // Both names, as the sync lines print them: one collection was reaching the user under three names
   // in a single session — `sleep-periods` in the summary, `sleep_model` here (#72).
   for (const t of stats.tables) {
-    lines.push(
-      `  ${`${t.collection} (${t.table})`.padEnd(38)} ${String(t.rows).padStart(8)} row${t.rows === 1 ? '' : 's'}`,
-    );
+    lines.push(`  ${`${t.collection} (${t.table})`.padEnd(38)} ${String(t.rows).padStart(8)} row${t.rows === 1 ? '' : 's'}`);
   }
   // Counts alone do not say why the sections below are missing: a cache holding only battery samples
   // has rows but no days, and printed seventeen counts and nothing else (#72). Only when there is
   // nothing below to contradict it: `dateRange` reads sleep alone, and a first sync before the night's
   // sleep summary has activity trends and a steps record to show.
-  const noDailyData =
-    stats.dateRange.first === null &&
-    stats.trends.length === 0 &&
-    stats.records.mostSteps === null &&
-    stats.records.bestSleep === null;
-  if (emptyHint && noDailyData)
-    lines.push('', '  No daily summaries in the database yet.', ...wrap(emptyHint, max, INDENT));
+  const noDailyData = stats.dateRange.first === null && stats.trends.length === 0 && stats.records.mostSteps === null && stats.records.bestSleep === null;
+  if (emptyHint && noDailyData) lines.push('', '  No daily summaries in the database yet.', ...wrap(emptyHint, max, INDENT));
   if (stats.dateRange.first) {
     lines.push(`\n  Date range: ${stats.dateRange.first} → ${stats.dateRange.last}`);
   }
   for (const t of stats.trends) {
-    lines.push(
-      `  ${t.label.padEnd(15)} avg: ${String(t.avg).padStart(5)}  min: ${String(t.min).padStart(5)}  max: ${String(t.max).padStart(5)}`,
-    );
+    lines.push(`  ${t.label.padEnd(15)} avg: ${String(t.avg).padStart(5)}  min: ${String(t.min).padStart(5)}  max: ${String(t.max).padStart(5)}`);
   }
   if (stats.records.mostSteps) {
     lines.push(`\n  Most steps:  ${stats.records.mostSteps.steps} on ${stats.records.mostSteps.day}`);

@@ -11,8 +11,7 @@ const DB_HINT = 'Check the path in --db / OURA_DB_PATH and that the file is a SQ
 export const REBUILD_HINT = 'Delete the cache file (--db / OURA_DB_PATH) and run `oura-cli sync` to rebuild it.';
 const CORRUPT_HINT = `The cache file is damaged. ${REBUILD_HINT} \`oura-cli doctor\` shows what is wrong with it.`;
 const BUSY_HINT = 'Another oura-cli process is using this database; wait for it to finish and retry.';
-const PERMISSION_HINT =
-  'Check that you can write both the file and the directory holding it — SQLite creates -wal and -shm files alongside the database.';
+const PERMISSION_HINT = 'Check that you can write both the file and the directory holding it — SQLite creates -wal and -shm files alongside the database.';
 /** How long a statement waits for a lock held by another process before failing with SQLITE_BUSY. */
 const BUSY_TIMEOUT_MS = 5000;
 /** Retries for the exclusive lock the WAL switch needs; SQLITE_BUSY there ignores busy_timeout. */
@@ -27,8 +26,7 @@ function hintFor(detail: string): string {
   if (/malformed|SQLITE_CORRUPT/i.test(detail)) return CORRUPT_HINT;
   // SQLite reports a directory it cannot write as a read-only *database*, which sends the user
   // looking at a file that is fine: WAL and SHM are new files created next to it.
-  if (/readonly database|read-only|EACCES|permission denied|unable to open database file/i.test(detail))
-    return PERMISSION_HINT;
+  if (/readonly database|read-only|EACCES|permission denied|unable to open database file/i.test(detail)) return PERMISSION_HINT;
   return DB_HINT;
 }
 
@@ -150,10 +148,7 @@ function validateApplied(db: Database, migrations: Migration[]): void {
     const expected = byVersion.get(row.version);
     if (expected === undefined) continue; // a version this binary does not know: a newer one wrote it, and downgrades are its problem, not ours
     if (row.checksum === null) {
-      db.query('UPDATE _schema_version SET checksum = ? WHERE version = ? AND checksum IS NULL').run(
-        expected,
-        row.version,
-      );
+      db.query('UPDATE _schema_version SET checksum = ? WHERE version = ? AND checksum IS NULL').run(expected, row.version);
     } else if (row.checksum !== expected) {
       throw new CliError(
         'DB_ERROR',
@@ -187,10 +182,7 @@ export function ensureSchema(db: Database, migrations: Migration[] = MIGRATIONS)
       for (const m of migrations) {
         if (m.version > current) {
           db.exec(m.sql);
-          db.query('INSERT INTO _schema_version (version, checksum) VALUES (?, ?)').run(
-            m.version,
-            migrationChecksum(m.sql),
-          );
+          db.query('INSERT INTO _schema_version (version, checksum) VALUES (?, ?)').run(m.version, migrationChecksum(m.sql));
         }
       }
       db.exec('COMMIT');

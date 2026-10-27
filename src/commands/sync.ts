@@ -13,17 +13,12 @@ export function resolveWindow(opts: { from?: string; to?: string }, today: strin
   if (opts.to !== undefined && opts.from === undefined) throw new CliError('BAD_ARGS', '--to requires --from.');
   const from = opts.from === undefined ? undefined : assertCalendarDate(opts.from, '--from');
   const to = opts.to === undefined ? undefined : assertCalendarDate(opts.to, '--to');
-  if (from !== undefined && to !== undefined && from > to)
-    throw new CliError('BAD_ARGS', `--from (${from}) must not be after --to (${to}).`);
+  if (from !== undefined && to !== undefined && from > to) throw new CliError('BAD_ARGS', `--from (${from}) must not be after --to (${to}).`);
   // Without --to the window ends today. An explicit --from past it is a mistake worth naming:
   // the sync would otherwise be clamped to today and quietly fetch a window nobody asked for.
   const end = to ?? today;
   if (from !== undefined && from > end) {
-    throw new CliError(
-      'BAD_ARGS',
-      `--from (${from}) is after the end of the window (${end}).`,
-      'Pass --to as well to sync a window that ends in the future.',
-    );
+    throw new CliError('BAD_ARGS', `--from (${from}) is after the end of the window (${end}).`, 'Pass --to as well to sync a window that ends in the future.');
   }
   return { from, to };
 }
@@ -90,8 +85,7 @@ export async function runSync(ctx: Ctx, window: SyncWindow = {}, options: SyncOp
   const today = getDaySummary(ctx.db!, ctx.today, dayCompleteness(ctx.db!, ctx.today));
   return {
     json: { import: importResult, today },
-    text: () =>
-      [...lines, formatImportSummary(importResult), formatDaySummary(today, 'table', TODAY_HINT_AFTER_SYNC)].join('\n'),
+    text: () => [...lines, formatImportSummary(importResult), formatDaySummary(today, 'table', TODAY_HINT_AFTER_SYNC)].join('\n'),
   };
 }
 
@@ -111,11 +105,9 @@ export const syncDef: DataCommandDef<typeof syncArgs> = {
     resolvePruneScope(args.prune);
   },
   run: (ctx, args) =>
-    runSync(
-      ctx,
-      resolveWindow({ from: args.from as string | undefined, to: args.to as string | undefined }, ctx.today),
-      { prune: resolvePruneScope(args.prune) },
-    ),
+    runSync(ctx, resolveWindow({ from: args.from as string | undefined, to: args.to as string | undefined }, ctx.today), {
+      prune: resolvePruneScope(args.prune),
+    }),
 };
 
 export const syncCommand = dataCommand(syncDef);

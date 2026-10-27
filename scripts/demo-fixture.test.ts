@@ -63,10 +63,7 @@ describe('scripts/demo-fixture.ts', () => {
     expect(newest).toBe(today(tz));
     expect(query<{ n: number }>(dir, 'SELECT COUNT(*) AS n FROM daily_sleep')[0]!.n).toBe(60);
     // Today is still accumulating, so the demo shows the `*`.
-    expect(
-      query<{ slots: number }>(dir, `SELECT class_5_min_slots AS slots FROM daily_activity WHERE day = '${newest}'`)[0]!
-        .slots,
-    ).toBeLessThan(288);
+    expect(query<{ slots: number }>(dir, `SELECT class_5_min_slots AS slots FROM daily_activity WHERE day = '${newest}'`)[0]!.slots).toBeLessThan(288);
     for (const { id } of query<{ id: string }>(dir, 'SELECT id FROM daily_spo2 LIMIT 3')) expect(id).toEndWith('-demo');
 
     // The printed command must survive copy-paste even though the path has a space.

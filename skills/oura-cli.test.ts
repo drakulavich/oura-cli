@@ -20,9 +20,7 @@ const frontmatter = Bun.YAML.parse(frontmatterText ?? '') as Record<string, unkn
 const manifest = buildManifest('0.0.0', buildRegistry('0.0.0'));
 const globalFlags = new Set(manifest.globalFlags.map((f) => f.name));
 
-const invocations = [...body!.matchAll(/`?oura-cli ((?:[^`\n#|]|\\`)+?)`?(?=\s*(?:`|#|\||$))/gm)]
-  .map((m) => m[1]!.trim())
-  .filter(Boolean);
+const invocations = [...body!.matchAll(/`?oura-cli ((?:[^`\n#|]|\\`)+?)`?(?=\s*(?:`|#|\||$))/gm)].map((m) => m[1]!.trim()).filter(Boolean);
 
 const flagNames = (args: ManifestArg[]) => new Set(args.filter((a) => a.name.startsWith('--')).map((a) => a.name));
 
@@ -52,12 +50,7 @@ function check(line: string): string | null {
     }
     positionals.push(tok);
   }
-  if (
-    collectionArg &&
-    positionals[0] &&
-    !positionals[0].startsWith('<') &&
-    !collectionArg.values!.includes(positionals[0])
-  ) {
+  if (collectionArg && positionals[0] && !positionals[0].startsWith('<') && !collectionArg.values!.includes(positionals[0])) {
     return `unknown collection "${positionals[0]}"`;
   }
   return null;

@@ -27,17 +27,14 @@ describe('emptyDayHint (#133)', () => {
 
   it('tells an empty cache to download, whatever the day', () => {
     const db = cache(false);
-    for (const day of ['2026-06-01', TODAY, '2026-07-01'])
-      expect(emptyDayHint(db, day, TODAY)).toContain('to download your data');
+    for (const day of ['2026-06-01', TODAY, '2026-07-01']) expect(emptyDayHint(db, day, TODAY)).toContain('to download your data');
     db.close();
   });
 
   it('gives today the publish-delay note and a future day no fetch at all', () => {
     const db = cache(true);
     expect(emptyDayHint(db, TODAY, TODAY)).toContain("Oura publishes a day's summary");
-    expect(emptyDayHint(db, '2026-06-16', TODAY)).toBe(
-      '2026-06-16 is after today (2026-06-15); nothing can be cached for it yet.',
-    );
+    expect(emptyDayHint(db, '2026-06-16', TODAY)).toBe('2026-06-16 is after today (2026-06-15); nothing can be cached for it yet.');
     db.close();
   });
 
@@ -62,12 +59,8 @@ describe('emptyDayHint (#133)', () => {
     // an empty panel on the first or last cached day, and neither "begins at" nor "ends at" applies.
     // The hint names the range rather than "days on both sides", which a boundary day does not have.
     db.query('INSERT INTO daily_sleep VALUES (?,?,?,?,?)').run('s0', '2026-05-30', null, '{}', '');
-    expect(emptyDayHint(db, '2026-05-30', TODAY)).toStartWith(
-      'No daily summaries for 2026-05-30, though the cache runs from 2026-05-30 to 2026-06-10',
-    );
-    expect(emptyDayHint(db, '2026-06-10', TODAY)).toStartWith(
-      'No daily summaries for 2026-06-10, though the cache runs from 2026-05-30 to 2026-06-10',
-    );
+    expect(emptyDayHint(db, '2026-05-30', TODAY)).toStartWith('No daily summaries for 2026-05-30, though the cache runs from 2026-05-30 to 2026-06-10');
+    expect(emptyDayHint(db, '2026-06-10', TODAY)).toStartWith('No daily summaries for 2026-06-10, though the cache runs from 2026-05-30 to 2026-06-10');
     db.close();
   });
 });
@@ -138,9 +131,7 @@ describe('db rows (#73)', () => {
     const path = join(tmpdir(), `oura-db-rows-limit-${process.pid}.db`);
     const db = new Database(path);
     ensureSchema(db);
-    const tag = db.query(
-      'INSERT INTO enhanced_tags (id, day, end_day, start_time, end_time, tag_type_code, comment, custom_name) VALUES (?,?,?,?,?,?,?,?)',
-    );
+    const tag = db.query('INSERT INTO enhanced_tags (id, day, end_day, start_time, end_time, tag_type_code, comment, custom_name) VALUES (?,?,?,?,?,?,?,?)');
     for (const [id, day] of [
       ['t1', '2026-06-13'],
       ['t2', '2026-06-14'],
@@ -150,24 +141,7 @@ describe('db rows (#73)', () => {
     db.close();
     try {
       const proc = Bun.spawn(
-        [
-          'bun',
-          'run',
-          'src/index.ts',
-          '--db',
-          path,
-          'db',
-          'rows',
-          'tags',
-          '--from',
-          '2026-06-01',
-          '--to',
-          '2026-06-30',
-          '--limit',
-          '2',
-          '--format',
-          'json',
-        ],
+        ['bun', 'run', 'src/index.ts', '--db', path, 'db', 'rows', 'tags', '--from', '2026-06-01', '--to', '2026-06-30', '--limit', '2', '--format', 'json'],
         { stdout: 'pipe', stderr: 'pipe' },
       );
       const json = JSON.parse(await new Response(proc.stdout).text()) as Array<{ id: string }>;
@@ -175,24 +149,7 @@ describe('db rows (#73)', () => {
       expect(json.map((r) => r.id)).toEqual(['t1', 't2']);
 
       const table = Bun.spawn(
-        [
-          'bun',
-          'run',
-          'src/index.ts',
-          '--db',
-          path,
-          'db',
-          'rows',
-          'tags',
-          '--from',
-          '2026-06-01',
-          '--to',
-          '2026-06-30',
-          '--limit',
-          '2',
-          '--format',
-          'table',
-        ],
+        ['bun', 'run', 'src/index.ts', '--db', path, 'db', 'rows', 'tags', '--from', '2026-06-01', '--to', '2026-06-30', '--limit', '2', '--format', 'table'],
         { stdout: 'pipe', stderr: 'pipe' },
       );
       const text = await new Response(table.stdout).text();
@@ -241,10 +198,7 @@ describe('db rows (#73)', () => {
     db.query('INSERT INTO daily_sleep VALUES (?,?,?,?,?)').run('s1', '2026-06-01', 80, '{}', '');
     db.close();
     try {
-      const proc = Bun.spawn(
-        ['bun', 'run', 'src/index.ts', '--db', path, 'db', 'date', '2026-06-02', '--format', 'table'],
-        { stdout: 'pipe', stderr: 'pipe' },
-      );
+      const proc = Bun.spawn(['bun', 'run', 'src/index.ts', '--db', path, 'db', 'date', '2026-06-02', '--format', 'table'], { stdout: 'pipe', stderr: 'pipe' });
       const text = await new Response(proc.stdout).text();
       expect(await proc.exited).toBe(0);
       expect(text).toContain('No daily summaries for 2026-06-02: the cache ends at 2026-06-01. Run `oura-cli sync`;');
@@ -286,33 +240,16 @@ describe('db rows (#73)', () => {
     );
     db.close();
     const rows = (...collection: string[]) =>
-      Bun.spawn(
-        [
-          'bun',
-          'run',
-          'src/index.ts',
-          '--db',
-          path,
-          '--tz',
-          'Asia/Dubai',
-          'db',
-          'rows',
-          ...collection,
-          '--day',
-          '2026-09-10',
-          '--format',
-          'table',
-        ],
-        { stdout: 'pipe', stderr: 'pipe' },
-      );
+      Bun.spawn(['bun', 'run', 'src/index.ts', '--db', path, '--tz', 'Asia/Dubai', 'db', 'rows', ...collection, '--day', '2026-09-10', '--format', 'table'], {
+        stdout: 'pipe',
+        stderr: 'pipe',
+      });
     try {
       const battery = rows('battery');
       const lines = (await new Response(battery.stdout).text()).trimEnd().split('\n');
       expect(await battery.exited).toBe(0);
       expect(lines.at(-2)).toBe('  2026-09-09T22:00:00+00:00     80         0           0  2026-09-09');
-      expect(lines.at(-1)).toBe(
-        '  day is the UTC date of each sample; rows are selected by the local day in Asia/Dubai.',
-      );
+      expect(lines.at(-1)).toBe('  day is the UTC date of each sample; rows are selected by the local day in Asia/Dubai.');
       const tags = rows('tags');
       expect(await new Response(tags.stdout).text()).not.toContain('UTC');
     } finally {

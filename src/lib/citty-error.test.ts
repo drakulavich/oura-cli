@@ -8,9 +8,7 @@ function cittyError(message: string, code: string): Error {
 
 describe('fromCittyError', () => {
   it('turns an unknown command into BAD_ARGS and strips ANSI from the name', () => {
-    const err = fromCittyError(
-      cittyError('Unknown command \u001b[36mbogus\u001b[39m', 'E_UNKNOWN_COMMAND'),
-    ) as CliError;
+    const err = fromCittyError(cittyError('Unknown command \u001b[36mbogus\u001b[39m', 'E_UNKNOWN_COMMAND')) as CliError;
     expect(err).toBeInstanceOf(CliError);
     expect(err.code).toBe('BAD_ARGS');
     expect(err.message).toBe('Unknown command "bogus".');
@@ -78,11 +76,7 @@ describe('an unknown command that came from a mistyped flag', () => {
   });
 
   it('does not quote back a value that cannot be a command name', () => {
-    const err = fromCittyError(unknown('/home/me/private.db'), {}, [
-      'db',
-      '--database',
-      '/home/me/private.db',
-    ]) as CliError;
+    const err = fromCittyError(unknown('/home/me/private.db'), {}, ['db', '--database', '/home/me/private.db']) as CliError;
     expect(err.message).toBe('Unknown command.');
     expect(`${err.message} ${err.hint}`).not.toContain('/home/me');
   });
@@ -107,9 +101,7 @@ describe('a command that takes a subcommand (#61)', () => {
     const err = fromCittyError(none(), {}, ['db'], parents) as CliError;
     expect(err.code).toBe('BAD_ARGS');
     expect(err.message).toBe('"db" needs a subcommand.');
-    expect(err.hint).toBe(
-      '`oura-cli db` takes one of: today, date, week, trends, stats. Run `oura-cli db --help` for details.',
-    );
+    expect(err.hint).toBe('`oura-cli db` takes one of: today, date, week, trends, stats. Run `oura-cli db --help` for details.');
   });
 
   it('points a misspelt subcommand at `db --help`, not the root help', () => {
@@ -120,21 +112,12 @@ describe('a command that takes a subcommand (#61)', () => {
   });
 
   it('keeps the root hint when no parent command was given', () => {
-    expect((fromCittyError(none(), {}, [], parents) as CliError).hint).toBe(
-      'Run `oura-cli --help` for the list of commands.',
-    );
-    expect((fromCittyError(unknown('toady'), {}, ['toady'], parents) as CliError).hint).toBe(
-      'Run `oura-cli --help` for the list of commands.',
-    );
+    expect((fromCittyError(none(), {}, [], parents) as CliError).hint).toBe('Run `oura-cli --help` for the list of commands.');
+    expect((fromCittyError(unknown('toady'), {}, ['toady'], parents) as CliError).hint).toBe('Run `oura-cli --help` for the list of commands.');
   });
 
   it('lets a removed-command hint win over the parent hint (`db reset`)', () => {
-    const err = fromCittyError(
-      unknown('reset'),
-      { reset: 'db reset was removed.' },
-      ['db', 'reset'],
-      parents,
-    ) as CliError;
+    const err = fromCittyError(unknown('reset'), { reset: 'db reset was removed.' }, ['db', 'reset'], parents) as CliError;
     expect(err.hint).toBe('db reset was removed.');
   });
 

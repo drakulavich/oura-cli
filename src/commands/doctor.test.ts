@@ -54,21 +54,13 @@ describe('doctor runChecks', () => {
   it('warns when the most recent data is days stale', async () => {
     const db = new Database(':memory:');
     ensureSchema(db);
-    db.query('INSERT OR REPLACE INTO daily_sleep VALUES (?,?,?,?,?)').run(
-      'id1',
-      '2026-08-25',
-      80,
-      '{}',
-      '2026-08-25T00:00:00Z',
-    );
+    db.query('INSERT OR REPLACE INTO daily_sleep VALUES (?,?,?,?,?)').run('id1', '2026-08-25', 80, '{}', '2026-08-25T00:00:00Z');
 
     const result = await runChecks(makeDeps({ openDb: () => ({ db, path: ':memory:' }) }));
 
     const dataCheck = result.checks.find((c) => c.id === 'data')!;
     expect(dataCheck.status).toBe('warn');
-    expect(dataCheck.detail).toContain(
-      'Most recent data is from 2026-08-25; that day ended over 108 hours ago (the limit is 36 hours).',
-    );
+    expect(dataCheck.detail).toContain('Most recent data is from 2026-08-25; that day ended over 108 hours ago (the limit is 36 hours).');
     expect(result.nextStep).toContain('oura-cli sync');
   });
 
@@ -82,8 +74,7 @@ describe('doctor runChecks', () => {
       db.query('INSERT OR REPLACE INTO daily_sleep VALUES (?,?,?,?,?)').run('id1', day, 80, '{}', `${day}T00:00:00Z`);
       return db;
     }
-    const dataCheck = async (deps: Partial<DoctorDeps>) =>
-      (await runChecks(makeDeps(deps))).checks.find((c) => c.id === 'data')!;
+    const dataCheck = async (deps: Partial<DoctorDeps>) => (await runChecks(makeDeps(deps))).checks.find((c) => c.id === 'data')!;
 
     it('is still current exactly 36 hours after the newest day ended, and stale one second later', async () => {
       // 2026-08-28 ends at 2026-08-29T00:00Z; 36 hours later is 2026-08-30T12:00Z.
@@ -100,9 +91,7 @@ describe('doctor runChecks', () => {
       });
       expect(past.status).toBe('warn');
       expect(past.fix).toContain('oura-cli sync');
-      expect(past.detail).toContain(
-        'Most recent data is from 2026-08-28; that day ended over 36 hours ago (the limit is 36 hours).',
-      );
+      expect(past.detail).toContain('Most recent data is from 2026-08-28; that day ended over 36 hours ago (the limit is 36 hours).');
       expect(Object.keys(past)).toEqual(['id', 'status', 'detail', 'fix']); // the published field order, unchanged since 0.7.1
     });
 
@@ -125,9 +114,9 @@ describe('doctor runChecks', () => {
 
     it('refuses an unparsable now instead of calling the cache current', async () => {
       // NaN compares false against the limit; the previous code would have printed "Data current through".
-      const err = await runChecks(
-        makeDeps({ openDb: () => ({ db: cacheEndingOn('2026-08-28'), path: ':memory:' }), now: 'yesterday' }),
-      ).catch((e) => e as Error);
+      const err = await runChecks(makeDeps({ openDb: () => ({ db: cacheEndingOn('2026-08-28'), path: ':memory:' }), now: 'yesterday' })).catch(
+        (e) => e as Error,
+      );
       expect(err).toBeInstanceOf(Error);
       expect((err as Error).message).toContain('cannot place "yesterday"');
     });
@@ -156,13 +145,7 @@ describe('doctor runChecks', () => {
     function stale(): Database {
       const db = new Database(':memory:');
       ensureSchema(db);
-      db.query('INSERT OR REPLACE INTO daily_sleep VALUES (?,?,?,?,?)').run(
-        'id1',
-        '2026-08-25',
-        80,
-        '{}',
-        '2026-08-25T00:00:00Z',
-      );
+      db.query('INSERT OR REPLACE INTO daily_sleep VALUES (?,?,?,?,?)').run('id1', '2026-08-25', 80, '{}', '2026-08-25T00:00:00Z');
       return db;
     }
     /** A fake API that answers the token probe and then `newer` for any window after 2026-08-25, recording every request. */
@@ -179,9 +162,7 @@ describe('doctor runChecks', () => {
 
     it('keeps "oura-cli sync" as the fix when Oura has days the cache lacks', async () => {
       const { calls, createClient } = api([{ day: '2026-08-29' }]);
-      const result = await runChecks(
-        makeDeps({ offline: false, createClient, openDb: () => ({ db: stale(), path: ':memory:' }) }),
-      );
+      const result = await runChecks(makeDeps({ offline: false, createClient, openDb: () => ({ db: stale(), path: ':memory:' }) }));
       const data = result.checks.find((c) => c.id === 'data')!;
       expect(data.status).toBe('warn');
       expect(data.detail).toContain('Oura has newer days.');
@@ -193,9 +174,7 @@ describe('doctor runChecks', () => {
 
     it('names the ring, not sync, when Oura has nothing newer either', async () => {
       const { calls, createClient } = api([]);
-      const result = await runChecks(
-        makeDeps({ offline: false, createClient, openDb: () => ({ db: stale(), path: ':memory:' }) }),
-      );
+      const result = await runChecks(makeDeps({ offline: false, createClient, openDb: () => ({ db: stale(), path: ':memory:' }) }));
       const data = result.checks.find((c) => c.id === 'data')!;
       expect(data.detail).toContain('Oura has nothing newer, so the ring has not uploaded since then.');
       expect(data.fix).toBe('Open the Oura app so the ring uploads its data, then run `oura-cli sync`.');
@@ -217,9 +196,7 @@ describe('doctor runChecks', () => {
           throw new Error('boom');
         },
       });
-      const live = await runChecks(
-        makeDeps({ offline: false, createClient: failing, openDb: () => ({ db: stale(), path: ':memory:' }) }),
-      );
+      const live = await runChecks(makeDeps({ offline: false, createClient: failing, openDb: () => ({ db: stale(), path: ':memory:' }) }));
       expect(live.checks.find((c) => c.id === 'token-valid')!.status).toBe('ok');
       expect(live.checks.find((c) => c.id === 'data')!.detail).toContain('Either Oura has newer days');
     });
@@ -228,13 +205,7 @@ describe('doctor runChecks', () => {
       const { calls, createClient } = api([{ day: 'x' }]);
       const db = new Database(':memory:');
       ensureSchema(db);
-      db.query('INSERT OR REPLACE INTO daily_sleep VALUES (?,?,?,?,?)').run(
-        'id1',
-        '2026-08-30',
-        80,
-        '{}',
-        '2026-08-30T00:00:00Z',
-      );
+      db.query('INSERT OR REPLACE INTO daily_sleep VALUES (?,?,?,?,?)').run('id1', '2026-08-30', 80, '{}', '2026-08-30T00:00:00Z');
       await runChecks(makeDeps({ offline: false, createClient, openDb: () => ({ db, path: ':memory:' }) }));
       expect(calls).toHaveLength(1);
     });
@@ -243,13 +214,7 @@ describe('doctor runChecks', () => {
   it('reports all-ok with no next step when the token, db, and data are all healthy', async () => {
     const db = new Database(':memory:');
     ensureSchema(db);
-    db.query('INSERT OR REPLACE INTO daily_sleep VALUES (?,?,?,?,?)').run(
-      'id1',
-      '2026-08-30',
-      80,
-      '{}',
-      '2026-08-30T00:00:00Z',
-    );
+    db.query('INSERT OR REPLACE INTO daily_sleep VALUES (?,?,?,?,?)').run('id1', '2026-08-30', 80, '{}', '2026-08-30T00:00:00Z');
 
     const result = await runChecks(makeDeps({ openDb: () => ({ db, path: ':memory:' }) }));
 
@@ -379,15 +344,7 @@ describe('doctor runChecks', () => {
   it('reports data freshness from daily_readiness alone, not just daily_sleep or daily_activity', async () => {
     const db = new Database(':memory:');
     ensureSchema(db);
-    db.query('INSERT OR REPLACE INTO daily_readiness VALUES (?,?,?,?,?,?,?)').run(
-      'r1',
-      '2026-08-30',
-      74,
-      '{}',
-      0.1,
-      0,
-      '2026-08-30T00:00:00Z',
-    );
+    db.query('INSERT OR REPLACE INTO daily_readiness VALUES (?,?,?,?,?,?,?)').run('r1', '2026-08-30', 74, '{}', 0.1, 0, '2026-08-30T00:00:00Z');
 
     const result = await runChecks(makeDeps({ openDb: () => ({ db, path: ':memory:' }) }));
 
@@ -471,9 +428,7 @@ describe('database integrity', () => {
     rmSync(path, { force: true });
     const seed = new Database(path);
     ensureSchema(seed);
-    const insert = seed.query(
-      "INSERT INTO heartrate (timestamp, bpm, source, day) VALUES (?, 60, 'awake', '2026-01-01')",
-    );
+    const insert = seed.query("INSERT INTO heartrate (timestamp, bpm, source, day) VALUES (?, 60, 'awake', '2026-01-01')");
     // One transaction, not 400 autocommits: on a slow CI disk the fsyncs alone blew bun's 5 s
     // per-test budget (#115, 12.3 s observed).
     seed.transaction(() => {
@@ -546,14 +501,9 @@ describe('database integrity', () => {
     for (const suffix of ['', '-wal', '-shm']) rmSync(path + suffix, { force: true });
     const seed = new Database(path);
     ensureSchema(seed);
-    const insert = seed.query(
-      "INSERT INTO heartrate (timestamp, bpm, source, day) VALUES (?, 60, 'awake', '2026-01-01')",
-    );
+    const insert = seed.query("INSERT INTO heartrate (timestamp, bpm, source, day) VALUES (?, 60, 'awake', '2026-01-01')");
     seed.transaction(() => {
-      for (let i = 0; i < 400; i++)
-        insert.run(
-          `2026-01-01T${String(Math.floor(i / 60)).padStart(2, '0')}:${String(i % 60).padStart(2, '0')}:00+00:00`,
-        );
+      for (let i = 0; i < 400; i++) insert.run(`2026-01-01T${String(Math.floor(i / 60)).padStart(2, '0')}:${String(i % 60).padStart(2, '0')}:00+00:00`);
     })();
     seed.exec('PRAGMA wal_checkpoint(TRUNCATE)');
     seed.close();
@@ -640,9 +590,7 @@ describe('the database row names the path as a shell would (#130)', () => {
     expect(result.checks.find((c) => c.id === 'token')!.detail).toBe('Token found via ~/.oura-token.');
     expect(result.checks.find((c) => c.id === 'database')!.detail).toBe('Database ready at ~/.oura-cli/oura.db.');
 
-    const missing = await runChecks(
-      makeDeps({ resolveToken: () => ({ token: null, source: join(homedir(), '.oura-token') }) }),
-    );
+    const missing = await runChecks(makeDeps({ resolveToken: () => ({ token: null, source: join(homedir(), '.oura-token') }) }));
     expect(missing.checks.find((c) => c.id === 'token')!.detail).toBe('No token found (checked ~/.oura-token).');
   });
 });

@@ -104,12 +104,7 @@ function partialDayNote(data: ReportData, bucket: WeekBucket | undefined): strin
   return `* ${which}: activity totals are not final; activity and steps averages cover ${covers}.`;
 }
 
-export function formatReport(
-  data: ReportData,
-  format: OutputFormat,
-  period: 'week' | 'month',
-  max = screenWidth(),
-): string {
+export function formatReport(data: ReportData, format: OutputFormat, period: 'week' | 'month', max = screenWidth()): string {
   if (format === 'json') return JSON.stringify(data, null, 2);
 
   const lines: string[] = [];
@@ -132,9 +127,7 @@ export function formatReport(
   lines.push('');
 
   const hasReportData =
-    data.days.some(
-      (day) => day.sleep !== null || day.readiness !== null || day.activity !== null || day.steps !== null,
-    ) ||
+    data.days.some((day) => day.sleep !== null || day.readiness !== null || day.activity !== null || day.steps !== null) ||
     data.averages.length > 0 ||
     data.spo2 !== null ||
     data.sleepDetails !== null;
@@ -149,11 +142,7 @@ export function formatReport(
     // Daily table — 7 rows
     lines.push(chalk.bold('  Last 7 Days:'));
     // Rules as wide as the table itself: a fixed 52 sat under a 43-column table (pre-0.8.0 review).
-    const table = [
-      RULE,
-      `  ${'Day'.padEnd(10)} ${'Sleep'.padStart(6)} ${'Ready'.padStart(6)} ${'Active'.padStart(7)} ${'Steps'.padStart(8)}`,
-      RULE,
-    ];
+    const table = [RULE, `  ${'Day'.padEnd(10)} ${'Sleep'.padStart(6)} ${'Ready'.padStart(6)} ${'Active'.padStart(7)} ${'Steps'.padStart(8)}`, RULE];
     for (const d of data.days) {
       table.push(
         `  ${(d.partial ? d.dayLabel + '*' : d.dayLabel).padEnd(10)} ${scoreCell(d.sleep, 6)} ${scoreCell(d.readiness, 6)} ${scoreCell(d.activity, 7)} ${stepsCell(d.steps, 8)}`,
@@ -164,11 +153,7 @@ export function formatReport(
     // Monthly — weekly buckets table
     lines.push(chalk.bold('  Last 30 Days:'));
     // 21: a labelled stub is up to 20 characters, "2026-08-13 (2 days)*".
-    const table = [
-      RULE,
-      `  ${'Week of'.padEnd(21)} ${'Sleep'.padStart(6)} ${'Ready'.padStart(6)} ${'Active'.padStart(7)} ${'Steps'.padStart(10)}`,
-      RULE,
-    ];
+    const table = [RULE, `  ${'Week of'.padEnd(21)} ${'Sleep'.padStart(6)} ${'Ready'.padStart(6)} ${'Active'.padStart(7)} ${'Steps'.padStart(10)}`, RULE];
     for (const b of buckets) {
       const avgSleepInt = b.avgSleep !== null ? Math.round(b.avgSleep) : null;
       const avgReadyInt = b.avgReadiness !== null ? Math.round(b.avgReadiness) : null;
@@ -203,11 +188,7 @@ export function formatReport(
   lines.push('');
 
   // Patterns
-  if (
-    data.patterns.lowSleep.length > 0 ||
-    data.patterns.lowReadiness.length > 0 ||
-    data.patterns.highActivity.length > 0
-  ) {
+  if (data.patterns.lowSleep.length > 0 || data.patterns.lowReadiness.length > 0 || data.patterns.highActivity.length > 0) {
     lines.push(chalk.bold('  Patterns:'));
     for (const d of data.patterns.lowSleep) {
       lines.push(chalk.red(`    ▼ Low sleep: ${d.dayLabel} — ${d.score}`));

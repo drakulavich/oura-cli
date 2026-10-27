@@ -24,11 +24,7 @@ export interface LookbackRange {
 }
 
 /** The days a lookback would re-read: up to and excluding the watermark day, which the tail covers. Null when there is none. */
-export function lookbackRange(
-  c: AnyCollection,
-  last: string | null,
-  explicitFrom: string | undefined,
-): LookbackRange | null {
+export function lookbackRange(c: AnyCollection, last: string | null, explicitFrom: string | undefined): LookbackRange | null {
   if (explicitFrom !== undefined || last === null || !c.syncLookbackDays) return null;
   return { start: shiftDay(last, -c.syncLookbackDays), end: shiftDay(last, -1) };
 }
@@ -59,14 +55,11 @@ function uploadedSince(db: Database, c: AnyCollection, tail: readonly Piece[]): 
 
 /** Whether this run should re-read the lookback range: the ring has uploaded since, or it has not run yet today. */
 export function lookbackDue(db: Database, c: AnyCollection, tail: readonly Piece[], today: string): boolean {
-  const ran = (db.query('SELECT value FROM _sync_state WHERE key = ?').get(stateKey(c)) as { value: string } | null)
-    ?.value;
+  const ran = (db.query('SELECT value FROM _sync_state WHERE key = ?').get(stateKey(c)) as { value: string } | null)?.value;
   return ran !== today || uploadedSince(db, c, tail);
 }
 
 /** Remember that the lookback ran today, so the daily safety net does not fire again until tomorrow. */
 export function markLookbackRan(db: Database, c: AnyCollection, today: string): void {
-  db.query(
-    'INSERT INTO _sync_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
-  ).run(stateKey(c), today);
+  db.query('INSERT INTO _sync_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(stateKey(c), today);
 }

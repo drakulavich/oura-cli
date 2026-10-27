@@ -141,9 +141,7 @@ describe('formatReport — partial day', () => {
     const out = stripAnsi(formatReport(partialFixture, 'table', 'week'));
     expect(out).toContain('Fri 08/05*');
     expect(out).toContain('Thu 07/05 ');
-    expect(out).toContain(
-      '* today: activity totals are not final; activity and steps averages cover through 2026-05-07.',
-    );
+    expect(out).toContain('* today: activity totals are not final; activity and steps averages cover through 2026-05-07.');
   });
 
   it('names the day when the partial day is not today', () => {
@@ -179,9 +177,7 @@ describe('formatReport — partial day', () => {
     expect(out).toContain('Steps        9,668  (min: 9,668, max: 9,668, 1 day)');
     expect(out).not.toMatch(/; averages cover/);
     // SpO2 too: every average line says how many days it took.
-    const withSpo2 = stripAnsi(
-      formatReport({ ...data, spo2: { avg: 96.2, min: 95.4, max: 96.9, count: 2 } }, 'table', 'week'),
-    );
+    const withSpo2 = stripAnsi(formatReport({ ...data, spo2: { avg: 96.2, min: 95.4, max: 96.9, count: 2 } }, 'table', 'week'));
     expect(withSpo2).toContain('SpO2         96.2%  (min: 95.4%, max: 96.9%, 2 days)');
   });
 });
@@ -256,8 +252,6 @@ describe('the partial-day note wraps at the screen width (#130)', () => {
     ).toContain('* Fri 08/05: activity totals are not final; activity and steps averages cover through 2026-05-13.');
 
     const wide = stripAnsi(formatReport(marked, 'table', 'week', undefined)).split('\n');
-    expect(wide).toContain(
-      '  * Fri 08/05: activity totals are not final; activity and steps averages cover through 2026-05-13.',
-    );
+    expect(wide).toContain('  * Fri 08/05: activity totals are not final; activity and steps averages cover through 2026-05-13.');
   });
 });

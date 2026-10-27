@@ -39,10 +39,7 @@ describe('ensureSchema', () => {
       const db = new Database(':memory:');
       ensureSchema(db, TEST_MIGRATIONS);
 
-      ensureSchema(db, [
-        ...TEST_MIGRATIONS,
-        { version: 2, sql: 'CREATE TABLE IF NOT EXISTS t2 (id INTEGER PRIMARY KEY)' },
-      ]);
+      ensureSchema(db, [...TEST_MIGRATIONS, { version: 2, sql: 'CREATE TABLE IF NOT EXISTS t2 (id INTEGER PRIMARY KEY)' }]);
 
       const row = db.query("SELECT name FROM sqlite_master WHERE name = 't2'").get();
       expect(row).not.toBeNull();
@@ -105,9 +102,7 @@ describe('applied migrations are validated against their checksum', () => {
     } catch (e) {
       err = e;
     }
-    const applied = (db.query('SELECT version FROM _schema_version').all() as Array<{ version: number }>).map(
-      (r) => r.version,
-    );
+    const applied = (db.query('SELECT version FROM _schema_version').all() as Array<{ version: number }>).map((r) => r.version);
     db.close();
     expect(err).toBeInstanceOf(CliError);
     expect((err as CliError).code).toBe('DB_ERROR');
@@ -297,14 +292,9 @@ describe('openDatabase errors', () => {
     const path = join(dir, 'damaged.db');
     const seed = new Database(path);
     ensureSchema(seed);
-    const insert = seed.query(
-      "INSERT INTO heartrate (timestamp, bpm, source, day) VALUES (?, 60, 'awake', '2026-01-01')",
-    );
+    const insert = seed.query("INSERT INTO heartrate (timestamp, bpm, source, day) VALUES (?, 60, 'awake', '2026-01-01')");
     seed.transaction(() => {
-      for (let i = 0; i < 400; i++)
-        insert.run(
-          `2026-01-01T${String(Math.floor(i / 60)).padStart(2, '0')}:${String(i % 60).padStart(2, '0')}:00+00:00`,
-        );
+      for (let i = 0; i < 400; i++) insert.run(`2026-01-01T${String(Math.floor(i / 60)).padStart(2, '0')}:${String(i % 60).padStart(2, '0')}:00+00:00`);
     })();
     seed.exec('PRAGMA wal_checkpoint(TRUNCATE)');
     seed.close();
@@ -354,10 +344,7 @@ describe('concurrent migrations', () => {
     // Harmless while every migration is IF NOT EXISTS; the first ALTER TABLE would fail the loser.
     const path = join(dir, 'cold.db');
     const procs = Array.from({ length: 4 }, () =>
-      Bun.spawn(
-        ['bun', 'run', join(import.meta.dir, '..', 'index.ts'), 'db', 'stats', '--db', path, '--format', 'json'],
-        { stdout: 'pipe', stderr: 'pipe' },
-      ),
+      Bun.spawn(['bun', 'run', join(import.meta.dir, '..', 'index.ts'), 'db', 'stats', '--db', path, '--format', 'json'], { stdout: 'pipe', stderr: 'pipe' }),
     );
     const codes = await Promise.all(procs.map((p) => p.exited));
     const errs = await Promise.all(procs.map(async (p) => (await new Response(p.stderr).text()).trim()));
