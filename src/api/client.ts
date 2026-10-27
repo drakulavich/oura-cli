@@ -43,7 +43,10 @@ export function retryDelayMs(retryAfter: string | null, attempt: number, now = D
     const whole = retryAfter.trim();
     const firstPart = whole.split(',')[0]!.trim();
     const firstDate = whole.match(/^[A-Za-z]{3}, [^,]*? GMT/)?.[0] ?? '';
-    const seconds = [whole, firstPart].filter(r => r !== '').map(Number).find(Number.isFinite);
+    const seconds = [whole, firstPart]
+      .filter((r) => r !== '')
+      .map(Number)
+      .find(Number.isFinite);
     const date = [whole, firstDate, firstPart].map(Date.parse).find(Number.isFinite);
     if (seconds !== undefined) ms = seconds * 1_000;
     else if (date !== undefined) ms = date - now;
@@ -90,14 +93,18 @@ export class OuraClient {
   constructor(options: OuraClientOptions = {}) {
     this.onPage = options.onPage;
     this.onRetry = options.onRetry;
-    this.sleep = options.sleep ?? (ms => new Promise(resolve => setTimeout(resolve, ms)));
+    this.sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
     const { token, source } = resolveToken(options.token, options.tokenPath);
     if (!token) {
       throw new CliError('TOKEN_MISSING', `No Oura access token at ${homePath(source)}.`, 'Run `oura-cli login` or set OURA_TOKEN.');
     }
     if (/\s/.test(token)) {
       // A multi-line token file would otherwise reach fetch() and come back as a header error quoting the token.
-      throw new CliError('TOKEN_INVALID', `The token from ${homePath(source)} contains whitespace or a line break; a token is a single line.`, 'Fix the file or variable, or run `oura-cli login` again.');
+      throw new CliError(
+        'TOKEN_INVALID',
+        `The token from ${homePath(source)} contains whitespace or a line break; a token is a single line.`,
+        'Fix the file or variable, or run `oura-cli login` again.',
+      );
     }
     this.token = token;
   }
@@ -161,12 +168,19 @@ export class OuraClient {
       const redacted = redactSecrets(rawBody).split(this.token).join('[REDACTED]');
       const body = redacted.length > 200 ? redacted.slice(0, 200) + '… (truncated)' : redacted;
       if (response.status === 401 || response.status === 403) {
-        throw new CliError('TOKEN_INVALID', `Oura API ${response.status}: ${body}`, 'Run `oura-cli login` with a fresh Personal Access Token, or check OURA_TOKEN.');
+        throw new CliError(
+          'TOKEN_INVALID',
+          `Oura API ${response.status}: ${body}`,
+          'Run `oura-cli login` with a fresh Personal Access Token, or check OURA_TOKEN.',
+        );
       }
       if (response.status === 429) {
         const waited = Math.round(this.waitedMs / 1_000);
-        throw new CliError('API_ERROR', `Oura API 429: ${body}`,
-          `Rate limited; this page was retried ${retries} time${retries === 1 ? '' : 's'} and the command has waited ${waited} s on 429 answers (the most it will is ${MAX_TOTAL_WAIT_MS / 1_000} s). Wait a few minutes and run it again, or ask for a shorter range.`);
+        throw new CliError(
+          'API_ERROR',
+          `Oura API 429: ${body}`,
+          `Rate limited; this page was retried ${retries} time${retries === 1 ? '' : 's'} and the command has waited ${waited} s on 429 answers (the most it will is ${MAX_TOTAL_WAIT_MS / 1_000} s). Wait a few minutes and run it again, or ask for a shorter range.`,
+        );
       }
       throw new CliError('API_ERROR', `Oura API ${response.status}: ${body}`);
     }
@@ -190,7 +204,10 @@ export class OuraClient {
     // Same rule for the cursor: a non-string there is not "last page", it is a body we do not understand,
     // and treating it as the end would report a short, exit-0 sync with rows missing.
     if (body.next_token != null && typeof body.next_token !== 'string') {
-      throw new CliError('API_ERROR', `Oura API returned a malformed body for ${endpoint}: expected a string or null under "next_token", got ${kindOf(body.next_token)}.`);
+      throw new CliError(
+        'API_ERROR',
+        `Oura API returned a malformed body for ${endpoint}: expected a string or null under "next_token", got ${kindOf(body.next_token)}.`,
+      );
     }
     return { data: (body.data as T[] | null | undefined) ?? [], next_token: body.next_token ?? null };
   }

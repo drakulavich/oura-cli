@@ -7,10 +7,14 @@ import { describe, it, expect } from 'bun:test';
 // fail if `src/index.ts` stops importing the colour module first.
 async function run(args: string[], env: Record<string, string | undefined>) {
   const proc = Bun.spawn(['bun', 'run', 'src/index.ts', ...args], {
-    stdout: 'pipe', stderr: 'pipe',
+    stdout: 'pipe',
+    stderr: 'pipe',
     env: {
       ...process.env,
-      FORCE_COLOR: '1', CI: undefined, TEST: undefined, TERM: 'xterm-256color',
+      FORCE_COLOR: '1',
+      CI: undefined,
+      TEST: undefined,
+      TERM: 'xterm-256color',
       ...env,
     } as unknown as Record<string, string>, // undefined removes the key, which is the point here
   });
@@ -25,7 +29,9 @@ describe('--no-color / NO_COLOR', () => {
     expect(out).not.toMatch(/\u001b\[/);
   });
   it('emits no ANSI escapes with --no-color', async () => {
-    const out = await run(['--db', ':memory:', '--no-color', 'db', 'today', '--format', 'table'], { NO_COLOR: undefined });
+    const out = await run(['--db', ':memory:', '--no-color', 'db', 'today', '--format', 'table'], {
+      NO_COLOR: undefined,
+    });
     expect(out).not.toMatch(/\u001b\[/);
   });
 
@@ -54,5 +60,4 @@ describe('--no-color / NO_COLOR', () => {
     const out = await run(['--help'], { NO_COLOR: undefined });
     expect(out).toMatch(/\u001b\[/);
   });
-
 });

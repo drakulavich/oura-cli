@@ -13,8 +13,7 @@ function seeded(): Database {
 
 /** `slots` undefined writes NULL, the shape of every row stored before the column existed. */
 function activity(db: Database, day: string, slots?: number): void {
-  db.query('INSERT INTO daily_activity (id, day, score, steps, class_5_min_slots) VALUES (?,?,?,?,?)')
-    .run(`a-${day}`, day, 70, 5000, slots ?? null);
+  db.query('INSERT INTO daily_activity (id, day, score, steps, class_5_min_slots) VALUES (?,?,?,?,?)').run(`a-${day}`, day, 70, 5000, slots ?? null);
 }
 
 describe('dayCompleteness', () => {
@@ -74,7 +73,7 @@ describe('dayCompleteness', () => {
 
     const c = dayCompleteness(db, TODAY);
     db.close();
-    expect(c.isComplete('2026-06-13')).toBe(true);  // a later record exists
+    expect(c.isComplete('2026-06-13')).toBe(true); // a later record exists
     expect(c.isComplete('2026-06-14')).toBe(false); // newest, nothing follows it
   });
 

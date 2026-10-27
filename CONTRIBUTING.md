@@ -12,7 +12,7 @@ bun test          # all tests should pass before you start
 bun run check     # type-check, lint (Biome + Knip) and tests
 ```
 
-Runtime: [Bun](https://bun.sh/) >= 1.0. No Node.js fallback yet.
+Runtime: [Bun](https://bun.sh/) >= 1.4.4, the version in `.bun-version`. No Node.js fallback yet.
 
 ## Pull request expectations
 
@@ -23,8 +23,8 @@ Runtime: [Bun](https://bun.sh/) >= 1.0. No Node.js fallback yet.
 
 ## Style
 
-- TypeScript strict mode is on; `bun run check` should pass. It runs `bun run typecheck` (`tsc --noEmit`, the TypeScript 7 compiler from the `typescript` package), `bun run lint` and `bun test`.
-- `bun run lint` is `biome ci` (layer boundaries and import cycles, tests and scripts included) followed by Knip (unused files and exports). An export nothing imports fails it; unexport it.
+- TypeScript strict mode is on; `bun run check` should pass. It runs `bun run typecheck` (`bun check --no-script`, Bun's built-in type checker; `--no-script` keeps it from running the `check` script), `bun run lint` and `bun test`.
+- `bun run lint` is `bun fmt --check` (Bun's Prettier-compatible formatter; `bun run fmt` fixes what it flags), then `biome ci` (layer boundaries and import cycles, tests and scripts included) followed by Knip (unused files and exports). An export nothing imports fails it; unexport it.
 - Named exports only. There are no default exports anywhere in `src/`.
 - Errors that reach the CLI surface should be `CliError` instances with a documented `ErrorCode`.
 - Output: JSON for agent/pipe contexts, table/text for TTY. Both modes are mandatory for new user-facing commands.

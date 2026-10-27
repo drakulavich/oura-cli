@@ -63,8 +63,8 @@ ensureSchema(db);
 /** INSERT one row with the columns named by the object, so each row reads as what it is. */
 function insert(table: string, row: Record<string, string | number | null>): void {
   const columns = Object.keys(row);
-  const sql = `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${columns.map(c => `$${c}`).join(', ')})`;
-  db.query(sql).run(Object.fromEntries(columns.map(c => [`$${c}`, row[c]])));
+  const sql = `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${columns.map((c) => `$${c}`).join(', ')})`;
+  db.query(sql).run(Object.fromEntries(columns.map((c) => [`$${c}`, row[c]])));
 }
 
 db.transaction(() => {
@@ -75,22 +75,46 @@ db.transaction(() => {
     // One deliberately poor night a fortnight, so the report has a callout to show.
     const rough = back % 14 === 5;
 
-    insert('daily_sleep', { id: id('sl', day), day, score: rough ? between(58, 66) : between(72, 91), contributors: '{}', timestamp: at(day, 7, 0) });
+    insert('daily_sleep', {
+      id: id('sl', day),
+      day,
+      score: rough ? between(58, 66) : between(72, 91),
+      contributors: '{}',
+      timestamp: at(day, 7, 0),
+    });
     insert('daily_readiness', {
-      id: id('rd', day), day, score: rough ? between(60, 69) : between(70, 90), contributors: '{}',
-      temperature_deviation: +(rand() * 0.6 - 0.3).toFixed(2), temperature_trend_deviation: 0, timestamp: at(day, 7, 0),
+      id: id('rd', day),
+      day,
+      score: rough ? between(60, 69) : between(70, 90),
+      contributors: '{}',
+      temperature_deviation: +(rand() * 0.6 - 0.3).toFixed(2),
+      temperature_trend_deviation: 0,
+      timestamp: at(day, 7, 0),
     });
 
     const total = between(23_000, 29_500);
     const deep = between(3_600, 6_000);
     const rem = between(4_000, 7_000);
     insert('sleep_model', {
-      id: id('sm', day), day, type: 'long_sleep',
-      average_breath: +(13 + rand() * 3).toFixed(2), average_heart_rate: between(52, 60), average_hrv: between(35, 70), awake_time: between(1_200, 3_000),
-      bedtime_start: at(shiftDay(day, -1), 23, between(10, 59)), bedtime_end: at(day, 7, between(0, 40)),
-      deep_sleep_duration: deep, rem_sleep_duration: rem, light_sleep_duration: total - deep - rem, total_sleep_duration: total,
-      time_in_bed: total + between(1_500, 3_500), efficiency: between(82, 94), latency: between(300, 900), lowest_heart_rate: between(44, 52),
-      restless_periods: between(2, 9), period: 1,
+      id: id('sm', day),
+      day,
+      type: 'long_sleep',
+      average_breath: +(13 + rand() * 3).toFixed(2),
+      average_heart_rate: between(52, 60),
+      average_hrv: between(35, 70),
+      awake_time: between(1_200, 3_000),
+      bedtime_start: at(shiftDay(day, -1), 23, between(10, 59)),
+      bedtime_end: at(day, 7, between(0, 40)),
+      deep_sleep_duration: deep,
+      rem_sleep_duration: rem,
+      light_sleep_duration: total - deep - rem,
+      total_sleep_duration: total,
+      time_in_bed: total + between(1_500, 3_500),
+      efficiency: between(82, 94),
+      latency: between(300, 900),
+      lowest_heart_rate: between(44, 52),
+      restless_periods: between(2, 9),
+      period: 1,
     });
 
     // Today is still accumulating: fewer than 288 five-minute slots and a small step count.
@@ -99,7 +123,8 @@ db.transaction(() => {
     else if (weekend) steps = between(4_000, 9_000);
     else steps = between(6_500, 13_000);
     insert('daily_activity', {
-      id: id('ac', day), day,
+      id: id('ac', day),
+      day,
       score: isToday ? between(60, 70) : between(64, 93),
       active_calories: isToday ? between(40, 90) : between(250, 620),
       steps,
@@ -109,22 +134,40 @@ db.transaction(() => {
     });
 
     // SpO2 is missing on a few nights, as it is on a real ring.
-    insert('daily_spo2', { id: id('sp', day), day, spo2_average: back % 9 === 3 ? null : +(95.5 + rand() * 3).toFixed(3), breathing_disturbance_index: between(0, 3) });
+    insert('daily_spo2', {
+      id: id('sp', day),
+      day,
+      spo2_average: back % 9 === 3 ? null : +(95.5 + rand() * 3).toFixed(3),
+      breathing_disturbance_index: between(0, 3),
+    });
 
     let daySummary: string | null;
-    if (isToday) daySummary = null; // Oura publishes the stress summary once the day is over
+    if (isToday)
+      daySummary = null; // Oura publishes the stress summary once the day is over
     else if (rough) daySummary = 'stressful';
     else daySummary = rand() < 0.2 ? 'restored' : 'normal';
-    insert('daily_stress', { id: id('st', day), day, day_summary: daySummary, recovery_high: between(1_800, 7_200), stress_high: between(600, 5_400) });
+    insert('daily_stress', {
+      id: id('st', day),
+      day,
+      day_summary: daySummary,
+      recovery_high: between(1_800, 7_200),
+      stress_high: between(600, 5_400),
+    });
 
     for (let hour = 0; hour < 24; hour += 3) insert('heartrate', { timestamp: at(day, hour, 0), bpm: between(50, 95), source: 'awake', day });
 
     if (!isToday && rand() < 0.35) {
       const start = between(7, 19);
       insert('workouts', {
-        id: id('wk', day), day, activity: rand() < 0.7 ? 'walking' : 'cycling',
-        calories: +(rand() * 300 + 80).toFixed(1), distance: +(rand() * 6000 + 1500).toFixed(0),
-        start_datetime: at(day, start, 5), end_datetime: at(day, start, 47), intensity: 'moderate', source: 'manual',
+        id: id('wk', day),
+        day,
+        activity: rand() < 0.7 ? 'walking' : 'cycling',
+        calories: +(rand() * 300 + 80).toFixed(1),
+        distance: +(rand() * 6000 + 1500).toFixed(0),
+        start_datetime: at(day, start, 5),
+        end_datetime: at(day, start, 47),
+        intensity: 'moderate',
+        source: 'manual',
       });
     }
   }

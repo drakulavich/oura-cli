@@ -6,6 +6,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- Requires Bun 1.4.4 or later (`engines.bun` was `>=1.0.0`). The type check is Bun's built-in `bun check` instead of `tsc --noEmit`, and `bun run lint` checks formatting with `bun fmt --check` first; CI and the release workflow read the Bun version from `.bun-version`.
+
 ### Fixed
 - `sync` checks `--from`, `--to` and `--prune` before it looks for a token, as `fetch` does: `sync --to 2026-09-01` without `--from`, an impossible date or an unknown `--prune` collection is `BAD_ARGS` (exit 1), where a fresh install without a token said `TOKEN_MISSING` and the argument error surfaced only after `login`. (#145)
 - A flag given without a value is refused the same way everywhere, as `--format`, `--db` and `doctor --token` already were: `--tz`, `report --period`, `--token` on `fetch`, `sync` and the `db` commands, and `login --token ""` now say `--<flag> has no value` and name what leaving the flag out falls back to. `--tz` said `Unknown timezone ""`, `--period` said `got ""`, `--token` was dropped for the token file (a `TOKEN_MISSING` naming the file, or silently accepted by `db today`), and `login` fell through to the interactive prompt. (#148)

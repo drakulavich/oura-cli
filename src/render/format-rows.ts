@@ -20,7 +20,9 @@ const GAP = 2;
  */
 function printable(value: SqlValue): string {
   if (value === null) return '—';
-  return String(value).replace(/\r\n|\r|\n/g, '⏎').replace(/[\u0000-\u001f\u007f]/g, ' ');
+  return String(value)
+    .replace(/\r\n|\r|\n/g, '⏎')
+    .replace(/[\u0000-\u001f\u007f]/g, ' ');
 }
 
 function clip(text: string, width: number): string {
@@ -74,8 +76,13 @@ function records(names: readonly string[], texts: readonly string[][], max: numb
  * On a pipe nothing wraps and every cell keeps up to MAX_CELL. Every rule spans the block (#73).
  */
 export function formatRows(
-  c: AnyCollection, rows: CachedRow[], scope: string, format: OutputFormat, emptyHint: string,
-  max = screenWidth(), total = rows.length,
+  c: AnyCollection,
+  rows: CachedRow[],
+  scope: string,
+  format: OutputFormat,
+  emptyHint: string,
+  max = screenWidth(),
+  total = rows.length,
 ): string {
   if (format === 'json') return JSON.stringify(rows, null, 2);
 
@@ -86,13 +93,25 @@ export function formatRows(
     return finish(['', title, RULE, `  No cached ${c.name} rows${scope}.`, ...wrap(emptyHint, max, INDENT)], max).join('\n');
   }
 
-  const names = c.columns.map(k => k.name);
-  const numeric = new Set(c.columns.filter(k => k.type !== 'TEXT').map(k => k.name));
-  const texts = rows.map(r => names.map(name => clip(printable(r[name] ?? null), MAX_CELL)));
+  const names = c.columns.map((k) => k.name);
+  const numeric = new Set(c.columns.filter((k) => k.type !== 'TEXT').map((k) => k.name));
+  const texts = rows.map((r) => names.map((name) => clip(printable(r[name] ?? null), MAX_CELL)));
   const headers = names.map(visibleWidth);
-  const natural = names.map((_, i) => widest(texts.map(row => visibleWidth(row[i]!)), headers[i]!));
+  const natural = names.map((_, i) =>
+    widest(
+      texts.map((row) => visibleWidth(row[i]!)),
+      headers[i]!,
+    ),
+  );
   const gaps = GAP * (names.length - 1);
-  const widths = max === undefined ? natural : fit(natural, headers.map(h => Math.max(h, MIN_CELL)), max - INDENT.length - gaps);
+  const widths =
+    max === undefined
+      ? natural
+      : fit(
+          natural,
+          headers.map((h) => Math.max(h, MIN_CELL)),
+          max - INDENT.length - gaps,
+        );
   if (widths === null) return finish(['', title, RULE, ...records(names, texts, max)], max).join('\n');
 
   const line = (parts: string[]) =>

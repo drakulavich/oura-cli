@@ -4,7 +4,12 @@ import { pageProgress } from './progress.js';
 describe('pageProgress (#45)', () => {
   function sink(): { chunks: string[]; write: (c: string) => void } {
     const chunks: string[] = [];
-    return { chunks, write: c => { chunks.push(c); } };
+    return {
+      chunks,
+      write: (c) => {
+        chunks.push(c);
+      },
+    };
   }
 
   it('rewrites one line in place, counting pages and rows across calls', () => {
@@ -48,7 +53,7 @@ describe('pageProgress (#45)', () => {
     p.onRetry({ endpoint: 'heartrate', waitMs: 60_000 });
     p.onPage({ endpoint: 'heartrate', rows: 0, page: 2 });
     p.done();
-    const widest = Math.max(...s.chunks.slice(0, 3).map(c => c.length - 1));
+    const widest = Math.max(...s.chunks.slice(0, 3).map((c) => c.length - 1));
     expect(s.chunks[3]).toBe(`\r${' '.repeat(widest)}\r`);
   });
 

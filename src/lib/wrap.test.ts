@@ -12,7 +12,7 @@ describe('wrap (#130)', () => {
       expect(l.length).toBeLessThanOrEqual(40);
       expect(l.startsWith('  ')).toBe(true);
     }
-    expect(lines.map(l => l.trim()).join(' ')).toBe(hint);
+    expect(lines.map((l) => l.trim()).join(' ')).toBe(hint);
   });
 
   it('keeps a backticked command whole, spaces and clinging punctuation included', () => {
@@ -21,7 +21,7 @@ describe('wrap (#130)', () => {
       expect(l.length).toBeLessThanOrEqual(30);
       expect((l.match(/`/g) ?? []).length % 2).toBe(0);
     }
-    expect(lines.some(l => l.includes('(`sync --from <day>`'))).toBe(true);
+    expect(lines.some((l) => l.includes('(`sync --from <day>`'))).toBe(true);
   });
 
   it('leaves a single line when the width is undefined, as on a pipe', () => {

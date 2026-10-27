@@ -5,10 +5,7 @@ import { homedir, tmpdir } from 'os';
 import { join } from 'path';
 import { ensureSchema, openDatabase, REBUILD_HINT } from '../db/open.js';
 import { CliError } from '../lib/errors.js';
-import {
-  runChecks, exitCodeForChecks,
-  type DoctorDeps, type DoctorCheck,
-} from './doctor.js';
+import { runChecks, exitCodeForChecks, type DoctorDeps, type DoctorCheck } from './doctor.js';
 import { formatDoctorTable } from '../render/doctor-table.js';
 import { runDoctor } from './doctor.js';
 
@@ -29,11 +26,13 @@ function makeDeps(overrides: Partial<DoctorDeps> = {}): DoctorDeps {
 
 describe('doctor runChecks', () => {
   it('flags a missing token as fail with a login next step', async () => {
-    const result = await runChecks(makeDeps({
-      resolveToken: () => ({ token: null, source: 'no OURA_TOKEN, no ~/.oura-token' }),
-    }));
+    const result = await runChecks(
+      makeDeps({
+        resolveToken: () => ({ token: null, source: 'no OURA_TOKEN, no ~/.oura-token' }),
+      }),
+    );
 
-    const tokenCheck = result.checks.find(c => c.id === 'token')!;
+    const tokenCheck = result.checks.find((c) => c.id === 'token')!;
     expect(tokenCheck.status).toBe('fail');
     expect(tokenCheck.fix).toBe('oura-cli login');
     expect(result.ok).toBe(false);
@@ -43,7 +42,7 @@ describe('doctor runChecks', () => {
   it('warns when the database has no data yet, points at sync, and does not report ok', async () => {
     const result = await runChecks(makeDeps());
 
-    const dataCheck = result.checks.find(c => c.id === 'data')!;
+    const dataCheck = result.checks.find((c) => c.id === 'data')!;
     expect(dataCheck.status).toBe('warn');
     expect(dataCheck.fix).toBe('oura-cli sync');
     expect(result.nextStep).toBe('oura-cli sync');
@@ -55,12 +54,11 @@ describe('doctor runChecks', () => {
   it('warns when the most recent data is days stale', async () => {
     const db = new Database(':memory:');
     ensureSchema(db);
-    db.query('INSERT OR REPLACE INTO daily_sleep VALUES (?,?,?,?,?)')
-      .run('id1', '2026-08-25', 80, '{}', '2026-08-25T00:00:00Z');
+    db.query('INSERT OR REPLACE INTO daily_sleep VALUES (?,?,?,?,?)').run('id1', '2026-08-25', 80, '{}', '2026-08-25T00:00:00Z');
 
     const result = await runChecks(makeDeps({ openDb: () => ({ db, path: ':memory:' }) }));
 
-    const dataCheck = result.checks.find(c => c.id === 'data')!;
+    const dataCheck = result.checks.find((c) => c.id === 'data')!;
     expect(dataCheck.status).toBe('warn');
     expect(dataCheck.detail).toContain('Most recent data is from 2026-08-25; that day ended over 108 hours ago (the limit is 36 hours).');
     expect(result.nextStep).toContain('oura-cli sync');
@@ -76,16 +74,21 @@ describe('doctor runChecks', () => {
       db.query('INSERT OR REPLACE INTO daily_sleep VALUES (?,?,?,?,?)').run('id1', day, 80, '{}', `${day}T00:00:00Z`);
       return db;
     }
-    const dataCheck = async (deps: Partial<DoctorDeps>) =>
-      (await runChecks(makeDeps(deps))).checks.find(c => c.id === 'data')!;
+    const dataCheck = async (deps: Partial<DoctorDeps>) => (await runChecks(makeDeps(deps))).checks.find((c) => c.id === 'data')!;
 
     it('is still current exactly 36 hours after the newest day ended, and stale one second later', async () => {
       // 2026-08-28 ends at 2026-08-29T00:00Z; 36 hours later is 2026-08-30T12:00Z.
-      const atLimit = await dataCheck({ openDb: () => ({ db: cacheEndingOn('2026-08-28'), path: ':memory:' }), now: '2026-08-30T12:00:00Z' });
+      const atLimit = await dataCheck({
+        openDb: () => ({ db: cacheEndingOn('2026-08-28'), path: ':memory:' }),
+        now: '2026-08-30T12:00:00Z',
+      });
       expect(atLimit.status).toBe('ok');
       expect(atLimit.detail).toBe('Data current through 2026-08-28.');
 
-      const past = await dataCheck({ openDb: () => ({ db: cacheEndingOn('2026-08-28'), path: ':memory:' }), now: '2026-08-30T12:00:01Z' });
+      const past = await dataCheck({
+        openDb: () => ({ db: cacheEndingOn('2026-08-28'), path: ':memory:' }),
+        now: '2026-08-30T12:00:01Z',
+      });
       expect(past.status).toBe('warn');
       expect(past.fix).toContain('oura-cli sync');
       expect(past.detail).toContain('Most recent data is from 2026-08-28; that day ended over 36 hours ago (the limit is 36 hours).');
@@ -93,18 +96,27 @@ describe('doctor runChecks', () => {
     });
 
     it('reproduces the S1 case: two days behind today is stale, whatever the time of day', async () => {
-      const morning = await dataCheck({ openDb: () => ({ db: cacheEndingOn('2026-09-10'), path: ':memory:' }), today: '2026-09-12', now: '2026-09-12T20:00:00Z' });
+      const morning = await dataCheck({
+        openDb: () => ({ db: cacheEndingOn('2026-09-10'), path: ':memory:' }),
+        today: '2026-09-12',
+        now: '2026-09-12T20:00:00Z',
+      });
       expect(morning.status).toBe('warn');
     });
 
     it('does not warn while the newest day is yesterday: one missed night is ordinary ring lag', async () => {
-      const check = await dataCheck({ openDb: () => ({ db: cacheEndingOn('2026-08-29'), path: ':memory:' }), now: '2026-08-30T23:59:00Z' });
+      const check = await dataCheck({
+        openDb: () => ({ db: cacheEndingOn('2026-08-29'), path: ':memory:' }),
+        now: '2026-08-30T23:59:00Z',
+      });
       expect(check.status).toBe('ok');
     });
 
     it('refuses an unparsable now instead of calling the cache current', async () => {
       // NaN compares false against the limit; the previous code would have printed "Data current through".
-      const err = await runChecks(makeDeps({ openDb: () => ({ db: cacheEndingOn('2026-08-28'), path: ':memory:' }), now: 'yesterday' })).catch(e => e as Error);
+      const err = await runChecks(makeDeps({ openDb: () => ({ db: cacheEndingOn('2026-08-28'), path: ':memory:' }), now: 'yesterday' })).catch(
+        (e) => e as Error,
+      );
       expect(err).toBeInstanceOf(Error);
       expect((err as Error).message).toContain('cannot place "yesterday"');
     });
@@ -112,9 +124,17 @@ describe('doctor runChecks', () => {
     it('bounds the day in the cache timezone, not UTC', async () => {
       // 2026-08-28 in Los Angeles ends at 2026-08-29T07:00Z; 2026-08-30T18:00Z is 35 hours later (ok),
       // while the same instant is 42 hours past a UTC midnight (would be stale).
-      const la = await dataCheck({ openDb: () => ({ db: cacheEndingOn('2026-08-28'), path: ':memory:' }), now: '2026-08-30T18:00:00Z', tz: 'America/Los_Angeles' });
+      const la = await dataCheck({
+        openDb: () => ({ db: cacheEndingOn('2026-08-28'), path: ':memory:' }),
+        now: '2026-08-30T18:00:00Z',
+        tz: 'America/Los_Angeles',
+      });
       expect(la.status).toBe('ok');
-      const utc = await dataCheck({ openDb: () => ({ db: cacheEndingOn('2026-08-28'), path: ':memory:' }), now: '2026-08-30T18:00:00Z', tz: 'UTC' });
+      const utc = await dataCheck({
+        openDb: () => ({ db: cacheEndingOn('2026-08-28'), path: ':memory:' }),
+        now: '2026-08-30T18:00:00Z',
+        tz: 'UTC',
+      });
       expect(utc.status).toBe('warn');
     });
   });
@@ -143,37 +163,42 @@ describe('doctor runChecks', () => {
     it('keeps "oura-cli sync" as the fix when Oura has days the cache lacks', async () => {
       const { calls, createClient } = api([{ day: '2026-08-29' }]);
       const result = await runChecks(makeDeps({ offline: false, createClient, openDb: () => ({ db: stale(), path: ':memory:' }) }));
-      const data = result.checks.find(c => c.id === 'data')!;
+      const data = result.checks.find((c) => c.id === 'data')!;
       expect(data.status).toBe('warn');
       expect(data.detail).toContain('Oura has newer days.');
       expect(data.fix).toBe('oura-cli sync');
       expect(result.nextStep).toBe('oura-cli sync');
       // The window asked for starts the day after the newest cached day and ends today.
-      expect(calls.slice(1).map(c => c.query)).toEqual([{ start_date: '2026-08-26', end_date: '2026-08-30' }]);
+      expect(calls.slice(1).map((c) => c.query)).toEqual([{ start_date: '2026-08-26', end_date: '2026-08-30' }]);
     });
 
     it('names the ring, not sync, when Oura has nothing newer either', async () => {
       const { calls, createClient } = api([]);
       const result = await runChecks(makeDeps({ offline: false, createClient, openDb: () => ({ db: stale(), path: ':memory:' }) }));
-      const data = result.checks.find(c => c.id === 'data')!;
+      const data = result.checks.find((c) => c.id === 'data')!;
       expect(data.detail).toContain('Oura has nothing newer, so the ring has not uploaded since then.');
       expect(data.fix).toBe('Open the Oura app so the ring uploads its data, then run `oura-cli sync`.');
       expect(result.nextStep).toBe(data.fix!);
       // Every daily endpoint the freshness check reads was consulted before concluding "nothing newer".
-      expect(calls.slice(1).map(c => c.endpoint)).toEqual(['daily_sleep', 'daily_readiness', 'daily_activity']);
+      expect(calls.slice(1).map((c) => c.endpoint)).toEqual(['daily_sleep', 'daily_readiness', 'daily_activity']);
     });
 
     it('names both causes when it cannot ask: offline, or the probe fails', async () => {
       const offline = await runChecks(makeDeps({ openDb: () => ({ db: stale(), path: ':memory:' }) }));
-      const data = offline.checks.find(c => c.id === 'data')!;
+      const data = offline.checks.find((c) => c.id === 'data')!;
       expect(data.detail).toContain('Either Oura has newer days, or the ring has not uploaded since then.');
       expect(data.fix).toBe('Run `oura-cli sync`; if it adds nothing, open the Oura app so the ring uploads its data.');
 
       let n = 0;
-      const failing = () => ({ fetch: async () => { if (n++ === 0) return []; throw new Error('boom'); } });
+      const failing = () => ({
+        fetch: async () => {
+          if (n++ === 0) return [];
+          throw new Error('boom');
+        },
+      });
       const live = await runChecks(makeDeps({ offline: false, createClient: failing, openDb: () => ({ db: stale(), path: ':memory:' }) }));
-      expect(live.checks.find(c => c.id === 'token-valid')!.status).toBe('ok');
-      expect(live.checks.find(c => c.id === 'data')!.detail).toContain('Either Oura has newer days');
+      expect(live.checks.find((c) => c.id === 'token-valid')!.status).toBe('ok');
+      expect(live.checks.find((c) => c.id === 'data')!.detail).toContain('Either Oura has newer days');
     });
 
     it('asks Oura nothing beyond the token probe when the cache is current', async () => {
@@ -189,25 +214,30 @@ describe('doctor runChecks', () => {
   it('reports all-ok with no next step when the token, db, and data are all healthy', async () => {
     const db = new Database(':memory:');
     ensureSchema(db);
-    db.query('INSERT OR REPLACE INTO daily_sleep VALUES (?,?,?,?,?)')
-      .run('id1', '2026-08-30', 80, '{}', '2026-08-30T00:00:00Z');
+    db.query('INSERT OR REPLACE INTO daily_sleep VALUES (?,?,?,?,?)').run('id1', '2026-08-30', 80, '{}', '2026-08-30T00:00:00Z');
 
     const result = await runChecks(makeDeps({ openDb: () => ({ db, path: ':memory:' }) }));
 
     // makeDeps defaults to offline, so the token check is skipped, not passed.
-    expect(result.checks.every(c => c.status === 'ok' || c.status === 'skip')).toBe(true);
-    expect(result.checks.find(c => c.id === 'token-valid')!.status).toBe('skip');
+    expect(result.checks.every((c) => c.status === 'ok' || c.status === 'skip')).toBe(true);
+    expect(result.checks.find((c) => c.id === 'token-valid')!.status).toBe('skip');
     expect(result.ok).toBe(true);
     expect(result.nextStep).toBeNull();
   });
 
   it('treats a network/API error during token validation as a warning, not a failure', async () => {
-    const result = await runChecks(makeDeps({
-      offline: false,
-      createClient: () => ({ fetch: async () => { throw new Error('fetch failed'); } }),
-    }));
+    const result = await runChecks(
+      makeDeps({
+        offline: false,
+        createClient: () => ({
+          fetch: async () => {
+            throw new Error('fetch failed');
+          },
+        }),
+      }),
+    );
 
-    const tokenValid = result.checks.find(c => c.id === 'token-valid')!;
+    const tokenValid = result.checks.find((c) => c.id === 'token-valid')!;
     expect(tokenValid.status).toBe('warn');
     // S2 before 0.8.0: `ok: false` with `nextStep: null` read as "something is wrong, nothing to do".
     expect(tokenValid.fix).toContain('oura-cli doctor');
@@ -216,14 +246,18 @@ describe('doctor runChecks', () => {
   });
 
   it('fails token validation on an explicit TOKEN_INVALID error and points at login', async () => {
-    const result = await runChecks(makeDeps({
-      offline: false,
-      createClient: () => ({
-        fetch: async () => { throw new CliError('TOKEN_INVALID', 'Oura API 401: unauthorized'); },
+    const result = await runChecks(
+      makeDeps({
+        offline: false,
+        createClient: () => ({
+          fetch: async () => {
+            throw new CliError('TOKEN_INVALID', 'Oura API 401: unauthorized');
+          },
+        }),
       }),
-    }));
+    );
 
-    const tokenValid = result.checks.find(c => c.id === 'token-valid')!;
+    const tokenValid = result.checks.find((c) => c.id === 'token-valid')!;
     expect(tokenValid.status).toBe('fail');
     expect(tokenValid.fix).toBe('oura-cli login');
     expect(result.nextStep).toBe('oura-cli login');
@@ -231,22 +265,31 @@ describe('doctor runChecks', () => {
 
   it('skips the live API call when offline is set', async () => {
     let called = false;
-    const result = await runChecks(makeDeps({
-      offline: true,
-      createClient: () => ({ fetch: async () => { called = true; return []; } }),
-    }));
+    const result = await runChecks(
+      makeDeps({
+        offline: true,
+        createClient: () => ({
+          fetch: async () => {
+            called = true;
+            return [];
+          },
+        }),
+      }),
+    );
 
     expect(called).toBe(false);
     // Not performed is reported as such, never as a pass.
-    expect(result.checks.find(c => c.id === 'token-valid')!.status).toBe('skip');
-    expect(result.checks.find(c => c.id === 'token-valid')!.detail).toContain('offline');
+    expect(result.checks.find((c) => c.id === 'token-valid')!.status).toBe('skip');
+    expect(result.checks.find((c) => c.id === 'token-valid')!.detail).toContain('offline');
   });
 
   it('never includes the resolved token value in any check field', async () => {
     const SECRET = 'super-secret-token-xyz';
-    const result = await runChecks(makeDeps({
-      resolveToken: () => ({ token: SECRET, source: 'OURA_TOKEN' }),
-    }));
+    const result = await runChecks(
+      makeDeps({
+        resolveToken: () => ({ token: SECRET, source: 'OURA_TOKEN' }),
+      }),
+    );
 
     expect(JSON.stringify(result)).not.toContain(SECRET);
   });
@@ -256,12 +299,18 @@ describe('doctor runChecks', () => {
     // needs the same unreachable API, so recommending it here would send the user to a command
     // guaranteed to fail for the same reason doctor just diagnosed. nextStep must stop at the first
     // non-ok check (token-valid) rather than skip past it: its own fix, never `oura-cli sync`.
-    const result = await runChecks(makeDeps({
-      offline: false,
-      createClient: () => ({ fetch: async () => { throw new Error('network unreachable'); } }),
-    }));
+    const result = await runChecks(
+      makeDeps({
+        offline: false,
+        createClient: () => ({
+          fetch: async () => {
+            throw new Error('network unreachable');
+          },
+        }),
+      }),
+    );
 
-    const tokenValid = result.checks.find(c => c.id === 'token-valid')!;
+    const tokenValid = result.checks.find((c) => c.id === 'token-valid')!;
     expect(tokenValid.status).toBe('warn');
     expect(result.nextStep).toBe(tokenValid.fix!);
     expect(result.nextStep).not.toContain('sync');
@@ -277,7 +326,7 @@ describe('doctor runChecks', () => {
 
     const result = await runChecks(makeDeps({ openDb: () => ({ db, path: ':memory:' }) }));
 
-    const dataCheck = result.checks.find(c => c.id === 'data')!;
+    const dataCheck = result.checks.find((c) => c.id === 'data')!;
     expect(dataCheck.status).toBe('ok');
     expect(dataCheck.detail).toContain('2026-08-30');
   });
@@ -295,13 +344,11 @@ describe('doctor runChecks', () => {
   it('reports data freshness from daily_readiness alone, not just daily_sleep or daily_activity', async () => {
     const db = new Database(':memory:');
     ensureSchema(db);
-    db.query(
-      'INSERT OR REPLACE INTO daily_readiness VALUES (?,?,?,?,?,?,?)',
-    ).run('r1', '2026-08-30', 74, '{}', 0.1, 0, '2026-08-30T00:00:00Z');
+    db.query('INSERT OR REPLACE INTO daily_readiness VALUES (?,?,?,?,?,?,?)').run('r1', '2026-08-30', 74, '{}', 0.1, 0, '2026-08-30T00:00:00Z');
 
     const result = await runChecks(makeDeps({ openDb: () => ({ db, path: ':memory:' }) }));
 
-    const dataCheck = result.checks.find(c => c.id === 'data')!;
+    const dataCheck = result.checks.find((c) => c.id === 'data')!;
     expect(dataCheck.status).toBe('ok');
     expect(dataCheck.detail).toContain('2026-08-30');
   });
@@ -315,7 +362,7 @@ describe('exitCodeForChecks', () => {
       { id: 'database', status: 'ok', detail: '' },
       { id: 'data', status: 'ok', detail: '' },
     ];
-    return base.map(c => (overrides[c.id] ? { ...c, status: overrides[c.id]! } : c));
+    return base.map((c) => (overrides[c.id] ? { ...c, status: overrides[c.id]! } : c));
   }
 
   it('exits 0 when nothing fails, even with warnings', () => {
@@ -372,7 +419,7 @@ describe('database integrity', () => {
     ensureSchema(db);
     const result = await runChecks(makeDeps({ openDb: () => ({ db, path: ':memory:' }) }));
     db.close();
-    const check = result.checks.find(c => c.id === 'integrity')!;
+    const check = result.checks.find((c) => c.id === 'integrity')!;
     expect(check.status).toBe('ok');
   });
 
@@ -403,7 +450,7 @@ describe('database integrity', () => {
     db.close();
     rmSync(path, { force: true });
 
-    const check = result.checks.find(c => c.id === 'integrity')!;
+    const check = result.checks.find((c) => c.id === 'integrity')!;
     expect(check.status).toBe('fail');
     expect(check.fix).toContain('sync');
     expect(result.ok).toBe(false);
@@ -412,21 +459,37 @@ describe('database integrity', () => {
     expect(check.detail).not.toContain('***');
     expect(check.detail).toMatch(/^Database is damaged: \S/);
     // The data check hits the same damage and names the same recovery.
-    expect(result.checks.find(c => c.id === 'data')!.fix).toBe(check.fix);
+    expect(result.checks.find((c) => c.id === 'data')!.fix).toBe(check.fix);
   });
 
   it('reports integrity as failed when the database could not be opened at all', async () => {
-    const result = await runChecks(makeDeps({ openDb: () => { throw new Error('nope'); } }));
-    const check = result.checks.find(c => c.id === 'integrity')!;
+    const result = await runChecks(
+      makeDeps({
+        openDb: () => {
+          throw new Error('nope');
+        },
+      }),
+    );
+    const check = result.checks.find((c) => c.id === 'integrity')!;
     expect(check.status).toBe('fail');
     expect(check.detail).toContain('database unavailable');
-    expect(result.checks.find(c => c.id === 'database')!.fix).toBeUndefined(); // a bare Error brings no advice
+    expect(result.checks.find((c) => c.id === 'database')!.fix).toBeUndefined(); // a bare Error brings no advice
   });
 
   it('shortens the path the open error quotes, as the ok row does (#130)', async () => {
-    const boom = new CliError('DB_ERROR', `Cannot open database ${join(homedir(), '.oura-cli', 'oura.db')}: unable to open database file`, 'Check the directory.');
-    const result = await runChecks(makeDeps({ openDb: () => { throw boom; } }));
-    const database = result.checks.find(c => c.id === 'database')!;
+    const boom = new CliError(
+      'DB_ERROR',
+      `Cannot open database ${join(homedir(), '.oura-cli', 'oura.db')}: unable to open database file`,
+      'Check the directory.',
+    );
+    const result = await runChecks(
+      makeDeps({
+        openDb: () => {
+          throw boom;
+        },
+      }),
+    );
+    const database = result.checks.find((c) => c.id === 'database')!;
     expect(database.detail).toBe('Cannot open database ~/.oura-cli/oura.db: unable to open database file');
     expect(database.fix).toBe('Check the directory.');
   });
@@ -439,21 +502,31 @@ describe('database integrity', () => {
     const seed = new Database(path);
     ensureSchema(seed);
     const insert = seed.query("INSERT INTO heartrate (timestamp, bpm, source, day) VALUES (?, 60, 'awake', '2026-01-01')");
-    seed.transaction(() => { for (let i = 0; i < 400; i++) insert.run(`2026-01-01T${String(Math.floor(i / 60)).padStart(2, '0')}:${String(i % 60).padStart(2, '0')}:00+00:00`); })();
+    seed.transaction(() => {
+      for (let i = 0; i < 400; i++) insert.run(`2026-01-01T${String(Math.floor(i / 60)).padStart(2, '0')}:${String(i % 60).padStart(2, '0')}:00+00:00`);
+    })();
     seed.exec('PRAGMA wal_checkpoint(TRUNCATE)');
     seed.close();
     truncateSync(path, Math.floor(statSync(path).size / 2));
 
-    const result = await runChecks(makeDeps({ openDb: () => { const db = openDatabase(path); ensureSchema(db); return { db, path }; } }));
+    const result = await runChecks(
+      makeDeps({
+        openDb: () => {
+          const db = openDatabase(path);
+          ensureSchema(db);
+          return { db, path };
+        },
+      }),
+    );
     for (const suffix of ['', '-wal', '-shm']) rmSync(path + suffix, { force: true });
 
-    const database = result.checks.find(c => c.id === 'database')!;
+    const database = result.checks.find((c) => c.id === 'database')!;
     expect(database.status).toBe('fail');
     expect(database.detail).toContain('malformed');
 
     expect(database.fix).toBe(REBUILD_HINT); // not the db today hint, which ends by pointing at doctor
     expect(result.nextStep).toBe(REBUILD_HINT);
-    expect(result.checks.map(c => c.id)).toEqual(['token', 'token-valid', 'database', 'integrity', 'data']);
+    expect(result.checks.map((c) => c.id)).toEqual(['token', 'token-valid', 'database', 'integrity', 'data']);
   });
 });
 
@@ -464,7 +537,9 @@ describe('doctor argument handling', () => {
     let err: unknown;
     try {
       await runDoctor({ format: 'json', tz: 'UTC', today: '2026-06-15' }, { db: '', offline: true });
-    } catch (e) { err = e; }
+    } catch (e) {
+      err = e;
+    }
     expect(err).toBeInstanceOf(CliError);
     expect((err as CliError).code).toBe('BAD_ARGS');
   });
@@ -472,26 +547,31 @@ describe('doctor argument handling', () => {
 
 describe('formatDoctorTable wraps details and the next step at the screen width (#130)', () => {
   const ANSI = new RegExp(String.fromCharCode(27) + '\\[[0-9;]*m', 'g');
-  const detail = 'Most recent data is from 2026-09-10; that day ended over 60 hours ago (the limit is 36 hours). Oura has nothing newer, so the ring has not uploaded since then.';
+  const detail =
+    'Most recent data is from 2026-09-10; that day ended over 60 hours ago (the limit is 36 hours). Oura has nothing newer, so the ring has not uploaded since then.';
   const fix = 'Open the Oura app so the ring uploads its data, then run `oura-cli sync`.';
   const result = { ok: false, checks: [{ id: 'data' as const, status: 'warn' as const, detail, fix }], nextStep: fix };
 
   it('continues a long detail under the detail column and a long Next: under its text', () => {
-    const lines = formatDoctorTable(result, 60).split('\n').map(l => l.replace(ANSI, ''));
+    const lines = formatDoctorTable(result, 60)
+      .split('\n')
+      .map((l) => l.replace(ANSI, ''));
     for (const l of lines) expect(l.length).toBeLessThanOrEqual(60);
-    const row = lines.findIndex(l => l.startsWith('  ! data'));
+    const row = lines.findIndex((l) => l.startsWith('  ! data'));
     expect(row).toBeGreaterThan(0);
     expect(lines[row + 1]!.startsWith(' '.repeat(17))).toBe(true);
     expect(lines[row + 1]!.startsWith(' '.repeat(18))).toBe(false);
-    const next = lines.findIndex(l => l.startsWith('  Next: '));
+    const next = lines.findIndex((l) => l.startsWith('  Next: '));
     expect(lines[next + 1]!.startsWith(' '.repeat(8))).toBe(true);
     expect(lines[next + 1]!.startsWith(' '.repeat(9))).toBe(false);
-    expect(lines.map(l => l.trim()).join(' ')).toContain(detail);
-    expect(lines.map(l => l.trim()).join(' ')).toContain(`Next: ${fix}`);
+    expect(lines.map((l) => l.trim()).join(' ')).toContain(detail);
+    expect(lines.map((l) => l.trim()).join(' ')).toContain(`Next: ${fix}`);
   });
 
   it('leaves both on one line on a pipe', () => {
-    const lines = formatDoctorTable(result, undefined).split('\n').map(l => l.replace(ANSI, ''));
+    const lines = formatDoctorTable(result, undefined)
+      .split('\n')
+      .map((l) => l.replace(ANSI, ''));
     expect(lines).toContain(`  ! data         ${detail}`);
     expect(lines).toContain(`  Next: ${fix}`);
   });
@@ -501,14 +581,16 @@ describe('the database row names the path as a shell would (#130)', () => {
   it('shows the home directory as ~ in the token and database rows, so the default paths fit beside their sentences', async () => {
     const db = new Database(':memory:');
     ensureSchema(db);
-    const result = await runChecks(makeDeps({
-      resolveToken: () => ({ token: 'secret-token-value', source: join(homedir(), '.oura-token') }),
-      openDb: () => ({ db, path: join(homedir(), '.oura-cli', 'oura.db') }),
-    }));
-    expect(result.checks.find(c => c.id === 'token')!.detail).toBe('Token found via ~/.oura-token.');
-    expect(result.checks.find(c => c.id === 'database')!.detail).toBe('Database ready at ~/.oura-cli/oura.db.');
+    const result = await runChecks(
+      makeDeps({
+        resolveToken: () => ({ token: 'secret-token-value', source: join(homedir(), '.oura-token') }),
+        openDb: () => ({ db, path: join(homedir(), '.oura-cli', 'oura.db') }),
+      }),
+    );
+    expect(result.checks.find((c) => c.id === 'token')!.detail).toBe('Token found via ~/.oura-token.');
+    expect(result.checks.find((c) => c.id === 'database')!.detail).toBe('Database ready at ~/.oura-cli/oura.db.');
 
     const missing = await runChecks(makeDeps({ resolveToken: () => ({ token: null, source: join(homedir(), '.oura-token') }) }));
-    expect(missing.checks.find(c => c.id === 'token')!.detail).toBe('No token found (checked ~/.oura-token).');
+    expect(missing.checks.find((c) => c.id === 'token')!.detail).toBe('No token found (checked ~/.oura-token).');
   });
 });

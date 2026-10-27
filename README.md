@@ -241,7 +241,7 @@ A test resolves every `oura-cli …` line in the skill against `describe`, so th
 
 ## Requirements
 
-- [Bun](https://bun.sh) >= 1.0
+- [Bun](https://bun.sh) >= 1.4.4
 - macOS, Linux, or Windows (WSL)
 - An [Oura Personal Access Token](https://cloud.ouraring.com/personal-access-tokens)
 

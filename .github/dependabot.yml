@@ -7,7 +7,7 @@ updates:
     schedule:
       interval: weekly
       day: monday
-      time: "07:00"
+      time: '07:00'
       timezone: Asia/Dubai
     open-pull-requests-limit: 5
     versioning-strategy: increase-if-necessary
@@ -28,7 +28,7 @@ updates:
     schedule:
       interval: weekly
       day: monday
-      time: "07:00"
+      time: '07:00'
       timezone: Asia/Dubai
     open-pull-requests-limit: 5
     commit-message:
@@ -36,4 +36,4 @@ updates:
       include: scope
     groups:
       actions:
-        patterns: ["*"]
+        patterns: ['*']

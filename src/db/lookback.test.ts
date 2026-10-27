@@ -20,11 +20,18 @@ function api(samples: Array<{ timestamp: string; source?: string }>) {
       const from = Date.parse(query.start_datetime!);
       const to = Date.parse(query.end_datetime!);
       return samples
-        .filter(s => { const t = Date.parse(s.timestamp); return t >= from && t <= to; })
-        .map(s => ({ timestamp: s.timestamp, bpm: 60, source: s.source ?? 'awake' }));
+        .filter((s) => {
+          const t = Date.parse(s.timestamp);
+          return t >= from && t <= to;
+        })
+        .map((s) => ({ timestamp: s.timestamp, bpm: 60, source: s.source ?? 'awake' }));
     },
   } as unknown as OuraClient;
-  return { client, hrQueries, windows: () => hrQueries.map(q => `${q.start_datetime!.slice(0, 10)}..${q.end_datetime!.slice(0, 10)}`) };
+  return {
+    client,
+    hrQueries,
+    windows: () => hrQueries.map((q) => `${q.start_datetime!.slice(0, 10)}..${q.end_datetime!.slice(0, 10)}`),
+  };
 }
 
 function cacheWithHr(day: string, instant = `${day}T10:00:00+00:00`): Database {
@@ -104,11 +111,16 @@ describe('heart-rate lookback (#135)', () => {
     const { client, windows, hrQueries } = api([{ timestamp: '2026-06-14T10:00:00+00:00' }]);
     await importDaily(db, client, clock);
     hrQueries.length = 0;
-    const junk = { fetch: async (endpoint: OuraEndpoint, query: Record<string, string>) => {
-      if (endpoint !== 'heartrate') return [];
-      hrQueries.push(query);
-      return [{ timestamp: 'not a time', bpm: 60, source: 'awake' }, { timestamp: null, bpm: 61, source: 'awake' }];
-    } } as unknown as OuraClient;
+    const junk = {
+      fetch: async (endpoint: OuraEndpoint, query: Record<string, string>) => {
+        if (endpoint !== 'heartrate') return [];
+        hrQueries.push(query);
+        return [
+          { timestamp: 'not a time', bpm: 60, source: 'awake' },
+          { timestamp: null, bpm: 61, source: 'awake' },
+        ];
+      },
+    } as unknown as OuraClient;
     await importDaily(db, junk, clock);
     db.close();
     expect(windows()).toEqual(['2026-06-14..2026-06-15']);

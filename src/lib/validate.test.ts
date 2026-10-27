@@ -26,10 +26,14 @@ describe('assertCalendarDate', () => {
 });
 
 describe('assertPositiveInt', () => {
-  it.each([['1', 1], ['30', 30], [' 7 ', 7]])('accepts %j', (value, expected) => {
+  it.each([
+    ['1', 1],
+    ['30', 30],
+    [' 7 ', 7],
+  ])('accepts %j', (value, expected) => {
     expect(assertPositiveInt(value, '--days')).toBe(expected);
   });
-  it.each(['0', '-1', '1.5', 'abc', '', '7x', '1e3'])('rejects %j with BAD_ARGS', value => {
+  it.each(['0', '-1', '1.5', 'abc', '', '7x', '1e3'])('rejects %j with BAD_ARGS', (value) => {
     expect(badArgs(() => assertPositiveInt(value, '<days>')).message).toContain('<days>');
   });
   it('carries a hint that names the argument (#167)', () => {
@@ -38,7 +42,7 @@ describe('assertPositiveInt', () => {
 });
 
 describe('assertTimezone', () => {
-  it.each(['UTC', 'Europe/Berlin', 'Asia/Dubai'])('accepts %s', tz => {
+  it.each(['UTC', 'Europe/Berlin', 'Asia/Dubai'])('accepts %s', (tz) => {
     expect(assertTimezone(tz)).toBe(tz);
   });
   it('rejects an unknown zone with BAD_ARGS and a hint', () => {

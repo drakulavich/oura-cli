@@ -46,8 +46,7 @@ describe('normalizeArgv', () => {
 
 describe('normalizeArgv and `--`', () => {
   it('keeps hoisted global flags before a `--` separator', () => {
-    expect(normalizeArgv(['bun', 's', '--db', 'x', 'db', 'today', '--', 'foo']))
-      .toEqual(['bun', 's', 'db', 'today', '--db', 'x', '--', 'foo']);
+    expect(normalizeArgv(['bun', 's', '--db', 'x', 'db', 'today', '--', 'foo'])).toEqual(['bun', 's', 'db', 'today', '--db', 'x', '--', 'foo']);
   });
 });
 
@@ -55,66 +54,107 @@ describe('normalizeArgv with a flag between a command and its subcommand', () =>
   // #79: citty resolves a subcommand by the first non-flag token, so the flag's *value* was read
   // as the subcommand name — `db --format json today` failed with Unknown command "json".
   it.each([
-    [['bun', 's', 'db', '--format', 'json', 'today'], ['bun', 's', 'db', 'today', '--format', 'json']],
-    [['bun', 's', 'db', '--tz', 'UTC', 'week'], ['bun', 's', 'db', 'week', '--tz', 'UTC']],
-    [['bun', 's', 'db', '--db', '/tmp/x.db', 'today'], ['bun', 's', 'db', 'today', '--db', '/tmp/x.db']],
-    [['bun', 's', 'db', '--format=json', 'today'], ['bun', 's', 'db', 'today', '--format=json']],
-    [['bun', 's', 'db', '--no-color', 'today'], ['bun', 's', 'db', 'today', '--no-color']],
+    [
+      ['bun', 's', 'db', '--format', 'json', 'today'],
+      ['bun', 's', 'db', 'today', '--format', 'json'],
+    ],
+    [
+      ['bun', 's', 'db', '--tz', 'UTC', 'week'],
+      ['bun', 's', 'db', 'week', '--tz', 'UTC'],
+    ],
+    [
+      ['bun', 's', 'db', '--db', '/tmp/x.db', 'today'],
+      ['bun', 's', 'db', 'today', '--db', '/tmp/x.db'],
+    ],
+    [
+      ['bun', 's', 'db', '--format=json', 'today'],
+      ['bun', 's', 'db', 'today', '--format=json'],
+    ],
+    [
+      ['bun', 's', 'db', '--no-color', 'today'],
+      ['bun', 's', 'db', 'today', '--no-color'],
+    ],
   ])('hoists %j', (argv, expected) => {
     expect(normalizeArgv(argv)).toEqual(expected);
   });
 
   it('hoists flags from both sides at once, keeping the commands in order', () => {
-    expect(normalizeArgv(['bun', 's', '--tz', 'UTC', 'db', '--format', 'json', 'today', '--db', 'x']))
-      .toEqual(['bun', 's', 'db', 'today', '--tz', 'UTC', '--format', 'json', '--db', 'x']);
+    expect(normalizeArgv(['bun', 's', '--tz', 'UTC', 'db', '--format', 'json', 'today', '--db', 'x'])).toEqual([
+      'bun',
+      's',
+      'db',
+      'today',
+      '--tz',
+      'UTC',
+      '--format',
+      'json',
+      '--db',
+      'x',
+    ]);
   });
 
   it('leaves a command-specific flag where it is', () => {
-    expect(normalizeArgv(['bun', 's', 'fetch', 'sleep', '--day', '2026-09-01']))
-      .toEqual(['bun', 's', 'fetch', 'sleep', '--day', '2026-09-01']);
+    expect(normalizeArgv(['bun', 's', 'fetch', 'sleep', '--day', '2026-09-01'])).toEqual(['bun', 's', 'fetch', 'sleep', '--day', '2026-09-01']);
   });
 
   it.each([
-    [['bun', 's', 'db', '--db', 'db', 'today'], ['bun', 's', 'db', 'today', '--db', 'db']],
-    [['bun', 's', 'db', '--tz', 'sync', 'today'], ['bun', 's', 'db', 'today', '--tz', 'sync']],
+    [
+      ['bun', 's', 'db', '--db', 'db', 'today'],
+      ['bun', 's', 'db', 'today', '--db', 'db'],
+    ],
+    [
+      ['bun', 's', 'db', '--tz', 'sync', 'today'],
+      ['bun', 's', 'db', 'today', '--tz', 'sync'],
+    ],
   ])('keeps a value that spells a command name in the value slot: %j', (argv, expected) => {
     expect(normalizeArgv(argv)).toEqual(expected);
   });
 
   it('keeps repeated flags in order, so the last one still wins downstream', () => {
-    expect(normalizeArgv(['bun', 's', 'db', '--format', 'json', 'today', '--format', 'table']))
-      .toEqual(['bun', 's', 'db', 'today', '--format', 'json', '--format', 'table']);
+    expect(normalizeArgv(['bun', 's', 'db', '--format', 'json', 'today', '--format', 'table'])).toEqual([
+      'bun',
+      's',
+      'db',
+      'today',
+      '--format',
+      'json',
+      '--format',
+      'table',
+    ]);
   });
 
   it('hoists from between the commands and still leaves `--` last', () => {
-    expect(normalizeArgv(['bun', 's', 'db', '--format', 'json', 'today', '--', '--db', 'x']))
-      .toEqual(['bun', 's', 'db', 'today', '--format', 'json', '--', '--db', 'x']);
+    expect(normalizeArgv(['bun', 's', 'db', '--format', 'json', 'today', '--', '--db', 'x'])).toEqual([
+      'bun',
+      's',
+      'db',
+      'today',
+      '--format',
+      'json',
+      '--',
+      '--db',
+      'x',
+    ]);
   });
 
   it('does not touch a global flag name that appears after `--`', () => {
-    expect(normalizeArgv(['bun', 's', 'db', 'today', '--', '--format', 'json']))
-      .toEqual(['bun', 's', 'db', 'today', '--', '--format', 'json']);
+    expect(normalizeArgv(['bun', 's', 'db', 'today', '--', '--format', 'json'])).toEqual(['bun', 's', 'db', 'today', '--', '--format', 'json']);
   });
 });
 
 describe('isVersionRequest', () => {
-  it.each([
-    [['--version']],
-    [['-v']],
-    [['--db', 'x', '--version']],
-    [['--no-color', '--version', '--db', 'x']],
-  ])('is true for %j', argv => {
+  it.each([[['--version']], [['-v']], [['--db', 'x', '--version']], [['--no-color', '--version', '--db', 'x']]])('is true for %j', (argv) => {
     expect(isVersionRequest(argv)).toBe(true);
   });
 
   it.each([
     [[]],
-    [['--db', '--version']],          // --version is the value of --db
+    [['--db', '--version']], // --version is the value of --db
     [['--tz', '-v']],
     [['fetch', 'sleep', '--version']], // after a subcommand it is that command's (unknown) flag
     [['fetch', 'sleep', '--day', '--version']],
     [['db', 'today']],
-  ])('is false for %j', argv => {
+  ])('is false for %j', (argv) => {
     expect(isVersionRequest(argv)).toBe(false);
   });
 });

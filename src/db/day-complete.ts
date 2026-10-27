@@ -46,13 +46,18 @@ export interface DayCompleteness {
 }
 
 export function dayCompleteness(db: Database, today: string): DayCompleteness {
-  const rows = db.query('SELECT day, class_5_min_slots AS slots FROM daily_activity')
-    .all() as Array<{ day: string; slots: number | null }>;
-  const slotsByDay = new Map(rows.map(r => [r.day, r.slots]));
+  const rows = db.query('SELECT day, class_5_min_slots AS slots FROM daily_activity').all() as Array<{
+    day: string;
+    slots: number | null;
+  }>;
+  const slotsByDay = new Map(rows.map((r) => [r.day, r.slots]));
   // Descending, so the head is the newest record and the first hit in completeThrough is the newest
   // complete day. Deliberately unbounded, as the old rule was: a record past the window still proves
   // Oura moved on from the days inside it.
-  const daysDesc = rows.map(r => r.day).sort().reverse();
+  const daysDesc = rows
+    .map((r) => r.day)
+    .sort()
+    .reverse();
   const newestDay = daysDesc[0] ?? null;
 
   const isComplete = (day: string): boolean => {
@@ -70,6 +75,6 @@ export function dayCompleteness(db: Database, today: string): DayCompleteness {
   // the calendar range, and bounded by the cache rather than the window.
   return {
     isComplete,
-    completeThrough: (start, end) => daysDesc.find(d => d >= start && d <= end && isComplete(d)) ?? null,
+    completeThrough: (start, end) => daysDesc.find((d) => d >= start && d <= end && isComplete(d)) ?? null,
   };
 }

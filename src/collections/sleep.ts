@@ -13,10 +13,10 @@ export const sleep = defineCollection<OuraSleepDay>({
     { field: 'day', format: 'date', description: 'Date the record applies to (YYYY-MM-DD)' },
   ],
   columns: [
-    { name: 'id', type: 'TEXT', pk: true, pick: r => r.id },
-    { name: 'day', type: 'TEXT', unique: true, pick: r => r.day },
-    { name: 'score', type: 'INTEGER', pick: r => r.score },
-    { name: 'contributors', type: 'TEXT', pick: r => JSON.stringify(r.contributors) },
-    { name: 'timestamp', type: 'TEXT', pick: r => r.timestamp },
+    { name: 'id', type: 'TEXT', pk: true, pick: (r) => r.id },
+    { name: 'day', type: 'TEXT', unique: true, pick: (r) => r.day },
+    { name: 'score', type: 'INTEGER', pick: (r) => r.score },
+    { name: 'contributors', type: 'TEXT', pick: (r) => JSON.stringify(r.contributors) },
+    { name: 'timestamp', type: 'TEXT', pick: (r) => r.timestamp },
   ],
 });

@@ -67,14 +67,14 @@ describe('scripts/demo-fixture.ts', () => {
     for (const { id } of query<{ id: string }>(dir, 'SELECT id FROM daily_spo2 LIMIT 3')) expect(id).toEndWith('-demo');
 
     // The printed command must survive copy-paste even though the path has a space.
-    const line = stdout.split('\n').find(l => l.startsWith('record with:'))!;
+    const line = stdout.split('\n').find((l) => l.startsWith('record with:'))!;
     expect(line).toContain(`HOME='${dir}'`);
     expect(line).toContain(`PATH='${join(dir, 'bin')}':"$PATH"`);
   });
 
   // UTC+14 and UTC-11 are 25 hours apart, so at any moment at least one of them is on a different
   // calendar day from UTC: a fixture that took "today" from UTC would fail one of these whatever the hour.
-  it.each(['Pacific/Kiritimati', 'Pacific/Pago_Pago'])('ends on today in %s, not UTC', async tz => {
+  it.each(['Pacific/Kiritimati', 'Pacific/Pago_Pago'])('ends on today in %s, not UTC', async (tz) => {
     const dir = join(parent, `tz ${tz.replace('/', '-')}`);
     expect((await run([dir], { OURA_TZ: tz })).code).toBe(0);
     expect(newestDay(dir)).toBe(today(tz));

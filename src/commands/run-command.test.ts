@@ -4,14 +4,26 @@ import { CliError } from '../lib/errors.js';
 import { OuraClient } from '../api/client.js';
 
 function fakeIo(isTty = false) {
-  const out: string[] = []; const err: string[] = []; const exits: number[] = [];
+  const out: string[] = [];
+  const err: string[] = [];
+  const exits: number[] = [];
   const io: RunnerIo = {
-    stdout: s => out.push(s), stderr: s => err.push(s), exit: c => exits.push(c), isTty,
+    stdout: (s) => out.push(s),
+    stderr: (s) => err.push(s),
+    exit: (c) => exits.push(c),
+    isTty,
   };
   return { io, out, err, exits };
 }
 
-const baseArgs = { _: [] as string[], format: undefined, token: undefined, db: ':memory:', tz: 'UTC', 'no-color': true } as any;
+const baseArgs = {
+  _: [] as string[],
+  format: undefined,
+  token: undefined,
+  db: ':memory:',
+  tz: 'UTC',
+  'no-color': true,
+} as any;
 
 describe('execute', () => {
   it('prints JSON when stdout is not a TTY', async () => {
@@ -29,7 +41,11 @@ describe('execute', () => {
   });
 
   it('forces JSON for jsonOnly commands even on a TTY with --format table', async () => {
-    const def: DataCommandDef<{}> = { meta: { name: 'x' }, jsonOnly: true, run: () => ({ json: [1], text: () => 'no' }) };
+    const def: DataCommandDef<{}> = {
+      meta: { name: 'x' },
+      jsonOnly: true,
+      run: () => ({ json: [1], text: () => 'no' }),
+    };
     const { io, out } = fakeIo(true);
     await execute(def, { ...baseArgs, format: 'table' }, io);
     expect(out[0]).toBe(JSON.stringify([1], null, 2));
@@ -45,7 +61,13 @@ describe('execute', () => {
   });
 
   it('renders errors from jsonOnly commands as text on a TTY', async () => {
-    const def: DataCommandDef<{}> = { meta: { name: 'x' }, jsonOnly: true, run: () => { throw new CliError('BAD_ARGS', 'nope'); } };
+    const def: DataCommandDef<{}> = {
+      meta: { name: 'x' },
+      jsonOnly: true,
+      run: () => {
+        throw new CliError('BAD_ARGS', 'nope');
+      },
+    };
     const { io, err } = fakeIo(true);
     await execute(def, baseArgs, io);
     expect(err[0]).toContain('error: nope');
@@ -55,8 +77,9 @@ describe('execute', () => {
   it('opens a schema-ready database when needs.db is set and closes it afterwards', async () => {
     let captured: Ctx['db'];
     const def: DataCommandDef<{}> = {
-      meta: { name: 'x' }, needs: { db: true },
-      run: ctx => {
+      meta: { name: 'x' },
+      needs: { db: true },
+      run: (ctx) => {
         captured = ctx.db;
         const row = ctx.db!.query('SELECT COUNT(*) AS n FROM daily_sleep').get() as { n: number };
         return { json: row, text: () => '' };
@@ -72,16 +95,30 @@ describe('execute', () => {
     let captured: Ctx['db'];
     const dbClosedAtExit: boolean[] = [];
     const def: DataCommandDef<{}> = {
-      meta: { name: 'x' }, needs: { db: true },
-      run: ctx => { captured = ctx.db; throw new CliError('DB_ERROR', 'boom'); },
+      meta: { name: 'x' },
+      needs: { db: true },
+      run: (ctx) => {
+        captured = ctx.db;
+        throw new CliError('DB_ERROR', 'boom');
+      },
     };
-    const err: string[] = []; const exits: number[] = [];
+    const err: string[] = [];
+    const exits: number[] = [];
     const io: RunnerIo = {
-      stdout: () => {}, stderr: s => err.push(s), isTty: false,
-      exit: c => {
-        dbClosedAtExit.push((() => {
-          try { captured!.query('SELECT 1').get(); return false; } catch { return true; }
-        })());
+      stdout: () => {},
+      stderr: (s) => err.push(s),
+      isTty: false,
+      exit: (c) => {
+        dbClosedAtExit.push(
+          (() => {
+            try {
+              captured!.query('SELECT 1').get();
+              return false;
+            } catch {
+              return true;
+            }
+          })(),
+        );
         exits.push(c);
       },
     };
@@ -95,16 +132,30 @@ describe('execute', () => {
     let captured: Ctx['db'];
     const dbClosedAtExit: boolean[] = [];
     const def: DataCommandDef<{}> = {
-      meta: { name: 'x' }, needs: { db: true },
-      run: ctx => { captured = ctx.db; return { json: 1, text: () => '1', exitCode: 2 }; },
+      meta: { name: 'x' },
+      needs: { db: true },
+      run: (ctx) => {
+        captured = ctx.db;
+        return { json: 1, text: () => '1', exitCode: 2 };
+      },
     };
-    const out: string[] = []; const exits: number[] = [];
+    const out: string[] = [];
+    const exits: number[] = [];
     const io: RunnerIo = {
-      stdout: s => out.push(s), stderr: () => {}, isTty: false,
-      exit: c => {
-        dbClosedAtExit.push((() => {
-          try { captured!.query('SELECT 1').get(); return false; } catch { return true; }
-        })());
+      stdout: (s) => out.push(s),
+      stderr: () => {},
+      isTty: false,
+      exit: (c) => {
+        dbClosedAtExit.push(
+          (() => {
+            try {
+              captured!.query('SELECT 1').get();
+              return false;
+            } catch {
+              return true;
+            }
+          })(),
+        );
         exits.push(c);
       },
     };
@@ -117,11 +168,16 @@ describe('execute', () => {
     const { setSystemTime } = await import('bun:test');
     setSystemTime(new Date('2026-06-15T20:00:00Z'));
     try {
-      const def: DataCommandDef<{}> = { meta: { name: 'x' }, run: ctx => ({ json: ctx.today, text: () => ctx.today }) };
+      const def: DataCommandDef<{}> = {
+        meta: { name: 'x' },
+        run: (ctx) => ({ json: ctx.today, text: () => ctx.today }),
+      };
       const { io, out } = fakeIo(false);
       await execute(def, { ...baseArgs, tz: 'Pacific/Kiritimati' }, io);
       expect(JSON.parse(out[0])).toBe('2026-06-16');
-    } finally { setSystemTime(); }
+    } finally {
+      setSystemTime();
+    }
   });
 
   it('exits with the Output exitCode when it is non-zero', async () => {
@@ -133,8 +189,9 @@ describe('execute', () => {
 
   it('maps a SQLite error thrown inside run to DB_ERROR / exit 4', async () => {
     const def: DataCommandDef<{}> = {
-      meta: { name: 'x' }, needs: { db: true },
-      run: ctx => ({ json: ctx.db!.query('SELECT * FROM no_such_table').all(), text: () => '' }),
+      meta: { name: 'x' },
+      needs: { db: true },
+      run: (ctx) => ({ json: ctx.db!.query('SELECT * FROM no_such_table').all(), text: () => '' }),
     };
     const { io, err, exits } = fakeIo(false);
     await execute(def, baseArgs, io);
@@ -148,7 +205,11 @@ describe('execute', () => {
     const path = `/tmp/oura-runner-corrupt-${process.pid}.db`;
     await Bun.write(path, 'junk');
     try {
-      const def: DataCommandDef<{}> = { meta: { name: 'x' }, needs: { db: true }, run: () => ({ json: 1, text: () => '1' }) };
+      const def: DataCommandDef<{}> = {
+        meta: { name: 'x' },
+        needs: { db: true },
+        run: () => ({ json: 1, text: () => '1' }),
+      };
       const { io, err, exits } = fakeIo(false);
       await execute(def, { ...baseArgs, db: path }, io);
       expect(JSON.parse(err[0]).error.code).toBe('DB_ERROR');
@@ -161,7 +222,11 @@ describe('execute', () => {
   it('refuses an empty --db with BAD_ARGS / exit 1 instead of opening the home cache', async () => {
     // #76: `--db ""` — what a wrapper produces from an unset variable — used to fall through
     // to ~/.oura-cli/oura.db and migrate it.
-    const def: DataCommandDef<{}> = { meta: { name: 'x' }, needs: { db: true }, run: () => ({ json: 1, text: () => '1' }) };
+    const def: DataCommandDef<{}> = {
+      meta: { name: 'x' },
+      needs: { db: true },
+      run: () => ({ json: 1, text: () => '1' }),
+    };
     const { io, out, err, exits } = fakeIo(false);
     await execute(def, { ...baseArgs, db: '' }, io);
     expect(out).toEqual([]);
@@ -214,7 +279,13 @@ describe('execute', () => {
 
   it('rejects an unknown --tz with BAD_ARGS before running the command', async () => {
     let ran = false;
-    const def: DataCommandDef<{}> = { meta: { name: 'x' }, run: () => { ran = true; return { json: 1, text: () => '1' }; } };
+    const def: DataCommandDef<{}> = {
+      meta: { name: 'x' },
+      run: () => {
+        ran = true;
+        return { json: 1, text: () => '1' };
+      },
+    };
     const { io, err, exits } = fakeIo(false);
     await execute(def, { ...baseArgs, tz: 'Not/AZone' }, io);
     expect(ran).toBe(false);
@@ -236,7 +307,8 @@ describe('execute', () => {
     process.env.OURA_TOKEN_PATH = '/nonexistent/oura-token-for-runner-test';
     try {
       const def: DataCommandDef<{}> = {
-        meta: { name: 'x' }, needs: { client: true },
+        meta: { name: 'x' },
+        needs: { client: true },
         run: () => ({ json: 'unreachable', text: () => 'unreachable' }),
       };
       const { io, out, err, exits } = fakeIo(false);
@@ -245,15 +317,22 @@ describe('execute', () => {
       expect(JSON.parse(err[0]).error.code).toBe('TOKEN_MISSING');
       expect(exits).toEqual([2]);
     } finally {
-      for (const [k, v] of Object.entries(saved)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+      for (const [k, v] of Object.entries(saved)) {
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      }
     }
   });
 
   it('builds ctx.client from args.token when needs.client is set', async () => {
     let captured: Ctx['client'];
     const def: DataCommandDef<{}> = {
-      meta: { name: 'x' }, needs: { client: true },
-      run: ctx => { captured = ctx.client; return { json: true, text: () => '' }; },
+      meta: { name: 'x' },
+      needs: { client: true },
+      run: (ctx) => {
+        captured = ctx.client;
+        return { json: true, text: () => '' };
+      },
     };
     const { io, exits } = fakeIo(false);
     await execute(def, { ...baseArgs, token: 'inline-token' }, io);

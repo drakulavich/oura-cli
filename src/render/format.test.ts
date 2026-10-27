@@ -65,10 +65,7 @@ describe('formatDaySummary', () => {
 
   it('colours scores green (>=85), yellow (70-84) and red (<70) by threshold', () => {
     withColor(() => {
-      const out = formatDaySummary(
-        makeDay({ sleep_score: 85, readiness_score: 70, activity_score: 69 }),
-        'table',
-      );
+      const out = formatDaySummary(makeDay({ sleep_score: 85, readiness_score: 70, activity_score: 69 }), 'table');
       expect(out).toContain(chalk.green('85'));
       expect(out).toContain(chalk.yellow('70'));
       expect(out).toContain(chalk.red('69'));
@@ -117,10 +114,7 @@ describe('formatDaySummary', () => {
 
   it('renders the sleep-detail block (hours + HRV line) only when sleep_hours is non-null', () => {
     const withSleep = stripAnsi(
-      formatDaySummary(
-        makeDay({ sleep_hours: 7.5, deep_hours: 1.2, rem_hours: 1.8, avg_hrv: 45, lowest_hr: 52, efficiency: 91 }),
-        'table',
-      ),
+      formatDaySummary(makeDay({ sleep_hours: 7.5, deep_hours: 1.2, rem_hours: 1.8, avg_hrv: 45, lowest_hr: 52, efficiency: 91 }), 'table'),
     );
     expect(withSleep).toContain('7.5h total | 1.2h deep | 1.8h REM');
     expect(withSleep).toContain('HRV:       45');
@@ -135,7 +129,14 @@ describe('formatDaySummary', () => {
   it('falls back to em dashes for null HRV / lowest_hr / efficiency inside the sleep block', () => {
     const out = stripAnsi(
       formatDaySummary(
-        makeDay({ sleep_hours: 6.0, deep_hours: null, rem_hours: null, avg_hrv: null, lowest_hr: null, efficiency: null }),
+        makeDay({
+          sleep_hours: 6.0,
+          deep_hours: null,
+          rem_hours: null,
+          avg_hrv: null,
+          lowest_hr: null,
+          efficiency: null,
+        }),
         'table',
       ),
     );
@@ -252,7 +253,9 @@ describe('formatWeekTable column alignment', () => {
   it('renders the same visible layout with colour on as with colour off', () => {
     const plain = formatWeekTable(days, 'table');
     let coloured = '';
-    withColor(() => { coloured = formatWeekTable(days, 'table'); });
+    withColor(() => {
+      coloured = formatWeekTable(days, 'table');
+    });
     expect(coloured).not.toBe(plain); // the escapes are actually there
     expect(stripAnsi(coloured)).toBe(stripAnsi(plain));
   });
@@ -260,9 +263,9 @@ describe('formatWeekTable column alignment', () => {
   it('keeps every data row the width of the header when colour is on', () => {
     withColor(() => {
       const lines = formatWeekTable(days, 'table').split('\n').map(stripAnsi);
-      const header = lines.find(l => l.includes('Sleep'))!;
+      const header = lines.find((l) => l.includes('Sleep'))!;
       for (const day of ['2026-08-30', '2026-08-31']) {
-        const row = lines.find(l => l.includes(day))!;
+        const row = lines.find((l) => l.includes(day))!;
         expect(row.length).toBe(header.length);
       }
     });
@@ -313,7 +316,10 @@ describe('formatImportSummary', () => {
       isFirstSync: true,
       fetched: { daily_sleep: 5 },
       added: { daily_sleep: 2 },
-      removed: {}, dropped: {}, refused: {}, pruned: {},
+      removed: {},
+      dropped: {},
+      refused: {},
+      pruned: {},
     };
     const out = formatImportSummary(result, 80);
     expect(out).toMatch(/sleep +5 \(\+2\)/);
@@ -327,12 +333,26 @@ describe('formatImportSummary', () => {
   // Regression for #83: cells were joined with a fixed separator and no width input, so a
   // narrow terminal wrapped mid-cell and `hr 70 (+0)` printed as `hr 7` / `0 (+0)`.
   const oneSleepDay: ImportResult = {
-    startDate: '2026-08-07', endDate: '2026-09-06', isFirstSync: false,
-    fetched: { daily_sleep: 3 }, added: { daily_sleep: 1 }, removed: {}, dropped: {}, refused: {}, pruned: {},
+    startDate: '2026-08-07',
+    endDate: '2026-09-06',
+    isFirstSync: false,
+    fetched: { daily_sleep: 3 },
+    added: { daily_sleep: 1 },
+    removed: {},
+    dropped: {},
+    refused: {},
+    pruned: {},
   };
   const wide: ImportResult = {
-    startDate: '2026-08-07', endDate: '2026-09-06', isFirstSync: false,
-    fetched: { heartrate: 12172 }, added: { heartrate: 8004 }, removed: {}, dropped: {}, refused: {}, pruned: {},
+    startDate: '2026-08-07',
+    endDate: '2026-09-06',
+    isFirstSync: false,
+    fetched: { heartrate: 12172 },
+    added: { heartrate: 8004 },
+    removed: {},
+    dropped: {},
+    refused: {},
+    pruned: {},
   };
   const rowsAt = (result: ImportResult, width: number) => formatImportSummary(result, width).split('\n').slice(1);
 
@@ -379,9 +399,9 @@ describe('formatImportSummary', () => {
 
   it('starts every column at the same offset', () => {
     const rows = rowsAt(wide, 80);
-    const nameOffsets = (row: string) => [...row.matchAll(/[a-z][a-z0-9-]*/g)].map(m => m.index);
-    const columns = Math.max(...rows.map(r => nameOffsets(r).length));
-    const full = rows.filter(r => nameOffsets(r).length === columns);
+    const nameOffsets = (row: string) => [...row.matchAll(/[a-z][a-z0-9-]*/g)].map((m) => m.index);
+    const columns = Math.max(...rows.map((r) => nameOffsets(r).length));
+    const full = rows.filter((r) => nameOffsets(r).length === columns);
     expect(columns).toBe(2);
     expect(full.length).toBeGreaterThan(1);
     for (const row of full) expect(nameOffsets(row)).toEqual(nameOffsets(full[0]!));
@@ -444,8 +464,15 @@ describe('formatStats', () => {
   });
 
   it('replaces an all-zero table with one line and the hint, but only when a hint was given (#85)', () => {
-    const empty = makeStats({ tables: [{ collection: 'daily_sleep', table: 'daily_sleep', rows: 0 }, { collection: 'daily_activity', table: 'daily_activity', rows: 0 }],
-      dateRange: { first: null, last: null }, trends: [], records: { mostSteps: null, bestSleep: null } });
+    const empty = makeStats({
+      tables: [
+        { collection: 'daily_sleep', table: 'daily_sleep', rows: 0 },
+        { collection: 'daily_activity', table: 'daily_activity', rows: 0 },
+      ],
+      dateRange: { first: null, last: null },
+      trends: [],
+      records: { mostSteps: null, bestSleep: null },
+    });
     const out = stripAnsi(formatStats(empty, 'table', 'Run sync first.'));
     expect(out).toContain('Database Statistics');
     expect(out).toContain('No Oura data in the database yet.');
@@ -454,7 +481,12 @@ describe('formatStats', () => {
     expect(stripAnsi(formatStats(empty, 'table'))).toMatch(/daily_sleep\)\s+0 rows/);
     // A partly filled cache is the normal state (tags and rest-mode periods are usually empty): it
     // must keep its table. `every` and `some` differ only here.
-    const mixed = makeStats({ tables: [{ collection: 'daily_sleep', table: 'daily_sleep', rows: 30 }, { collection: 'enhanced_tags', table: 'enhanced_tags', rows: 0 }] });
+    const mixed = makeStats({
+      tables: [
+        { collection: 'daily_sleep', table: 'daily_sleep', rows: 30 },
+        { collection: 'enhanced_tags', table: 'enhanced_tags', rows: 0 },
+      ],
+    });
     const mixedOut = stripAnsi(formatStats(mixed, 'table', 'Run sync first.'));
     expect(mixedOut).toMatch(/enhanced_tags\)\s+0 rows/);
     expect(mixedOut).not.toContain('Run sync first.');
@@ -482,9 +514,7 @@ describe('formatStats', () => {
     expect(withRecords).toContain('Most steps:  15000 on 2026-04-01');
     expect(withRecords).toContain('Best sleep:  96 on 2026-03-15');
 
-    const noRecords = stripAnsi(
-      formatStats(makeStats({ records: { mostSteps: null, bestSleep: null } }), 'table'),
-    );
+    const noRecords = stripAnsi(formatStats(makeStats({ records: { mostSteps: null, bestSleep: null } }), 'table'));
     expect(noRecords).not.toContain('Most steps:');
     expect(noRecords).not.toContain('Best sleep:');
   });
@@ -511,8 +541,13 @@ describe('formatDaySummary partial day', () => {
 
 describe('formatStats naming and hints (#72)', () => {
   const base: DbStats = {
-    tables: [{ collection: 'sleep-periods', table: 'sleep_model', rows: 1 }, { collection: 'battery', table: 'ring_battery_level', rows: 42 }],
-    dateRange: { first: null, last: null }, trends: [], records: { mostSteps: null, bestSleep: null },
+    tables: [
+      { collection: 'sleep-periods', table: 'sleep_model', rows: 1 },
+      { collection: 'battery', table: 'ring_battery_level', rows: 42 },
+    ],
+    dateRange: { first: null, last: null },
+    trends: [],
+    records: { mostSteps: null, bestSleep: null },
   };
   it('prints both names for a table, and "row" for one row', () => {
     // One collection reached the user under three names in one session: sleep-periods (sync summary),
@@ -523,7 +558,7 @@ describe('formatStats naming and hints (#72)', () => {
   });
   it('explains the missing sections when there are rows but no daily summaries', () => {
     const out = stripAnsi(formatStats(base, 'table', 'Run sync first.'));
-    expect(out).toContain('42 rows');                               // the counts still print
+    expect(out).toContain('42 rows'); // the counts still print
     expect(out).toContain('No daily summaries in the database yet.');
     expect(out).toContain('Run sync first.');
     expect(stripAnsi(formatStats(base, 'table'))).not.toContain('Run sync first.'); // no hint, no line
@@ -531,8 +566,11 @@ describe('formatStats naming and hints (#72)', () => {
   it('says nothing when the cache has activity but no sleep yet, since trends and records follow', () => {
     // dateRange reads daily_sleep alone. A first sync before the night's sleep summary lands has
     // activity rows, trends and a steps record: "no daily summaries" above them would be false.
-    const activityOnly: DbStats = { ...base, trends: [{ label: 'Steps', avg: 9000, min: 8000, max: 10000, count: 2 }],
-      records: { mostSteps: { day: '2026-06-15', steps: 10000 }, bestSleep: null } };
+    const activityOnly: DbStats = {
+      ...base,
+      trends: [{ label: 'Steps', avg: 9000, min: 8000, max: 10000, count: 2 }],
+      records: { mostSteps: { day: '2026-06-15', steps: 10000 }, bestSleep: null },
+    };
     const out = stripAnsi(formatStats(activityOnly, 'table', 'Run sync first.'));
     expect(out).not.toContain('No daily summaries');
     expect(out).not.toContain('Run sync first.');
@@ -548,7 +586,9 @@ describe('rules and whitespace in the text views (#61)', () => {
   const trends: TrendRow[] = [{ label: 'Sleep score', avg: 80, min: 70, max: 90, count: 7 }];
   const stats: DbStats = {
     tables: [{ collection: 'sleep', table: 'daily_sleep', rows: 7 }],
-    dateRange: { first: '2026-05-01', last: '2026-05-07' }, trends, records: { mostSteps: { day: '2026-05-03', steps: 12000 }, bestSleep: null },
+    dateRange: { first: '2026-05-01', last: '2026-05-07' },
+    trends,
+    records: { mostSteps: { day: '2026-05-03', steps: 12000 }, bestSleep: null },
   };
   const views = (): Record<string, string> => ({
     day: formatDaySummary(day, 'table'),
@@ -556,13 +596,19 @@ describe('rules and whitespace in the text views (#61)', () => {
     week: formatWeekTable(week, 'table'),
     trends: formatTrends(trends, 7, 'table'),
     stats: formatStats(stats, 'table'),
-    doctor: formatDoctorTable({ ok: true, nextStep: null, checks: [{ id: 'token', status: 'ok', detail: 'Token found via OURA_TOKEN.' }] }),
+    doctor: formatDoctorTable({
+      ok: true,
+      nextStep: null,
+      checks: [{ id: 'token', status: 'ok', detail: 'Token found via OURA_TOKEN.' }],
+    }),
   });
 
   it('draws every rule at the body indent, with colour on', () => {
     withColor(() => {
       for (const [name, out] of Object.entries(views())) {
-        const rules = stripAnsi(out).split('\n').filter(l => /[─═]/.test(l));
+        const rules = stripAnsi(out)
+          .split('\n')
+          .filter((l) => /[─═]/.test(l));
         expect(rules.length, name).toBeGreaterThan(0);
         for (const r of rules) expect(r, name).toMatch(/^  [─═]+$/);
       }
@@ -572,7 +618,9 @@ describe('rules and whitespace in the text views (#61)', () => {
   it('indents every non-empty line by two columns and leaves no trailing whitespace', () => {
     withColor(() => {
       for (const [name, out] of Object.entries(views())) {
-        for (const line of stripAnsi(out).split('\n').filter(l => l !== '')) {
+        for (const line of stripAnsi(out)
+          .split('\n')
+          .filter((l) => l !== '')) {
           expect(line.startsWith('  '), `${name}: ${JSON.stringify(line)}`).toBe(true);
           expect(line, name).toBe(line.trimEnd());
         }
@@ -582,19 +630,33 @@ describe('rules and whitespace in the text views (#61)', () => {
 
   it('sizes the week rule to the widest row, so an unpadded stress column still fits under it', () => {
     const lines = stripAnsi(formatWeekTable(week, 'table')).split('\n');
-    const ruleWidth = lines.find(l => l.includes('─'))!.length;
-    const widest = Math.max(...lines.filter(l => !l.includes('─')).map(l => l.length));
+    const ruleWidth = lines.find((l) => l.includes('─'))!.length;
+    const widest = Math.max(...lines.filter((l) => !l.includes('─')).map((l) => l.length));
     expect(ruleWidth).toBe(widest);
-    expect(lines.some(l => l.endsWith('stressful'))).toBe(true);
+    expect(lines.some((l) => l.endsWith('stressful'))).toBe(true);
   });
 
-  it('sizes each view\'s rule to its widest line, so trends and stats rows never overhang their rule', () => {
+  it("sizes each view's rule to its widest line, so trends and stats rows never overhang their rule", () => {
     const wideTrends: TrendRow[] = [{ label: 'Sleep score', avg: 80000, min: 70000, max: 90000, count: 365 }];
-    for (const out of [formatTrends(wideTrends, 365, 'table'), formatStats(stats, 'table'), formatDaySummary(day, 'table'),
-      formatDoctorTable({ ok: false, nextStep: 'x', checks: [{ id: 'data', status: 'warn', detail: 'Most recent data is from 2026-09-10; that day ended over 57 hours ago (the limit is 36).' }] })]) {
+    for (const out of [
+      formatTrends(wideTrends, 365, 'table'),
+      formatStats(stats, 'table'),
+      formatDaySummary(day, 'table'),
+      formatDoctorTable({
+        ok: false,
+        nextStep: 'x',
+        checks: [
+          {
+            id: 'data',
+            status: 'warn',
+            detail: 'Most recent data is from 2026-09-10; that day ended over 57 hours ago (the limit is 36).',
+          },
+        ],
+      }),
+    ]) {
       const lines = stripAnsi(out).split('\n');
-      const rules = lines.filter(l => /^  [─═]+$/.test(l));
-      const widest = Math.max(...lines.filter(l => !/^  [─═]+$/.test(l)).map(l => l.length));
+      const rules = lines.filter((l) => /^  [─═]+$/.test(l));
+      const widest = Math.max(...lines.filter((l) => !/^  [─═]+$/.test(l)).map((l) => l.length));
       expect(rules.length).toBeGreaterThan(0);
       for (const r of rules) expect(r.length).toBe(widest);
     }
@@ -614,21 +676,37 @@ describe('rules and whitespace in the text views (#61)', () => {
 describe('hints wrap at the screen width (#130)', () => {
   const HINT = "Run `oura-cli sync` to download your data. Oura publishes a day's summary after that night's sleep syncs from the ring.";
   const ANSI = new RegExp(String.fromCharCode(27) + '\\[[0-9;]*m', 'g');
-  const visible = (out: string) => out.split('\n').map(l => l.replace(ANSI, ''));
+  const visible = (out: string) => out.split('\n').map((l) => l.replace(ANSI, ''));
   const empty = makeDay({
-    sleep_score: null, readiness_score: null, activity_score: null, steps: null, stress: null, spo2: null,
-    temp_deviation: null, sleep_hours: null, deep_hours: null, rem_hours: null, avg_hrv: null, lowest_hr: null, efficiency: null,
+    sleep_score: null,
+    readiness_score: null,
+    activity_score: null,
+    steps: null,
+    stress: null,
+    spo2: null,
+    temp_deviation: null,
+    sleep_hours: null,
+    deep_hours: null,
+    rem_hours: null,
+    avg_hrv: null,
+    lowest_hr: null,
+    efficiency: null,
   });
-  const noRows: DbStats = { tables: [{ collection: 'sleep', table: 'daily_sleep', rows: 0 }], dateRange: { first: null, last: null }, trends: [], records: { mostSteps: null, bestSleep: null } };
+  const noRows: DbStats = {
+    tables: [{ collection: 'sleep', table: 'daily_sleep', rows: 0 }],
+    dateRange: { first: null, last: null },
+    trends: [],
+    records: { mostSteps: null, bestSleep: null },
+  };
   const noDays: DbStats = { ...noRows, tables: [{ collection: 'battery', table: 'ring_battery', rows: 12 }] };
 
   /** Every line fits, the hint's words all arrive in order, and its continuation lines carry the body indent. */
   function expectWrapped(wide: string, narrow: string, max: number): void {
     const lines = visible(narrow);
     for (const l of lines) expect(l.length).toBeLessThanOrEqual(max);
-    expect(lines.map(l => l.trim()).join(' ')).toContain(HINT);
+    expect(lines.map((l) => l.trim()).join(' ')).toContain(HINT);
     expect(lines.length).toBeGreaterThan(visible(wide).length);
-    expect(lines.filter(l => l.trim() !== '').every(l => l.startsWith('  '))).toBe(true);
+    expect(lines.filter((l) => l.trim() !== '').every((l) => l.startsWith('  '))).toBe(true);
     // Nothing wraps on a pipe: the whole hint is one line.
     expect(visible(wide)).toContain(`  ${HINT}`);
   }
@@ -637,5 +715,6 @@ describe('hints wrap at the screen width (#130)', () => {
   it('the week view', () => expectWrapped(formatWeekTable([empty], 'table', HINT, undefined), formatWeekTable([empty], 'table', HINT, 60), 60));
   it('the trends view', () => expectWrapped(formatTrends([], 30, 'table', HINT, undefined), formatTrends([], 30, 'table', HINT, 60), 60));
   it('the stats view with no rows at all', () => expectWrapped(formatStats(noRows, 'table', HINT, undefined), formatStats(noRows, 'table', HINT, 60), 60));
-  it('the stats view with rows but no daily summaries', () => expectWrapped(formatStats(noDays, 'table', HINT, undefined), formatStats(noDays, 'table', HINT, 60), 60));
+  it('the stats view with rows but no daily summaries', () =>
+    expectWrapped(formatStats(noDays, 'table', HINT, undefined), formatStats(noDays, 'table', HINT, 60), 60));
 });

@@ -44,7 +44,9 @@ let dbCounter = 0;
 
 function removeDb(path: string): void {
   for (const suffix of ['', '-wal', '-shm']) {
-    try { unlinkSync(path + suffix); } catch {}
+    try {
+      unlinkSync(path + suffix);
+    } catch {}
   }
 }
 
@@ -63,25 +65,60 @@ function installFetch(dataByEndpoint: Record<string, unknown[]>): void {
 function todayFixture(): Record<string, unknown[]> {
   return {
     daily_sleep: [{ id: 's1', day: TODAY, score: 88, contributors: {}, timestamp: `${TODAY}T00:00:00Z` }],
-    daily_readiness: [{
-      id: 'r1', day: TODAY, score: 77, contributors: {},
-      temperature_deviation: 0.2, temperature_trend_deviation: 0.1, timestamp: `${TODAY}T00:00:00Z`,
-    }],
-    daily_activity: [{
-      id: 'a1', day: TODAY, score: 90, active_calories: 500, steps: 12000,
-      equivalent_walking_distance: 8000, high_activity_time: 600, medium_activity_time: 1200,
-      low_activity_time: 3600, sedentary_time: 40000, total_calories: 2500, target_calories: 2400,
-      contributors: {}, timestamp: `${TODAY}T00:00:00Z`,
-    }],
+    daily_readiness: [
+      {
+        id: 'r1',
+        day: TODAY,
+        score: 77,
+        contributors: {},
+        temperature_deviation: 0.2,
+        temperature_trend_deviation: 0.1,
+        timestamp: `${TODAY}T00:00:00Z`,
+      },
+    ],
+    daily_activity: [
+      {
+        id: 'a1',
+        day: TODAY,
+        score: 90,
+        active_calories: 500,
+        steps: 12000,
+        equivalent_walking_distance: 8000,
+        high_activity_time: 600,
+        medium_activity_time: 1200,
+        low_activity_time: 3600,
+        sedentary_time: 40000,
+        total_calories: 2500,
+        target_calories: 2400,
+        contributors: {},
+        timestamp: `${TODAY}T00:00:00Z`,
+      },
+    ],
     daily_spo2: [{ id: 'o1', day: TODAY, spo2_percentage: { average: 97.5 }, breathing_disturbance_index: 3 }],
     daily_stress: [{ id: 't1', day: TODAY, day_summary: 'normal', recovery_high: 100, stress_high: 200 }],
-    sleep: [{
-      id: 'p1', day: TODAY, average_breath: 14, average_heart_rate: 55, average_hrv: 45,
-      awake_time: 1800, bedtime_end: `${TODAY}T07:00:00Z`, bedtime_start: `${YESTERDAY}T23:00:00Z`,
-      deep_sleep_duration: 7200, efficiency: 90, latency: 600, light_sleep_duration: 16200,
-      lowest_heart_rate: 50, period: 0, rem_sleep_duration: 5400, restless_periods: 5,
-      time_in_bed: 30600, total_sleep_duration: 28800, type: 'long_sleep',
-    }],
+    sleep: [
+      {
+        id: 'p1',
+        day: TODAY,
+        average_breath: 14,
+        average_heart_rate: 55,
+        average_hrv: 45,
+        awake_time: 1800,
+        bedtime_end: `${TODAY}T07:00:00Z`,
+        bedtime_start: `${YESTERDAY}T23:00:00Z`,
+        deep_sleep_duration: 7200,
+        efficiency: 90,
+        latency: 600,
+        light_sleep_duration: 16200,
+        lowest_heart_rate: 50,
+        period: 0,
+        rem_sleep_duration: 5400,
+        restless_periods: 5,
+        time_in_bed: 30600,
+        total_sleep_duration: 28800,
+        type: 'long_sleep',
+      },
+    ],
   };
 }
 
@@ -114,7 +151,7 @@ describe('the declared arguments', () => {
   // BAD_ARGS at runtime with the plumbing behind it working perfectly.
   it('declares --prune, so the runner accepts it', () => {
     const sync = buildManifest('0.0.0', { sync: syncCommand }).commands[0]!;
-    expect(sync.args.find(a => a.name === '--prune')).toMatchObject({ type: 'string', required: false });
+    expect(sync.args.find((a) => a.name === '--prune')).toMatchObject({ type: 'string', required: false });
   });
 });
 
@@ -123,14 +160,31 @@ describe('the --prune flag reaching the import', () => {
   // other test would still pass. Drive the real definition through the runner and read what it printed.
   async function syncWith(args: Record<string, unknown>) {
     installFetch(todayFixture());
-    const out: string[] = []; const err: string[] = []; const exits: number[] = [];
-    const io: RunnerIo = { stdout: s => out.push(s), stderr: s => err.push(s), exit: c => exits.push(c), isTty: false };
+    const out: string[] = [];
+    const err: string[] = [];
+    const exits: number[] = [];
+    const io: RunnerIo = {
+      stdout: (s) => out.push(s),
+      stderr: (s) => err.push(s),
+      exit: (c) => exits.push(c),
+      isTty: false,
+    };
     const db = new Database(TEST_DB);
     ensureSchema(db);
     db.close();
-    await execute(syncDef, {
-      _: [], format: 'table', token: 'test-token', db: TEST_DB, tz: 'UTC', 'no-color': true, ...args,
-    } as never, io);
+    await execute(
+      syncDef,
+      {
+        _: [],
+        format: 'table',
+        token: 'test-token',
+        db: TEST_DB,
+        tz: 'UTC',
+        'no-color': true,
+        ...args,
+      } as never,
+      io,
+    );
     return { out: out.join('\n'), err: err.join('\n'), exits };
   }
 
@@ -198,7 +252,6 @@ describe('resolvePruneScope', () => {
   it('rejects a name no collection has, rather than silently pruning nothing', () => {
     expect(() => resolvePruneScope('heartrate')).toThrow(/unknown collection: heartrate/);
   });
-
 });
 
 describe('runSync', () => {
@@ -296,10 +349,17 @@ describe('runSync', () => {
       // A readiness row exists, but it is dated yesterday — getDaySummary keys
       // strictly on today's date, so today's readiness_score is null.
       const data = todayFixture();
-      data.daily_readiness = [{
-        id: 'r-old', day: YESTERDAY, score: 60, contributors: {},
-        temperature_deviation: -0.3, temperature_trend_deviation: 0, timestamp: `${YESTERDAY}T00:00:00Z`,
-      }];
+      data.daily_readiness = [
+        {
+          id: 'r-old',
+          day: YESTERDAY,
+          score: 60,
+          contributors: {},
+          temperature_deviation: -0.3,
+          temperature_trend_deviation: 0,
+          timestamp: `${YESTERDAY}T00:00:00Z`,
+        },
+      ];
       installFetch(data);
       const { out, db } = await runSyncFor('json');
       db.close();
@@ -317,8 +377,8 @@ describe('runSync', () => {
       db.close();
 
       const { import: result, today } = out.json as { import: ImportResult; today: DaySummary };
-      expect(Object.values(result.fetched).every(c => c === 0)).toBe(true);
-      expect(Object.values(result.added).every(c => c === 0)).toBe(true);
+      expect(Object.values(result.fetched).every((c) => c === 0)).toBe(true);
+      expect(Object.values(result.added).every((c) => c === 0)).toBe(true);
       expect(today.day).toBe(TODAY);
       expect(today.sleep_score).toBeNull();
       expect(today.readiness_score).toBeNull();
@@ -345,7 +405,7 @@ describe('runSync', () => {
       expect(out.text()).toContain('First sync — backfilling the last 30 days: 2026-05-17 → 2026-06-15');
     });
 
-    it('labels an incremental sync as one from each collection\'s last stored day, not as a window (#132)', async () => {
+    it("labels an incremental sync as one from each collection's last stored day, not as a window (#132)", async () => {
       installFetch(todayFixture());
       const first = await runSyncFor('table');
       first.db.close();
@@ -438,16 +498,23 @@ describe('resolveWindow', () => {
   });
   it('accepts --from alone and --from with --to', () => {
     expect(resolveWindow({ from: '2026-08-01' }, '2026-08-10')).toEqual({ from: '2026-08-01', to: undefined });
-    expect(resolveWindow({ from: '2026-08-01', to: '2026-08-07' }, '2026-08-10')).toEqual({ from: '2026-08-01', to: '2026-08-07' });
+    expect(resolveWindow({ from: '2026-08-01', to: '2026-08-07' }, '2026-08-10')).toEqual({
+      from: '2026-08-01',
+      to: '2026-08-07',
+    });
   });
   it.each([
     [{ to: '2026-08-07' }],
     [{ from: '2026-08-07', to: '2026-08-01' }],
     [{ from: '2026-02-30' }],
     [{ from: '2026-08-11' }], // after today: the clamp would otherwise sync a window nobody asked for
-  ])('rejects %j with BAD_ARGS', opts => {
+  ])('rejects %j with BAD_ARGS', (opts) => {
     let err: unknown;
-    try { resolveWindow(opts, '2026-08-10'); } catch (e) { err = e; }
+    try {
+      resolveWindow(opts, '2026-08-10');
+    } catch (e) {
+      err = e;
+    }
     expect(err).toBeInstanceOf(CliError);
     expect((err as CliError).code).toBe('BAD_ARGS');
   });
@@ -459,31 +526,48 @@ describe('sync progress on a terminal (pre-0.8.0 S2)', () => {
     const chunks: string[] = [];
     let stdoutAt = -1;
     const io: RunnerIo = {
-      stdout: () => { stdoutAt = chunks.length; },
+      stdout: () => {
+        stdoutAt = chunks.length;
+      },
       stderr: () => {},
       exit: () => {},
       isTty: true,
-      progress: { write: (c: string) => { chunks.push(c); } },
+      progress: {
+        write: (c: string) => {
+          chunks.push(c);
+        },
+      },
     };
     process.env.OURA_TOKEN = 'test-token';
     try {
       await execute(syncDef, { db: TEST_DB, format: 'table' } as never, io);
-    } finally { delete process.env.OURA_TOKEN; }
+    } finally {
+      delete process.env.OURA_TOKEN;
+    }
     expect(chunks.length).toBeGreaterThan(1);
     expect(chunks[0]).toMatch(/^\r  syncing sleep: page 1, \d+ rows so far…$/);
     expect(chunks).toContainEqual(expect.stringMatching(/^\r  syncing sleep-periods: page 1, \d+ rows so far…$/));
-    expect(chunks.at(-1)).toMatch(/^\r +\r$/);          // wiped
-    expect(stdoutAt).toBe(chunks.length);               // and only then the table
+    expect(chunks.at(-1)).toMatch(/^\r +\r$/); // wiped
+    expect(stdoutAt).toBe(chunks.length); // and only then the table
   });
 
   it('stays silent on a pipe: no progress sink, nothing written', async () => {
     installFetch(todayFixture());
     const stderr: string[] = [];
-    const io: RunnerIo = { stdout: () => {}, stderr: s => { stderr.push(s); }, exit: () => {}, isTty: false };
+    const io: RunnerIo = {
+      stdout: () => {},
+      stderr: (s) => {
+        stderr.push(s);
+      },
+      exit: () => {},
+      isTty: false,
+    };
     process.env.OURA_TOKEN = 'test-token';
     try {
       await execute(syncDef, { db: TEST_DB, format: 'json' } as never, io);
-    } finally { delete process.env.OURA_TOKEN; }
+    } finally {
+      delete process.env.OURA_TOKEN;
+    }
     expect(stderr).toEqual([]);
   });
 });

@@ -35,8 +35,10 @@ export function emptyDayHint(db: Database, day: string, today: string): string {
   if (range === null) return SYNC_HINT;
   if (day === today) return TODAY_UNPUBLISHED_HINT;
   if (day > today) return `${day} is after today (${today}); nothing can be cached for it yet.`;
-  if (day < range.first) return `No daily summaries for ${day}: the cache begins at ${range.first}. Run \`oura-cli sync --from ${day}\` to fetch it if Oura has it.`;
-  if (day > range.last) return `No daily summaries for ${day}: the cache ends at ${range.last}. Run \`oura-cli sync\`; if it adds nothing, the ring has not uploaded (\`oura-cli doctor\` says which side is behind).`;
+  if (day < range.first)
+    return `No daily summaries for ${day}: the cache begins at ${range.first}. Run \`oura-cli sync --from ${day}\` to fetch it if Oura has it.`;
+  if (day > range.last)
+    return `No daily summaries for ${day}: the cache ends at ${range.last}. Run \`oura-cli sync\`; if it adds nothing, the ring has not uploaded (\`oura-cli doctor\` says which side is behind).`;
   return `No daily summaries for ${day}, though the cache runs from ${range.first} to ${range.last}: most likely Oura has none for that day. \`oura-cli sync --from ${day}\` re-fetches it in case a sync skipped it.`;
 }
 
@@ -48,7 +50,10 @@ export const dbCommand = defineCommand({
       needs: { db: true },
       run(ctx) {
         const summary = getDaySummary(ctx.db!, ctx.today, dayCompleteness(ctx.db!, ctx.today));
-        return { json: summary, text: () => formatDaySummary(summary, 'table', emptyDayHint(ctx.db!, ctx.today, ctx.today)) };
+        return {
+          json: summary,
+          text: () => formatDaySummary(summary, 'table', emptyDayHint(ctx.db!, ctx.today, ctx.today)),
+        };
       },
     }),
 
@@ -68,8 +73,11 @@ export const dbCommand = defineCommand({
       needs: { db: true },
       run(ctx) {
         const complete = dayCompleteness(ctx.db!, ctx.today); // one read of the activity table, not seven
-        const days = daysBack(ctx.today, 7).map(d => getDaySummary(ctx.db!, d, complete));
-        return { json: days, text: () => formatWeekTable(days, 'table', 'Run `oura-cli sync`, then `oura-cli db week` again.') };
+        const days = daysBack(ctx.today, 7).map((d) => getDaySummary(ctx.db!, d, complete));
+        return {
+          json: days,
+          text: () => formatWeekTable(days, 'table', 'Run `oura-cli sync`, then `oura-cli db week` again.'),
+        };
       },
     }),
 
@@ -80,7 +88,10 @@ export const dbCommand = defineCommand({
       run(ctx, args) {
         const n = args.days === undefined ? 30 : assertPositiveInt(String(args.days), '<days>');
         const trends = getTrends(ctx.db!, n, ctx.today);
-        return { json: trends, text: () => formatTrends(trends, n, 'table', 'Run `oura-cli sync`, then `oura-cli db trends` again.') };
+        return {
+          json: trends,
+          text: () => formatTrends(trends, n, 'table', 'Run `oura-cli sync`, then `oura-cli db trends` again.'),
+        };
       },
     }),
 
@@ -89,7 +100,10 @@ export const dbCommand = defineCommand({
       needs: { db: true },
       run(ctx) {
         const stats = getStats(ctx.db!, ctx.today);
-        return { json: stats, text: () => formatStats(stats, 'table', 'Run `oura-cli sync`, then `oura-cli db stats` again.') };
+        return {
+          json: stats,
+          text: () => formatStats(stats, 'table', 'Run `oura-cli sync`, then `oura-cli db stats` again.'),
+        };
       },
     }),
 
@@ -99,10 +113,14 @@ export const dbCommand = defineCommand({
     rows: dataCommand({
       meta: { name: 'rows', description: 'Cached rows of a collection: the twin of `fetch`' },
       args: {
-        collection: { type: 'positional', required: true, description: 'Collection name (ring is a snapshot: no range flags)' },
-        day:  { type: 'string', description: 'Single day (YYYY-MM-DD). Default: today.' },
+        collection: {
+          type: 'positional',
+          required: true,
+          description: 'Collection name (ring is a snapshot: no range flags)',
+        },
+        day: { type: 'string', description: 'Single day (YYYY-MM-DD). Default: today.' },
         from: { type: 'string', description: 'Range start (YYYY-MM-DD); requires --to' },
-        to:   { type: 'string', description: 'Range end (YYYY-MM-DD); requires --from' },
+        to: { type: 'string', description: 'Range end (YYYY-MM-DD); requires --from' },
         days: { type: 'string', description: 'Last N days ending today' },
         limit: { type: 'string', description: 'At most N rows, earliest first; a day of hr is hundreds' },
       },
@@ -111,8 +129,10 @@ export const dbCommand = defineCommand({
         const c = byName(String(args.collection));
         if (!c) throw new CliError('BAD_ARGS', `Unknown collection "${args.collection}".`, `Valid collections: ${names().join(', ')}`);
         const opts = {
-          day: args.day as string | undefined, from: args.from as string | undefined,
-          to: args.to as string | undefined, days: args.days as string | undefined,
+          day: args.day as string | undefined,
+          from: args.from as string | undefined,
+          to: args.to as string | undefined,
+          days: args.days as string | undefined,
         };
         assertRangeAllowed(c, opts);
         const range = c.rangeParams === 'none' ? null : resolveRange({ ...opts, today: ctx.today });
@@ -121,13 +141,18 @@ export const dbCommand = defineCommand({
         const rows = limit === undefined ? all : all.slice(0, limit);
         const scope = range === null ? '' : range.start === range.end ? ` for ${range.start}` : ` for ${range.start} → ${range.end}`;
         // A snapshot has no history to reach back into, so it gets no `--from` hint.
-        const hint = range === null
-          ? `Run \`oura-cli sync\` to fill the cache, or \`oura-cli fetch ${c.name}\` to read the API.`
-          : `Run \`oura-cli sync\` (\`sync --from <day>\` for older days), or \`oura-cli fetch ${c.name}\` to read the API.`;
-        const utcNote = range !== null && c.rangeParams === 'datetime' && rows.length > 0
-          ? wrap(`day is the UTC date of each sample; rows are selected by the local day in ${ctx.tz}.`, screenWidth(), '  ')
-          : [];
-        return { json: rows, text: () => [formatRows(c, rows, scope, 'table', hint, undefined, all.length), ...utcNote].join('\n') };
+        const hint =
+          range === null
+            ? `Run \`oura-cli sync\` to fill the cache, or \`oura-cli fetch ${c.name}\` to read the API.`
+            : `Run \`oura-cli sync\` (\`sync --from <day>\` for older days), or \`oura-cli fetch ${c.name}\` to read the API.`;
+        const utcNote =
+          range !== null && c.rangeParams === 'datetime' && rows.length > 0
+            ? wrap(`day is the UTC date of each sample; rows are selected by the local day in ${ctx.tz}.`, screenWidth(), '  ')
+            : [];
+        return {
+          json: rows,
+          text: () => [formatRows(c, rows, scope, 'table', hint, undefined, all.length), ...utcNote].join('\n'),
+        };
       },
     }),
   },

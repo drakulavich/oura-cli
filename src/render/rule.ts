@@ -34,5 +34,5 @@ export const DOUBLE_RULE = `${PLACEHOLDER}═>`;
 export function finish(lines: readonly string[], max = screenWidth()): string[] {
   let widest = 0;
   for (const l of lines) if (!l.startsWith(PLACEHOLDER)) widest = Math.max(widest, visibleWidth(l) - INDENT.length);
-  return lines.map(l => (l.startsWith(PLACEHOLDER) ? rule(widest, l.slice(PLACEHOLDER.length, -1), max) : l));
+  return lines.map((l) => (l.startsWith(PLACEHOLDER) ? rule(widest, l.slice(PLACEHOLDER.length, -1), max) : l));
 }

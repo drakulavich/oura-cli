@@ -23,10 +23,21 @@ function fmtHours(h: number | null): string {
 }
 
 function isEmptyDay(s: DaySummary): boolean {
-  return s.sleep_score === null && s.readiness_score === null && s.activity_score === null &&
-    s.steps === null && s.stress === null && s.spo2 === null && s.temp_deviation === null &&
-    s.sleep_hours === null && s.deep_hours === null && s.rem_hours === null &&
-    s.avg_hrv === null && s.lowest_hr === null && s.efficiency === null;
+  return (
+    s.sleep_score === null &&
+    s.readiness_score === null &&
+    s.activity_score === null &&
+    s.steps === null &&
+    s.stress === null &&
+    s.spo2 === null &&
+    s.temp_deviation === null &&
+    s.sleep_hours === null &&
+    s.deep_hours === null &&
+    s.rem_hours === null &&
+    s.avg_hrv === null &&
+    s.lowest_hr === null &&
+    s.efficiency === null
+  );
 }
 
 // `max`: the screen width, which the tests pass since they never run on one. Hints are prose and
@@ -35,13 +46,7 @@ export function formatDaySummary(summary: DaySummary, format: OutputFormat, empt
   if (format === 'json') return JSON.stringify(summary, null, 2);
 
   if (emptyHint && isEmptyDay(summary)) {
-    return finish([
-      '',
-      chalk.bold(`  ${summary.day}`),
-      RULE,
-      `  No Oura data for ${summary.day} yet.`,
-      ...wrap(emptyHint, max, INDENT),
-    ], max).join('\n');
+    return finish(['', chalk.bold(`  ${summary.day}`), RULE, `  No Oura data for ${summary.day} yet.`, ...wrap(emptyHint, max, INDENT)], max).join('\n');
   }
 
   // The same `*` the week table and `report` put on this day: without it, drilling from a marked
@@ -99,28 +104,34 @@ function columnsThatFit(cellWidth: number, width: number): number {
 function rowsOf(cells: string[], columns: number): string[] {
   const rows: string[] = [];
   for (let i = 0; i < cells.length; i += columns) {
-    rows.push(' '.repeat(SUMMARY_INDENT) + cells.slice(i, i + columns).join(' '.repeat(SUMMARY_GAP)).trimEnd());
+    rows.push(
+      ' '.repeat(SUMMARY_INDENT) +
+        cells
+          .slice(i, i + columns)
+          .join(' '.repeat(SUMMARY_GAP))
+          .trimEnd(),
+    );
   }
   return rows;
 }
 
 export function formatImportSummary(result: ImportResult, width = terminalWidth()): string {
   // "fetched (+new)": re-fetched rows are replaced or ignored, only +new tells whether anything arrived.
-  const counts = COLLECTIONS.map(c => ({
+  const counts = COLLECTIONS.map((c) => ({
     name: c.name,
     fetched: String(result.fetched[c.table] ?? 0),
     added: String(result.added[c.table] ?? 0),
   }));
-  const nameW = Math.max(...counts.map(c => visibleWidth(c.name)));
-  const fetchedW = Math.max(...counts.map(c => visibleWidth(c.fetched)));
+  const nameW = Math.max(...counts.map((c) => visibleWidth(c.name)));
+  const fetchedW = Math.max(...counts.map((c) => visibleWidth(c.fetched)));
   // Aligned cells share a width, so the name and count columns line up down the grid; bare cells
   // carry the same text at its natural width, which is what a single column wants — there is
   // nothing to line up with, and padding would push a 27-character cell past a 30-column screen.
-  const aligned = counts.map(c => `${padRight(c.name, nameW)} ${padLeft(c.fetched, fetchedW)} (+${c.added})`);
-  const bare = counts.map(c => `${c.name} ${c.fetched} (+${c.added})`);
+  const aligned = counts.map((c) => `${padRight(c.name, nameW)} ${padLeft(c.fetched, fetchedW)} (+${c.added})`);
+  const bare = counts.map((c) => `${c.name} ${c.fetched} (+${c.added})`);
   const cellW = Math.max(...aligned.map(visibleWidth));
   const columns = columnsThatFit(cellW, width);
-  const cells = columns === 1 ? bare : aligned.map(c => padRight(c, cellW));
+  const cells = columns === 1 ? bare : aligned.map((c) => padRight(c, cellW));
   // No window in the head: the line `importDaily` logs first already names it, or says why there is
   // none to name (#132).
   const head = '  Rows fetched (+new):';
@@ -131,11 +142,7 @@ export function formatWeekTable(days: DaySummary[], format: OutputFormat, emptyH
   if (format === 'json') return JSON.stringify(days, null, 2);
 
   if (emptyHint && days.length > 0 && days.every(isEmptyDay)) {
-    return [
-      '',
-      '  No Oura data for the last 7 days yet.',
-      ...wrap(emptyHint, max, INDENT),
-    ].join('\n');
+    return ['', '  No Oura data for the last 7 days yet.', ...wrap(emptyHint, max, INDENT)].join('\n');
   }
 
   // The last column is left unpadded: it lined nothing up and left up to nine trailing spaces on
@@ -145,27 +152,26 @@ export function formatWeekTable(days: DaySummary[], format: OutputFormat, emptyH
   // escapes, so the built-in pads by nothing at all on a colour terminal.
   // Same mark `report` uses, for the same reason: this day's activity totals are still growing, so
   // its steps are not comparable with the rows above it (#75).
-  const rows = days.map(d =>
-    `${padRight(d.partial ? `${d.day}*` : d.day, 12)} ${padLeft(scoreColor(d.sleep_score), 6)} ${padLeft(scoreColor(d.readiness_score), 6)} ` +
-    `${padLeft(scoreColor(d.activity_score), 9)} ${padLeft(String(d.steps ?? '—'), 7)} ${d.stress ?? '—'}`
+  const rows = days.map(
+    (d) =>
+      `${padRight(d.partial ? `${d.day}*` : d.day, 12)} ${padLeft(scoreColor(d.sleep_score), 6)} ${padLeft(scoreColor(d.readiness_score), 6)} ` +
+      `${padLeft(scoreColor(d.activity_score), 9)} ${padLeft(String(d.steps ?? '—'), 7)} ${d.stress ?? '—'}`,
   );
   const sep = rule(Math.max(visibleWidth(header), ...rows.map(visibleWidth)), '─', max);
-  const note = days.some(d => d.partial) ? [PARTIAL_NOTE] : [];
-  return ['\n  Last 7 Days', sep, `  ${header}`, sep, ...rows.map(r => `  ${r}`), ...note].join('\n');
+  const note = days.some((d) => d.partial) ? [PARTIAL_NOTE] : [];
+  return ['\n  Last 7 Days', sep, `  ${header}`, sep, ...rows.map((r) => `  ${r}`), ...note].join('\n');
 }
 
 export function formatTrends(trends: TrendRow[], days: number, format: OutputFormat, emptyHint?: string, max = screenWidth()): string {
   if (format === 'json') return JSON.stringify(trends, null, 2);
 
-  const lines = [
-    '',
-    chalk.bold(`  Trends: last ${days} days`),
-    RULE,
-  ];
+  const lines = ['', chalk.bold(`  Trends: last ${days} days`), RULE];
   // A header over nothing read like a crash (#85); say what is missing, as the day and week views do.
   if (emptyHint && trends.length === 0) lines.push(`  No Oura data for the last ${days} days yet.`, ...wrap(emptyHint, max, INDENT));
   for (const t of trends) {
-    lines.push(`  ${t.label.padEnd(15)} avg: ${String(t.avg).padStart(5)}  min: ${String(t.min).padStart(5)}  max: ${String(t.max).padStart(5)}  (${t.count} days)`);
+    lines.push(
+      `  ${t.label.padEnd(15)} avg: ${String(t.avg).padStart(5)}  min: ${String(t.min).padStart(5)}  max: ${String(t.max).padStart(5)}  (${t.count} days)`,
+    );
   }
   return finish(lines, max).join('\n');
 }
@@ -173,13 +179,9 @@ export function formatTrends(trends: TrendRow[], days: number, format: OutputFor
 export function formatStats(stats: DbStats, format: OutputFormat, emptyHint?: string, max = screenWidth()): string {
   if (format === 'json') return JSON.stringify(stats, null, 2);
 
-  const lines = [
-    '',
-    chalk.bold('  Database Statistics'),
-    DOUBLE_RULE,
-  ];
+  const lines = ['', chalk.bold('  Database Statistics'), DOUBLE_RULE];
   // Seventeen lines of "0 rows" said the same thing less clearly (#85).
-  if (emptyHint && stats.tables.every(t => t.rows === 0)) {
+  if (emptyHint && stats.tables.every((t) => t.rows === 0)) {
     return finish([...lines, '  No Oura data in the database yet.', ...wrap(emptyHint, max, INDENT)], max).join('\n');
   }
   // Both names, as the sync lines print them: one collection was reaching the user under three names
@@ -191,8 +193,7 @@ export function formatStats(stats: DbStats, format: OutputFormat, emptyHint?: st
   // has rows but no days, and printed seventeen counts and nothing else (#72). Only when there is
   // nothing below to contradict it: `dateRange` reads sleep alone, and a first sync before the night's
   // sleep summary has activity trends and a steps record to show.
-  const noDailyData = stats.dateRange.first === null && stats.trends.length === 0
-    && stats.records.mostSteps === null && stats.records.bestSleep === null;
+  const noDailyData = stats.dateRange.first === null && stats.trends.length === 0 && stats.records.mostSteps === null && stats.records.bestSleep === null;
   if (emptyHint && noDailyData) lines.push('', '  No daily summaries in the database yet.', ...wrap(emptyHint, max, INDENT));
   if (stats.dateRange.first) {
     lines.push(`\n  Date range: ${stats.dateRange.first} → ${stats.dateRange.last}`);

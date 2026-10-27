@@ -9,7 +9,9 @@ import { CliError } from '../lib/errors.js';
 const tmpPath = resolve(tmpdir(), `oura-token-test-${process.pid}-${Math.random().toString(36).slice(2)}`);
 
 afterEach(() => {
-  try { rmSync(tmpPath, { force: true }); } catch {}
+  try {
+    rmSync(tmpPath, { force: true });
+  } catch {}
 });
 
 describe('writeToken', () => {
@@ -34,10 +36,18 @@ describe('writeToken', () => {
     it('throws BAD_ARGS naming the directory, not a raw EISDIR', () => {
       const dir = mkdtempSync(resolve(tmpdir(), 'oura-token-dir-'));
       let err: unknown;
-      try { writeToken(dir, 'abc-123'); } catch (e) { err = e; }
+      try {
+        writeToken(dir, 'abc-123');
+      } catch (e) {
+        err = e;
+      }
       rmSync(dir, { recursive: true, force: true });
       expect(err).toBeInstanceOf(CliError);
-      expect({ code: (err as CliError).code, message: (err as CliError).message, hint: (err as CliError).hint }).toEqual({
+      expect({
+        code: (err as CliError).code,
+        message: (err as CliError).message,
+        hint: (err as CliError).hint,
+      }).toEqual({
         code: 'BAD_ARGS',
         message: `${dir} is a directory.`,
         hint: `Pass a file path with --path or OURA_TOKEN_PATH, such as ${dir}/.oura-token.`,
@@ -59,13 +69,22 @@ describe('readHiddenToken', () => {
       rawModes: boolean[] = [];
       paused = false;
 
-      setRawMode(mode: boolean) { this.rawModes.push(mode); }
+      setRawMode(mode: boolean) {
+        this.rawModes.push(mode);
+      }
       resume() {}
-      pause() { this.paused = true; }
+      pause() {
+        this.paused = true;
+      }
     }
     const input = new FakeTerminalInput();
     let terminalOutput = '';
-    const output = { write(text: string) { terminalOutput += text; return true; } };
+    const output = {
+      write(text: string) {
+        terminalOutput += text;
+        return true;
+      },
+    };
 
     const token = readHiddenToken(input, output);
     input.emit('data', Buffer.from('sensitive-personal-access-token\n'));

@@ -9,7 +9,11 @@ const ENTRY = join(import.meta.dir, 'index.ts');
 // End-to-end through src/index.ts: everything here is piped (no TTY), so errors must be
 // a single JSON envelope on stderr with nothing on stdout.
 async function run(...argv: string[]) {
-  const proc = Bun.spawn(['bun', 'run', ENTRY, '--db', ':memory:', ...argv], { stdout: 'pipe', stderr: 'pipe', cwd: join(import.meta.dir, '..') });
+  const proc = Bun.spawn(['bun', 'run', ENTRY, '--db', ':memory:', ...argv], {
+    stdout: 'pipe',
+    stderr: 'pipe',
+    cwd: join(import.meta.dir, '..'),
+  });
   const [stdout, stderr] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
   const code = await proc.exited;
   return { stdout, stderr, code };
@@ -83,7 +87,7 @@ describe('errors raised before a command runs', () => {
 });
 
 describe('undeclared arguments end to end', () => {
-  it('fetch sleep --dayz 7 → BAD_ARGS instead of today\'s data', async () => {
+  it("fetch sleep --dayz 7 → BAD_ARGS instead of today's data", async () => {
     const { stdout, stderr, code } = await run('fetch', 'sleep', '--dayz', '7');
     expect(stdout).toBe('');
     expect(envelope(stderr).message).toContain('--dayz');
@@ -104,16 +108,15 @@ describe('undeclared arguments end to end', () => {
     expect(code).toBe(1);
   });
 
-  it.each([
-    [['healthcheck', '--bogus', 'extra']],
-    [['describe', '--bogus']],
-    [['manifest', 'extra']],
-  ])('commands outside the runner reject undeclared arguments too: %j', async argv => {
-    const { stdout, stderr, code } = await run(...argv);
-    expect(stdout).toBe('');
-    expect(envelope(stderr).code).toBe('BAD_ARGS');
-    expect(code).toBe(1);
-  });
+  it.each([[['healthcheck', '--bogus', 'extra']], [['describe', '--bogus']], [['manifest', 'extra']]])(
+    'commands outside the runner reject undeclared arguments too: %j',
+    async (argv) => {
+      const { stdout, stderr, code } = await run(...argv);
+      expect(stdout).toBe('');
+      expect(envelope(stderr).code).toBe('BAD_ARGS');
+      expect(code).toBe(1);
+    },
+  );
 
   it('describe and manifest still accept the global flags the normaliser hoists onto them', async () => {
     const { stdout, code } = await run('--format', 'json', 'describe');
@@ -145,16 +148,15 @@ describe('undeclared arguments end to end', () => {
 describe('a global flag between a command and its subcommand', () => {
   // #79: the flag's value was read as a sub-subcommand name, so `db --format json today`
   // failed with Unknown command "json" — and with --db it echoed the whole path back.
-  it.each([
-    [['db', '--format', 'json', 'today']],
-    [['db', '--tz', 'UTC', 'today', '--format', 'json']],
-    [['db', '--no-color', 'today', '--format', 'json']],
-  ])('accepts %j', async argv => {
-    const { stdout, stderr, code } = await run(...argv);
-    expect(stderr).toBe('');
-    expect(code).toBe(0);
-    expect(JSON.parse(stdout).day).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-  });
+  it.each([[['db', '--format', 'json', 'today']], [['db', '--tz', 'UTC', 'today', '--format', 'json']], [['db', '--no-color', 'today', '--format', 'json']]])(
+    'accepts %j',
+    async (argv) => {
+      const { stdout, stderr, code } = await run(...argv);
+      expect(stderr).toBe('');
+      expect(code).toBe(0);
+      expect(JSON.parse(stdout).day).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    },
+  );
 });
 
 describe('a global flag whose value is missing swallows the next flag', () => {
@@ -171,37 +173,33 @@ describe('a global flag whose value is missing swallows the next flag', () => {
 });
 
 describe('a --format with no value (#121)', () => {
-  it.each([
-    [['db', 'today', '--format']],
-    [['db', 'today', '--format=']],
-    [['db', 'today', '--format', '']],
-  ])('is reported as missing, with a hint, on the JSON envelope: %j', async argv => {
-    const { stdout, stderr, code } = await run(...argv);
-    expect(stdout).toBe('');
-    const e = envelope(stderr);
-    expect(e.message).toBe('--format has no value');
-    expect(e.hint).toContain('json');
-    expect(code).toBe(1);
-  });
+  it.each([[['db', 'today', '--format']], [['db', 'today', '--format=']], [['db', 'today', '--format', '']]])(
+    'is reported as missing, with a hint, on the JSON envelope: %j',
+    async (argv) => {
+      const { stdout, stderr, code } = await run(...argv);
+      expect(stdout).toBe('');
+      const e = envelope(stderr);
+      expect(e.message).toBe('--format has no value');
+      expect(e.hint).toContain('json');
+      expect(code).toBe(1);
+    },
+  );
 });
 
 describe('--format validation across every command', () => {
   // #81: the enum lives in the format resolver, which the JSON-only commands never reach, so
   // `--format xml` exited 0 for describe, manifest and healthcheck and 1 everywhere else.
-  it.each([
-    [['describe']],
-    [['manifest']],
-    [['healthcheck']],
-    [['doctor', '--offline']],
-    [['db', 'today']],
-  ])('rejects an unknown --format for %j', async argv => {
-    const { stdout, stderr, code } = await run(...argv, '--format', 'xml');
-    expect(stdout).toBe('');
-    const e = envelope(stderr);
-    expect(e.code).toBe('BAD_ARGS');
-    expect(e.message).toContain('xml');
-    expect(code).toBe(1);
-  });
+  it.each([[['describe']], [['manifest']], [['healthcheck']], [['doctor', '--offline']], [['db', 'today']]])(
+    'rejects an unknown --format for %j',
+    async (argv) => {
+      const { stdout, stderr, code } = await run(...argv, '--format', 'xml');
+      expect(stdout).toBe('');
+      const e = envelope(stderr);
+      expect(e.code).toBe('BAD_ARGS');
+      expect(e.message).toContain('xml');
+      expect(code).toBe(1);
+    },
+  );
 
   it('rejects an unknown --format for login too, in its own text envelope', async () => {
     // login is the one interactive command: CLAUDE.md keeps it on text errors, so it never
@@ -237,21 +235,40 @@ describe('formatFromArgv', () => {
     expect(formatFromArgv(['db'], false)).toBe('json');
     expect(formatFromArgv(['--format', 'yaml'], false)).toBe('json');
   });
-  it('does not read --format out of another flag\'s value position', () => {
+  it("does not read --format out of another flag's value position", () => {
     expect(formatFromArgv(['--token', '--format', 'db'], true)).toBe('table');
   });
 });
 
 describe('help fits an 80-column terminal (#130)', () => {
   const ANSI = new RegExp(String.fromCharCode(27) + '\\[[0-9;]*m', 'g');
-  const COMMANDS = [[], ['login'], ['describe'], ['healthcheck'], ['doctor'], ['manifest'], ['fetch'], ['sync'], ['report'],
-    ['db'], ['db', 'today'], ['db', 'date'], ['db', 'week'], ['db', 'trends'], ['db', 'stats'], ['db', 'rows']];
+  const COMMANDS = [
+    [],
+    ['login'],
+    ['describe'],
+    ['healthcheck'],
+    ['doctor'],
+    ['manifest'],
+    ['fetch'],
+    ['sync'],
+    ['report'],
+    ['db'],
+    ['db', 'today'],
+    ['db', 'date'],
+    ['db', 'week'],
+    ['db', 'trends'],
+    ['db', 'stats'],
+    ['db', 'rows'],
+  ];
 
   it('keeps every line of every --help within 80 columns, bar the root USAGE line that lists all commands', async () => {
     for (const cmd of COMMANDS) {
       const { stdout, code } = await run(...cmd, '--help');
       expect(code).toBe(0);
-      const over = stdout.split('\n').map(l => l.replace(ANSI, '').trimEnd()).filter(l => l.length > 80 && !l.startsWith('USAGE'));
+      const over = stdout
+        .split('\n')
+        .map((l) => l.replace(ANSI, '').trimEnd())
+        .filter((l) => l.length > 80 && !l.startsWith('USAGE'));
       expect(over).toEqual([]);
     }
   }, 60_000);
@@ -259,13 +276,21 @@ describe('help fits an 80-column terminal (#130)', () => {
   it('ends no help line in spaces, which wrap an 80-column terminal though the text fits (#147)', async () => {
     for (const cmd of COMMANDS) {
       const { stdout } = await run(...cmd, '--help');
-      expect({ cmd, padded: stdout.split('\n').filter(l => / $/.test(l.replace(ANSI, ''))) }).toEqual({ cmd, padded: [] });
+      expect({ cmd, padded: stdout.split('\n').filter((l) => / $/.test(l.replace(ANSI, ''))) }).toEqual({
+        cmd,
+        padded: [],
+      });
     }
   }, 60_000);
 
   it('names a db subcommand in full on its USAGE line (#147)', async () => {
     const { stdout } = await run('db', 'rows', '--help');
-    expect(stdout.split('\n').map(l => l.replace(ANSI, '')).find(l => l.startsWith('USAGE'))).toBe('USAGE oura-cli db rows [OPTIONS] <COLLECTION>');
+    expect(
+      stdout
+        .split('\n')
+        .map((l) => l.replace(ANSI, ''))
+        .find((l) => l.startsWith('USAGE')),
+    ).toBe('USAGE oura-cli db rows [OPTIONS] <COLLECTION>');
   });
 
   it('lists the collections when fetch or db rows is given none, since the help line no longer can', async () => {
@@ -283,7 +308,7 @@ describe('colour mode is decided before citty loads', () => {
   // of the import block is exactly the edit that breaks it.
   it('the first import of src/index.ts is ./lib/apply-color-mode.js', async () => {
     const text = await Bun.file(ENTRY).text();
-    const firstImport = text.split('\n').find(l => l.startsWith('import '));
+    const firstImport = text.split('\n').find((l) => l.startsWith('import '));
     expect(firstImport).toBe("import './lib/apply-color-mode.js';");
   });
 });
@@ -291,9 +316,19 @@ describe('colour mode is decided before citty loads', () => {
 // A temp home with no token and its own cache, so nothing here reads the user's token or database.
 async function runWithoutToken(...argv: string[]) {
   const home = mkdtempSync(join(tmpdir(), 'oura-no-token-'));
-  const env: Record<string, string | undefined> = { ...process.env, HOME: home, OURA_TOKEN_PATH: join(home, '.oura-token'), OURA_DB_PATH: join(home, 'oura.db') };
+  const env: Record<string, string | undefined> = {
+    ...process.env,
+    HOME: home,
+    OURA_TOKEN_PATH: join(home, '.oura-token'),
+    OURA_DB_PATH: join(home, 'oura.db'),
+  };
   delete env.OURA_TOKEN;
-  const proc = Bun.spawn(['bun', 'run', ENTRY, ...argv], { stdout: 'pipe', stderr: 'pipe', env, cwd: join(import.meta.dir, '..') });
+  const proc = Bun.spawn(['bun', 'run', ENTRY, ...argv], {
+    stdout: 'pipe',
+    stderr: 'pipe',
+    env,
+    cwd: join(import.meta.dir, '..'),
+  });
   const [stdout, stderr] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
   const code = await proc.exited;
   rmSync(home, { recursive: true, force: true });
@@ -323,7 +358,11 @@ describe('a flag given without a value says so (#148)', () => {
   ])('%j → BAD_ARGS naming the flag', async (argv, flag, fallback) => {
     const { stdout, stderr, code } = await runWithoutToken(...argv);
     expect(stdout).toBe('');
-    expect(envelope(stderr)).toEqual({ code: 'BAD_ARGS', message: `${flag} has no value`, hint: `Pass a value, or remove ${flag} to fall back to ${fallback}.` });
+    expect(envelope(stderr)).toEqual({
+      code: 'BAD_ARGS',
+      message: `${flag} has no value`,
+      hint: `Pass a value, or remove ${flag} to fall back to ${fallback}.`,
+    });
     expect(code).toBe(1);
   });
 

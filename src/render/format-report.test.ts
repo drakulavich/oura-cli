@@ -18,18 +18,26 @@ const fixture: ReportData = {
   averages: [],
   spo2: null,
   patterns: { lowSleep: [], lowReadiness: [], highActivity: [] },
-  sleepDetails: { totalSleep: null, deepSleep: null, remSleep: null, lightSleep: null, efficiency: null, hrv: null, lowestHr: null },
+  sleepDetails: {
+    totalSleep: null,
+    deepSleep: null,
+    remSleep: null,
+    lightSleep: null,
+    efficiency: null,
+    hrv: null,
+    lowestHr: null,
+  },
   recommendations: [],
 };
 
 describe('formatReport — daily table column alignment', () => {
   it('renders Sleep / Ready / Active scores as right-aligned columns of consistent width regardless of chalk colours', () => {
     const out = stripAnsi(formatReport(fixture, 'table', 'week'));
-    const dataRows = out.split('\n').filter(line => /^\s{2}(Mon|Tue|Wed|Thu|Fri|Sat|Sun)/.test(line));
+    const dataRows = out.split('\n').filter((line) => /^\s{2}(Mon|Tue|Wed|Thu|Fri|Sat|Sun)/.test(line));
     expect(dataRows.length).toBe(2);
 
     // Find the header line. Its columns define the canonical positions.
-    const header = out.split('\n').find(l => /^\s{2}Day\s/.test(l))!;
+    const header = out.split('\n').find((l) => /^\s{2}Day\s/.test(l))!;
     const sleepHeaderEnd = header.indexOf('Sleep') + 'Sleep'.length;
     const readyHeaderEnd = header.indexOf('Ready') + 'Ready'.length;
     const activeHeaderEnd = header.indexOf('Active') + 'Active'.length;
@@ -43,16 +51,32 @@ describe('formatReport — daily table column alignment', () => {
     }
   });
 
-  it('formats today\'s row in the same column positions as previous days, even when scores are red', () => {
+  it("formats today's row in the same column positions as previous days, even when scores are red", () => {
     const lowFixture: ReportData = {
       ...fixture,
       days: [
-        { day: '2026-05-13', dayLabel: 'Wed 13/05', sleep: 44, readiness: 57, activity: 63, steps: 795, partial: false },
-        { day: '2026-05-07', dayLabel: 'Thu 07/05', sleep: 87, readiness: 85, activity: 90, steps: 9668, partial: false },
+        {
+          day: '2026-05-13',
+          dayLabel: 'Wed 13/05',
+          sleep: 44,
+          readiness: 57,
+          activity: 63,
+          steps: 795,
+          partial: false,
+        },
+        {
+          day: '2026-05-07',
+          dayLabel: 'Thu 07/05',
+          sleep: 87,
+          readiness: 85,
+          activity: 90,
+          steps: 9668,
+          partial: false,
+        },
       ],
     };
     const out = stripAnsi(formatReport(lowFixture, 'table', 'week'));
-    const rows = out.split('\n').filter(l => /^\s{2}(Mon|Tue|Wed|Thu|Fri|Sat|Sun)/.test(l));
+    const rows = out.split('\n').filter((l) => /^\s{2}(Mon|Tue|Wed|Thu|Fri|Sat|Sun)/.test(l));
     expect(rows.length).toBe(2);
     // Both rows should have the same column positions
     const firstSleepIdx = rows[0].search(/\d/);
@@ -66,7 +90,7 @@ describe('formatReport — first run', () => {
   it('guides a user with no synced data to run the next required command', () => {
     const emptyReport: ReportData = {
       ...fixture,
-      days: fixture.days.map(day => ({
+      days: fixture.days.map((day) => ({
         ...day,
         sleep: null,
         readiness: null,
@@ -87,7 +111,7 @@ describe('formatReport — first run', () => {
   it('renders available sleep details when daily scores are absent', () => {
     const sleepDetailsOnlyReport: ReportData = {
       ...fixture,
-      days: fixture.days.map(day => ({
+      days: fixture.days.map((day) => ({
         ...day,
         sleep: null,
         readiness: null,
@@ -165,8 +189,18 @@ describe('formatReport — monthly buckets', () => {
     const day = new Date(start + i * 86_400_000).toISOString().slice(0, 10);
     return { day, dayLabel: day, sleep: 80, readiness: 80, activity: 80, steps: 10_000, partial: i === 29 };
   });
-  const month: ReportData = { ...fixture, period: 'month', weekStart: '2026-04-14', weekEnd: '2026-05-13', days, completeThrough: '2026-05-12' };
-  const rows = () => stripAnsi(formatReport(month, 'table', 'month')).split('\n').filter(l => /^\s{2}2026-/.test(l) && !l.includes('—')); // the range line under the title also starts with a date
+  const month: ReportData = {
+    ...fixture,
+    period: 'month',
+    weekStart: '2026-04-14',
+    weekEnd: '2026-05-13',
+    days,
+    completeThrough: '2026-05-12',
+  };
+  const rows = () =>
+    stripAnsi(formatReport(month, 'table', 'month'))
+      .split('\n')
+      .filter((l) => /^\s{2}2026-/.test(l) && !l.includes('—')); // the range line under the title also starts with a date
 
   it('anchors the buckets on the newest day, so the short one is the oldest and is labelled with its size', () => {
     // Chunked from the oldest day forward, the 2-day remainder sat at the bottom: 20,000 steps under
@@ -184,27 +218,38 @@ describe('formatReport — monthly buckets', () => {
     const r = rows();
     const firstDigitAfterLabel = (l: string) => l.slice(24).search(/\d/);
     expect(new Set(r.map(firstDigitAfterLabel)).size).toBe(1);
-    const header = stripAnsi(formatReport(month, 'table', 'month')).split('\n').find(l => /^\s{2}Week of/.test(l))!;
+    const header = stripAnsi(formatReport(month, 'table', 'month'))
+      .split('\n')
+      .find((l) => /^\s{2}Week of/.test(l))!;
     expect(header.indexOf('Sleep') + 5).toBe(r[0].indexOf('80') + 2);
   });
 
   it('names the newest bucket in the note', () => {
-    expect(stripAnsi(formatReport(month, 'table', 'month')))
-      .toContain('* the week of 2026-05-07: activity totals are not final; activity and steps averages cover through 2026-05-12.');
+    expect(stripAnsi(formatReport(month, 'table', 'month'))).toContain(
+      '* the week of 2026-05-07: activity totals are not final; activity and steps averages cover through 2026-05-12.',
+    );
   });
 });
 
 describe('the partial-day note wraps at the screen width (#130)', () => {
-  const marked: ReportData = { ...fixture, days: fixture.days.map((d, i, all) => (i === all.length - 1 ? { ...d, partial: true } : d)) };
+  const marked: ReportData = {
+    ...fixture,
+    days: fixture.days.map((d, i, all) => (i === all.length - 1 ? { ...d, partial: true } : d)),
+  };
 
   it('continues under the note text on a narrow terminal, and stays one line on a pipe', () => {
     const narrow = stripAnsi(formatReport(marked, 'table', 'week', 50)).split('\n');
-    const start = narrow.findIndex(l => l.startsWith('  * Fri 08/05:'));
+    const start = narrow.findIndex((l) => l.startsWith('  * Fri 08/05:'));
     expect(start).toBeGreaterThan(0);
     expect(narrow[start]!.length).toBeLessThanOrEqual(50);
     expect(narrow[start + 1]!.startsWith('    ')).toBe(true);
     expect(narrow[start + 1]!.startsWith('     ')).toBe(false);
-    expect(narrow.slice(start, start + 3).map(l => l.trim()).join(' ')).toContain('* Fri 08/05: activity totals are not final; activity and steps averages cover through 2026-05-13.');
+    expect(
+      narrow
+        .slice(start, start + 3)
+        .map((l) => l.trim())
+        .join(' '),
+    ).toContain('* Fri 08/05: activity totals are not final; activity and steps averages cover through 2026-05-13.');
 
     const wide = stripAnsi(formatReport(marked, 'table', 'week', undefined)).split('\n');
     expect(wide).toContain('  * Fri 08/05: activity totals are not final; activity and steps averages cover through 2026-05-13.');

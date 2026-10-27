@@ -16,15 +16,22 @@ beforeAll(() => {
   ensureSchema(db);
   db.query('INSERT INTO daily_sleep VALUES (?,?,?,?,?)').run('s1', '2026-03-01', 82, '{}', '');
   db.query('INSERT INTO daily_sleep VALUES (?,?,?,?,?)').run('s2', '2026-03-02', 75, '{}', '');
-  db.query('INSERT INTO daily_activity (id, day, score, active_calories, steps, equivalent_walking_distance, high_activity_time, medium_activity_time, low_activity_time, sedentary_time, total_calories, target_calories, contributors, timestamp) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(
-    'a1', '2026-03-01', 90, 300, 8000, 5000, 1800, 3600, 7200, 28800, 2200, 500, '{}', '');
+  db.query(
+    'INSERT INTO daily_activity (id, day, score, active_calories, steps, equivalent_walking_distance, high_activity_time, medium_activity_time, low_activity_time, sedentary_time, total_calories, target_calories, contributors, timestamp) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+  ).run('a1', '2026-03-01', 90, 300, 8000, 5000, 1800, 3600, 7200, 28800, 2200, 500, '{}', '');
 });
 
 afterAll(() => {
   db.close();
-  try { unlinkSync(TEST_DB); } catch {}
-  try { unlinkSync(TEST_DB + '-wal'); } catch {}
-  try { unlinkSync(TEST_DB + '-shm'); } catch {}
+  try {
+    unlinkSync(TEST_DB);
+  } catch {}
+  try {
+    unlinkSync(TEST_DB + '-wal');
+  } catch {}
+  try {
+    unlinkSync(TEST_DB + '-shm');
+  } catch {}
 });
 
 describe('getDaySummary', () => {
@@ -55,14 +62,14 @@ describe('getTrends', () => {
       own.query('INSERT INTO daily_sleep VALUES (?,?,?,?,?)').run(`t${d}`, `2026-04-0${d}`, 60 + d, '{}', '');
     }
     own.query('INSERT INTO daily_sleep VALUES (?,?,?,?,?)').run('future', '2026-04-06', 99, '{}', ''); // must stay out
-    const sleepScore = (n: number) => getTrends(own, n, '2026-04-05').find(t => t.label === 'Sleep Score');
+    const sleepScore = (n: number) => getTrends(own, n, '2026-04-05').find((t) => t.label === 'Sleep Score');
     const three = sleepScore(3);
     const one = sleepScore(1);
     own.close();
     expect(three?.count).toBe(3);
     expect(three?.min).toBe(63); // 2026-04-03 is in, 2026-04-02 is out
     expect(three?.max).toBe(65); // 2026-04-06 is out
-    expect(one?.count).toBe(1);  // the degenerate window is today alone
+    expect(one?.count).toBe(1); // the degenerate window is today alone
   });
 
   it('counts only the days with a SpO2 value, as report does, since a NULL average is not in the average (#142)', () => {
@@ -71,8 +78,8 @@ describe('getTrends', () => {
     own.query('INSERT INTO daily_spo2 (id, day, spo2_average) VALUES (?,?,?)').run('a', '2026-04-03', 96.2);
     own.query('INSERT INTO daily_spo2 (id, day, spo2_average) VALUES (?,?,NULL)').run('b', '2026-04-04');
     own.query('INSERT INTO daily_spo2 (id, day, spo2_average) VALUES (?,?,NULL)').run('c', '2026-04-05');
-    const spo2 = getTrends(own, 7, '2026-04-05').find(t => t.label === 'SpO2');
-    const none = getTrends(own, 1, '2026-04-05').find(t => t.label === 'SpO2'); // today alone: one NULL row
+    const spo2 = getTrends(own, 7, '2026-04-05').find((t) => t.label === 'SpO2');
+    const none = getTrends(own, 1, '2026-04-05').find((t) => t.label === 'SpO2'); // today alone: one NULL row
     own.close();
     expect(spo2).toEqual({ label: 'SpO2', avg: 96.2, min: 96.2, max: 96.2, count: 1 });
     expect(none).toBeUndefined();
@@ -82,7 +89,7 @@ describe('getTrends', () => {
 describe('getStats', () => {
   it('reports the row count for each table so users can verify their local cache', () => {
     const stats = getStats(db, '2026-03-02');
-    const sleepTable = stats.tables.find(t => t.table === 'daily_sleep');
+    const sleepTable = stats.tables.find((t) => t.table === 'daily_sleep');
 
     expect(sleepTable?.rows).toBe(2);
   });
@@ -91,11 +98,24 @@ describe('getStats', () => {
     const db = new Database(':memory:');
     ensureSchema(db);
     const stats = getStats(db, '2026-06-15');
-    expect(stats.tables.map(t => t.table)).toEqual([
-      'daily_sleep', 'daily_readiness', 'daily_activity', 'heartrate', 'daily_spo2',
-      'daily_stress', 'workouts', 'sleep_model', 'cardiovascular_age',
-      'daily_resilience', 'vo2max', 'sleep_time', 'sessions', 'rest_mode_periods', 'enhanced_tags',
-      'ring_configuration', 'ring_battery_level',
+    expect(stats.tables.map((t) => t.table)).toEqual([
+      'daily_sleep',
+      'daily_readiness',
+      'daily_activity',
+      'heartrate',
+      'daily_spo2',
+      'daily_stress',
+      'workouts',
+      'sleep_model',
+      'cardiovascular_age',
+      'daily_resilience',
+      'vo2max',
+      'sleep_time',
+      'sessions',
+      'rest_mode_periods',
+      'enhanced_tags',
+      'ring_configuration',
+      'ring_battery_level',
     ]);
   });
 });

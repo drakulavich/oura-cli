@@ -18,7 +18,10 @@ import { shiftDay } from '../lib/time.js';
  * 30,226 of 37,300 workout-source samples over four months lay outside every workout record, so
  * workouts do not predict where the late samples land.
  */
-export interface LookbackRange { start: string; end: string }
+export interface LookbackRange {
+  start: string;
+  end: string;
+}
 
 /** The days a lookback would re-read: up to and excluding the watermark day, which the tail covers. Null when there is none. */
 export function lookbackRange(c: AnyCollection, last: string | null, explicitFrom: string | undefined): LookbackRange | null {
@@ -38,14 +41,16 @@ function stateKey(c: AnyCollection): string {
  * maximum and fire once too often. Both harmless; neither has been seen in real data.
  */
 function uploadedSince(db: Database, c: AnyCollection, tail: readonly Piece[]): boolean {
-  const field = c.identity.find(i => i.format === 'date-time')?.field;
+  const field = c.identity.find((i) => i.format === 'date-time')?.field;
   if (field === undefined) return false;
   const stored = (db.query(`SELECT MAX(${field}) AS t FROM ${c.table}`).get() as { t: string | null }).t;
   const watermark = stored === null ? -Infinity : Date.parse(stored);
-  return tail.some(piece => piece.rows.some(r => {
-    const t = Date.parse(String((r as Record<string, unknown>)[field] ?? ''));
-    return t > watermark; // NaN compares false: a sample with no usable instant proves nothing
-  }));
+  return tail.some((piece) =>
+    piece.rows.some((r) => {
+      const t = Date.parse(String((r as Record<string, unknown>)[field] ?? ''));
+      return t > watermark; // NaN compares false: a sample with no usable instant proves nothing
+    }),
+  );
 }
 
 /** Whether this run should re-read the lookback range: the ring has uploaded since, or it has not run yet today. */

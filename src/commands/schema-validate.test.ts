@@ -10,30 +10,32 @@ describe('JSON schemas in docs/schemas/', () => {
   const ajv = new Ajv({ strict: false });
   addFormats(ajv);
 
-  const files = readdirSync(SCHEMAS_DIR).filter(f => f.endsWith('.json'));
+  const files = readdirSync(SCHEMAS_DIR).filter((f) => f.endsWith('.json'));
 
   it('contains the expected set of schema files', () => {
-    expect(files.sort()).toEqual([
-      'activity.json',
-      'battery.json',
-      'cv-age.json',
-      'describe.json',
-      'doctor.json',
-      'hr.json',
-      'readiness.json',
-      'resilience.json',
-      'rest-mode.json',
-      'ring.json',
-      'session.json',
-      'sleep.json',
-      'sleep-periods.json',
-      'sleep-time.json',
-      'spo2.json',
-      'stress.json',
-      'tags.json',
-      'vo2max.json',
-      'workout.json',
-    ].sort());
+    expect(files.sort()).toEqual(
+      [
+        'activity.json',
+        'battery.json',
+        'cv-age.json',
+        'describe.json',
+        'doctor.json',
+        'hr.json',
+        'readiness.json',
+        'resilience.json',
+        'rest-mode.json',
+        'ring.json',
+        'session.json',
+        'sleep.json',
+        'sleep-periods.json',
+        'sleep-time.json',
+        'spo2.json',
+        'stress.json',
+        'tags.json',
+        'vo2max.json',
+        'workout.json',
+      ].sort(),
+    );
   });
 
   for (const file of files) {

@@ -23,8 +23,8 @@ export interface OpenclawManifest {
 }
 
 const EXAMPLES: Record<string, string[]> = {
-  fetch:  ['oura-cli fetch sleep', 'oura-cli fetch hr --days 7', 'oura-cli fetch workout --from 2026-05-01 --to 2026-05-31'],
-  db:     ['oura-cli db today', 'oura-cli db week --format json', 'oura-cli db rows tags --days 30'],
+  fetch: ['oura-cli fetch sleep', 'oura-cli fetch hr --days 7', 'oura-cli fetch workout --from 2026-05-01 --to 2026-05-31'],
+  db: ['oura-cli db today', 'oura-cli db week --format json', 'oura-cli db rows tags --days 30'],
   report: ['oura-cli report --period week'],
   doctor: ['oura-cli doctor --offline'],
 };
@@ -37,14 +37,22 @@ export function buildOpenclawManifest(version: string, commands: SubCommandsDef)
     runtime: 'bun',
     bin: 'oura-cli',
     description: CLI_DESCRIPTION,
-    commands: m.commands.map(c => ({
+    commands: m.commands.map((c) => ({
       name: c.name,
       description: c.description,
       examples: EXAMPLES[c.name] ?? [`oura-cli ${c.name}`],
-      ...(c.subcommands ? { subcommands: c.subcommands.map(s => ({ name: s.name, description: s.description })) } : {}),
+      ...(c.subcommands ? { subcommands: c.subcommands.map((s) => ({ name: s.name, description: s.description })) } : {}),
     })),
     envVars: ['OURA_TOKEN', 'OURA_TOKEN_PATH', 'OURA_DB_PATH', 'OURA_TZ'],
-    healthcheck: { command: 'healthcheck', expects: { ok: 'boolean', version: 'string', latencyMs: 'number', error: 'string, present only when ok is false' } },
+    healthcheck: {
+      command: 'healthcheck',
+      expects: {
+        ok: 'boolean',
+        version: 'string',
+        latencyMs: 'number',
+        error: 'string, present only when ok is false',
+      },
+    },
   };
 }
 

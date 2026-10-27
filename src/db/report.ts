@@ -59,7 +59,6 @@ export interface ReportData {
   recommendations: string[];
 }
 
-
 function dayLabel(dateStr: string): string {
   const d = new Date(dateStr + 'T12:00:00Z');
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -114,51 +113,74 @@ export function getReport(db: Database, days: number, today: string): ReportData
   const averages: ReportData['averages'] = [];
   for (const [label, table, col, isSteps] of metrics) {
     const end = table === 'daily_activity' ? activityEnd : weekEnd;
-    const curr = db.query(
-      `SELECT AVG(${col}) as avg, MIN(${col}) as min, MAX(${col}) as max, COUNT(${col}) as cnt FROM ${table} WHERE day BETWEEN ? AND ?`
-    ).get(weekStart, end) as { avg: number | null; min: number | null; max: number | null; cnt: number };
-    const prev = db.query(
-      `SELECT AVG(${col}) as avg FROM ${table} WHERE day BETWEEN ? AND ?`
-    ).get(prevWeekStart, prevWeekEnd) as { avg: number | null };
+    const curr = db
+      .query(`SELECT AVG(${col}) as avg, MIN(${col}) as min, MAX(${col}) as max, COUNT(${col}) as cnt FROM ${table} WHERE day BETWEEN ? AND ?`)
+      .get(weekStart, end) as { avg: number | null; min: number | null; max: number | null; cnt: number };
+    const prev = db.query(`SELECT AVG(${col}) as avg FROM ${table} WHERE day BETWEEN ? AND ?`).get(prevWeekStart, prevWeekEnd) as { avg: number | null };
 
     if (curr.cnt > 0 && curr.avg !== null) {
       const diff = prev.avg !== null ? curr.avg - prev.avg : null;
       averages.push({
-        label, avg: curr.avg, min: curr.min!, max: curr.max!, count: curr.cnt,
-        prevAvg: prev.avg, diff, isSteps,
+        label,
+        avg: curr.avg,
+        min: curr.min!,
+        max: curr.max!,
+        count: curr.cnt,
+        prevAvg: prev.avg,
+        diff,
+        isSteps,
       });
     }
   }
 
   // SpO2
-  const sp = db.query(
-    // COUNT(spo2_average), not COUNT(*): AVG skips a NULL average, so the count must too (review of #128).
-    'SELECT AVG(spo2_average) as avg, MIN(spo2_average) as min, MAX(spo2_average) as max, COUNT(spo2_average) as cnt FROM daily_spo2 WHERE day BETWEEN ? AND ?'
-  ).get(weekStart, weekEnd) as { avg: number | null; min: number | null; max: number | null; cnt: number };
+  const sp = db
+    .query(
+      // COUNT(spo2_average), not COUNT(*): AVG skips a NULL average, so the count must too (review of #128).
+      'SELECT AVG(spo2_average) as avg, MIN(spo2_average) as min, MAX(spo2_average) as max, COUNT(spo2_average) as cnt FROM daily_spo2 WHERE day BETWEEN ? AND ?',
+    )
+    .get(weekStart, weekEnd) as { avg: number | null; min: number | null; max: number | null; cnt: number };
   const spo2 = sp.cnt > 0 && sp.avg !== null ? { avg: +sp.avg.toFixed(1), min: +sp.min!.toFixed(1), max: +sp.max!.toFixed(1), count: sp.cnt } : null;
 
   // Patterns
-  const lowSleep = (db.query(
-    'SELECT day, score FROM daily_sleep WHERE day BETWEEN ? AND ? AND score < 70 ORDER BY score'
-  ).all(weekStart, weekEnd) as { day: string; score: number }[]).map(r => ({ ...r, dayLabel: dayLabel(r.day) }));
+  const lowSleep = (
+    db.query('SELECT day, score FROM daily_sleep WHERE day BETWEEN ? AND ? AND score < 70 ORDER BY score').all(weekStart, weekEnd) as {
+      day: string;
+      score: number;
+    }[]
+  ).map((r) => ({ ...r, dayLabel: dayLabel(r.day) }));
 
-  const lowReadiness = (db.query(
-    'SELECT day, score FROM daily_readiness WHERE day BETWEEN ? AND ? AND score < 70 ORDER BY score'
-  ).all(weekStart, weekEnd) as { day: string; score: number }[]).map(r => ({ ...r, dayLabel: dayLabel(r.day) }));
+  const lowReadiness = (
+    db.query('SELECT day, score FROM daily_readiness WHERE day BETWEEN ? AND ? AND score < 70 ORDER BY score').all(weekStart, weekEnd) as {
+      day: string;
+      score: number;
+    }[]
+  ).map((r) => ({ ...r, dayLabel: dayLabel(r.day) }));
 
-  const highActivity = (db.query(
-    'SELECT day, score, steps FROM daily_activity WHERE day BETWEEN ? AND ? AND score >= 90 ORDER BY score DESC'
-  ).all(weekStart, activityEnd) as { day: string; score: number; steps: number | null }[]).map(r => ({ ...r, dayLabel: dayLabel(r.day) }));
+  const highActivity = (
+    db.query('SELECT day, score, steps FROM daily_activity WHERE day BETWEEN ? AND ? AND score >= 90 ORDER BY score DESC').all(weekStart, activityEnd) as {
+      day: string;
+      score: number;
+      steps: number | null;
+    }[]
+  ).map((r) => ({ ...r, dayLabel: dayLabel(r.day) }));
 
   // Sleep details
-  const sd = db.query(
-    `SELECT AVG(total_sleep_duration) as totalSleep, AVG(deep_sleep_duration) as deepSleep,
+  const sd = db
+    .query(
+      `SELECT AVG(total_sleep_duration) as totalSleep, AVG(deep_sleep_duration) as deepSleep,
             AVG(rem_sleep_duration) as remSleep, AVG(light_sleep_duration) as lightSleep,
             AVG(efficiency) as efficiency, AVG(average_hrv) as hrv, AVG(lowest_heart_rate) as lowestHr
-     FROM sleep_model WHERE day BETWEEN ? AND ? AND type='long_sleep'`
-  ).get(weekStart, weekEnd) as {
-    totalSleep: number | null; deepSleep: number | null; remSleep: number | null;
-    lightSleep: number | null; efficiency: number | null; hrv: number | null; lowestHr: number | null;
+     FROM sleep_model WHERE day BETWEEN ? AND ? AND type='long_sleep'`,
+    )
+    .get(weekStart, weekEnd) as {
+    totalSleep: number | null;
+    deepSleep: number | null;
+    remSleep: number | null;
+    lightSleep: number | null;
+    efficiency: number | null;
+    hrv: number | null;
+    lowestHr: number | null;
   };
   const sleepDetails = sd.totalSleep !== null ? sd : null;
 
@@ -184,6 +206,17 @@ export function getReport(db: Database, days: number, today: string): ReportData
     recommendations.push('steps_great');
   }
 
-  return { period, weekStart, weekEnd, days: dailyRows, completeThrough, lastUpload, averages, spo2, patterns: { lowSleep, lowReadiness, highActivity }, sleepDetails, recommendations };
+  return {
+    period,
+    weekStart,
+    weekEnd,
+    days: dailyRows,
+    completeThrough,
+    lastUpload,
+    averages,
+    spo2,
+    patterns: { lowSleep, lowReadiness, highActivity },
+    sleepDetails,
+    recommendations,
+  };
 }
-

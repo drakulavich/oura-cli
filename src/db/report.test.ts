@@ -28,9 +28,7 @@ function insertReadiness(dayStr: string, score: number | null): void {
   db.query('INSERT INTO daily_readiness (id, day, score) VALUES (?,?,?)').run(nextId(), dayStr, score);
 }
 function insertActivity(dayStr: string, score: number | null, steps: number | null): void {
-  db.query('INSERT INTO daily_activity (id, day, score, steps) VALUES (?,?,?,?)').run(
-    nextId(), dayStr, score, steps
-  );
+  db.query('INSERT INTO daily_activity (id, day, score, steps) VALUES (?,?,?,?)').run(nextId(), dayStr, score, steps);
 }
 function insertHeartrate(timestamp: string): void {
   db.query("INSERT INTO heartrate (timestamp, bpm, source, day) VALUES (?, 60, 'awake', ?)").run(timestamp, timestamp.slice(0, 10));
@@ -42,19 +40,31 @@ function insertSleepModel(
   dayStr: string,
   type: string,
   fields: {
-    total?: number; deep?: number; rem?: number; light?: number;
-    efficiency?: number; hrv?: number; lowestHr?: number;
-  }
+    total?: number;
+    deep?: number;
+    rem?: number;
+    light?: number;
+    efficiency?: number;
+    hrv?: number;
+    lowestHr?: number;
+  },
 ): void {
   db.query(
     `INSERT INTO sleep_model
        (id, day, type, total_sleep_duration, deep_sleep_duration, rem_sleep_duration,
         light_sleep_duration, efficiency, average_hrv, lowest_heart_rate)
-     VALUES (?,?,?,?,?,?,?,?,?,?)`
+     VALUES (?,?,?,?,?,?,?,?,?,?)`,
   ).run(
-    nextId(), dayStr, type,
-    fields.total ?? null, fields.deep ?? null, fields.rem ?? null,
-    fields.light ?? null, fields.efficiency ?? null, fields.hrv ?? null, fields.lowestHr ?? null
+    nextId(),
+    dayStr,
+    type,
+    fields.total ?? null,
+    fields.deep ?? null,
+    fields.rem ?? null,
+    fields.light ?? null,
+    fields.efficiency ?? null,
+    fields.hrv ?? null,
+    fields.lowestHr ?? null,
   );
 }
 
@@ -102,8 +112,8 @@ describe('getReport daily rows', () => {
     // day(2) intentionally has no rows.
 
     const report = getReport(db, 7, TODAY);
-    const withData = report.days.find(d => d.day === day(1))!;
-    const withoutData = report.days.find(d => d.day === day(2))!;
+    const withData = report.days.find((d) => d.day === day(1))!;
+    const withoutData = report.days.find((d) => d.day === day(2))!;
 
     expect(withData.sleep).toBe(82);
     expect(withData.activity).toBe(90);
@@ -123,8 +133,8 @@ describe('getReport averages', () => {
     insertActivity(day(0), 50, 100); // today's own record is what makes yesterday complete
 
     const averages = getReport(db, 7, TODAY).averages;
-    const sleep = averages.find(a => a.label === 'Sleep')!;
-    const steps = averages.find(a => a.label === 'Steps')!;
+    const sleep = averages.find((a) => a.label === 'Sleep')!;
+    const steps = averages.find((a) => a.label === 'Steps')!;
 
     expect(sleep.avg).toBe(85);
     expect(sleep.min).toBe(80);
@@ -139,7 +149,7 @@ describe('getReport averages', () => {
     insertSleep(day(1), 80); // current
     insertSleep(day(8), 70); // previous window
 
-    const sleep = getReport(db, 7, TODAY).averages.find(a => a.label === 'Sleep')!;
+    const sleep = getReport(db, 7, TODAY).averages.find((a) => a.label === 'Sleep')!;
 
     expect(sleep.avg).toBe(80);
     expect(sleep.prevAvg).toBe(70);
@@ -149,7 +159,7 @@ describe('getReport averages', () => {
   it('leaves prevAvg and diff null when the previous window has no data', () => {
     insertSleep(day(1), 80); // current only
 
-    const sleep = getReport(db, 7, TODAY).averages.find(a => a.label === 'Sleep')!;
+    const sleep = getReport(db, 7, TODAY).averages.find((a) => a.label === 'Sleep')!;
 
     expect(sleep.prevAvg).toBeNull();
     expect(sleep.diff).toBeNull();
@@ -204,9 +214,9 @@ describe('getReport patterns', () => {
 
     const { lowSleep, lowReadiness, highActivity } = getReport(db, 7, TODAY).patterns;
 
-    expect(lowSleep.map(r => r.score)).toEqual([50, 65]);
-    expect(lowReadiness.map(r => r.score)).toEqual([55, 68]);
-    expect(highActivity.map(r => r.score)).toEqual([95, 90]);
+    expect(lowSleep.map((r) => r.score)).toEqual([50, 65]);
+    expect(lowReadiness.map((r) => r.score)).toEqual([55, 68]);
+    expect(highActivity.map((r) => r.score)).toEqual([95, 90]);
     expect(highActivity[0]!.steps).toBe(12000);
     expect(highActivity[0]!.dayLabel).toMatch(/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat) \d{2}\/\d{2}$/);
   });
@@ -227,10 +237,22 @@ describe('getReport patterns', () => {
 describe('getReport sleep details', () => {
   it('averages sleep_model rows of type long_sleep within the window', () => {
     insertSleepModel(day(1), 'long_sleep', {
-      total: 28800, deep: 6000, rem: 5400, light: 17400, efficiency: 90, hrv: 40, lowestHr: 50,
+      total: 28800,
+      deep: 6000,
+      rem: 5400,
+      light: 17400,
+      efficiency: 90,
+      hrv: 40,
+      lowestHr: 50,
     });
     insertSleepModel(day(2), 'long_sleep', {
-      total: 25200, deep: 5000, rem: 4600, light: 15600, efficiency: 88, hrv: 44, lowestHr: 52,
+      total: 25200,
+      deep: 5000,
+      rem: 4600,
+      light: 15600,
+      efficiency: 88,
+      hrv: 44,
+      lowestHr: 52,
     });
 
     const sd = getReport(db, 7, TODAY).sleepDetails!;
@@ -250,30 +272,26 @@ describe('getReport sleep details', () => {
 
 describe('getReport recommendations', () => {
   it('flags low sleep, readiness, and steps when averages fall below their thresholds', () => {
-    insertSleep(day(1), 70);      // < 75
-    insertReadiness(day(1), 65);  // < 70
+    insertSleep(day(1), 70); // < 75
+    insertReadiness(day(1), 65); // < 70
     insertActivity(day(1), 80, 5000); // steps < 8000
     insertActivity(day(0), 50, 100); // today's own record is what makes yesterday complete
 
-    expect(getReport(db, 7, TODAY).recommendations).toEqual(
-      expect.arrayContaining(['sleep_low', 'readiness_low', 'steps_low'])
-    );
+    expect(getReport(db, 7, TODAY).recommendations).toEqual(expect.arrayContaining(['sleep_low', 'readiness_low', 'steps_low']));
   });
 
   it('flags great sleep, readiness, and steps when averages meet their high thresholds', () => {
-    insertSleep(day(1), 90);       // >= 85
-    insertReadiness(day(1), 85);   // >= 80
+    insertSleep(day(1), 90); // >= 85
+    insertReadiness(day(1), 85); // >= 80
     insertActivity(day(1), 95, 12000); // steps >= 10000
     insertActivity(day(0), 50, 100); // today's own record is what makes yesterday complete
 
-    expect(getReport(db, 7, TODAY).recommendations).toEqual(
-      expect.arrayContaining(['sleep_great', 'readiness_great', 'steps_great'])
-    );
+    expect(getReport(db, 7, TODAY).recommendations).toEqual(expect.arrayContaining(['sleep_great', 'readiness_great', 'steps_great']));
   });
 
   it('emits no recommendations for mid-range averages inside the threshold gaps', () => {
-    insertSleep(day(1), 75);       // not < 75, not >= 85
-    insertReadiness(day(1), 75);   // not < 70, not >= 80
+    insertSleep(day(1), 75); // not < 75, not >= 85
+    insertReadiness(day(1), 75); // not < 70, not >= 80
     insertActivity(day(1), 80, 9000); // not < 8000, not >= 10000
     insertActivity(day(0), 50, 100); // today's own record is what makes yesterday complete
 
@@ -292,16 +310,16 @@ describe('getReport partial days', () => {
     insertSleep(day(0), 90);
 
     const report = getReport(db, 7, TODAY);
-    const byDay = Object.fromEntries(report.days.map(d => [d.day, d]));
+    const byDay = Object.fromEntries(report.days.map((d) => [d.day, d]));
     expect(byDay[day(0)]!.partial).toBe(true);
     expect(byDay[day(1)]!.partial).toBe(false);
     expect(byDay[day(0)]!.steps).toBe(300); // still shown, just not averaged
     expect(report.completeThrough).toBe(day(1));
 
-    const steps = report.averages.find(a => a.label === 'Steps')!;
+    const steps = report.averages.find((a) => a.label === 'Steps')!;
     expect(steps.avg).toBe(10000);
     expect(steps.count).toBe(1);
-    const sleep = report.averages.find(a => a.label === 'Sleep')!;
+    const sleep = report.averages.find((a) => a.label === 'Sleep')!;
     expect(sleep.avg).toBe(85);
     expect(sleep.count).toBe(2);
     expect(report.recommendations).toContain('steps_great');
@@ -310,15 +328,15 @@ describe('getReport partial days', () => {
 
   it('treats an earlier day as partial when nothing later has arrived — the ring stopped uploading (#57)', () => {
     insertActivity(day(2), 80, 9000);
-    insertActivity(day(1), 60, 382);          // the ring uploaded its first hour, then went quiet
+    insertActivity(day(1), 60, 382); // the ring uploaded its first hour, then went quiet
 
     const report = getReport(db, 7, TODAY);
     expect(report.completeThrough).toBe(day(2));
-    expect(report.days.find(d => d.day === day(1))!.partial).toBe(true);
-    expect(report.days.find(d => d.day === day(2))!.partial).toBe(false);
-    expect(report.averages.find(a => a.label === 'Steps')!.avg).toBe(9000);
+    expect(report.days.find((d) => d.day === day(1))!.partial).toBe(true);
+    expect(report.days.find((d) => d.day === day(2))!.partial).toBe(false);
+    expect(report.averages.find((a) => a.label === 'Steps')!.avg).toBe(9000);
     expect(report.recommendations).not.toContain('steps_low');
-    expect(report.patterns.highActivity.map(p => p.day)).not.toContain(day(1));
+    expect(report.patterns.highActivity.map((p) => p.day)).not.toContain(day(1));
   });
 
   it('does not let stale heart-rate samples mark synced days as partial', () => {
@@ -330,7 +348,7 @@ describe('getReport partial days', () => {
 
     const report = getReport(db, 7, TODAY);
     expect(report.completeThrough).toBe(day(1));
-    expect(report.days.filter(d => d.partial).map(d => d.day)).toEqual([day(0)]);
+    expect(report.days.filter((d) => d.partial).map((d) => d.day)).toEqual([day(0)]);
     expect(report.lastUpload).toBe(`${day(3)}T02:00:00Z`); // still reported, informational only
   });
 
@@ -339,22 +357,22 @@ describe('getReport partial days', () => {
     insertActivity(day(1), 60, 382); // day(2) not worn
 
     const report = getReport(db, 7, TODAY);
-    expect(report.days.find(d => d.day === day(3))!.partial).toBe(false);
-    expect(report.days.find(d => d.day === day(2))!.partial).toBe(false); // no data, not partial
-    expect(report.days.find(d => d.day === day(1))!.partial).toBe(true);
+    expect(report.days.find((d) => d.day === day(3))!.partial).toBe(false);
+    expect(report.days.find((d) => d.day === day(2))!.partial).toBe(false); // no data, not partial
+    expect(report.days.find((d) => d.day === day(1))!.partial).toBe(true);
     // day(2) is over, but it holds no activity record — naming it would promise an average that
     // covers a day with nothing in it, so the newest day with data wins (#74).
     expect(report.completeThrough).toBe(day(3));
   });
 
-  it('omits the activity average and steps recommendation when the only activity data is today\'s', () => {
+  it("omits the activity average and steps recommendation when the only activity data is today's", () => {
     insertActivity(day(0), 70, 100);
 
     const report = getReport(db, 7, TODAY);
     // Only today has a record and today is not over, so no day in the window is both complete and
     // present. Previously this named yesterday, which had no rows at all (#74).
     expect(report.completeThrough).toBeNull();
-    expect(report.averages.find(a => a.label === 'Steps')).toBeUndefined();
+    expect(report.averages.find((a) => a.label === 'Steps')).toBeUndefined();
     expect(report.recommendations).toEqual([]);
   });
 
@@ -363,8 +381,8 @@ describe('getReport partial days', () => {
 
     const report = getReport(db, 7, TODAY);
     expect(report.completeThrough).toBeNull();
-    expect(report.days.find(d => d.day === day(6))!.partial).toBe(true);
-    expect(report.averages.find(a => a.label === 'Steps')).toBeUndefined();
+    expect(report.days.find((d) => d.day === day(6))!.partial).toBe(true);
+    expect(report.averages.find((a) => a.label === 'Steps')).toBeUndefined();
   });
 
   it('does not name a complete day that lies outside the reported window', () => {
@@ -376,7 +394,7 @@ describe('getReport partial days', () => {
 
     const report = getReport(db, 7, TODAY);
     expect(report.completeThrough).toBeNull();
-    expect(report.averages.find(a => a.label === 'Steps')).toBeUndefined();
+    expect(report.averages.find((a) => a.label === 'Steps')).toBeUndefined();
   });
 
   it('does not let a record dated after today close today out (pins the `d < today` guard)', () => {
@@ -384,7 +402,7 @@ describe('getReport partial days', () => {
     insertActivity(shiftDay(TODAY, 1), 10, 50); // a ring with a wrong clock, or a hand-made import
 
     const report = getReport(db, 7, TODAY);
-    expect(report.days.find(d => d.day === day(0))!.partial).toBe(true);
+    expect(report.days.find((d) => d.day === day(0))!.partial).toBe(true);
     // Same as above: the only records in the window are today's and tomorrow's, neither complete.
     expect(report.completeThrough).toBeNull();
   });
@@ -392,9 +410,8 @@ describe('getReport partial days', () => {
   it('never marks a day partial for sleep alone, and reports no complete day without any activity', () => {
     insertSleep(day(0), 90);
     const report = getReport(db, 7, TODAY);
-    expect(report.days.find(d => d.day === day(0))!.partial).toBe(false);
+    expect(report.days.find((d) => d.day === day(0))!.partial).toBe(false);
     expect(report.completeThrough).toBeNull();
-    expect(report.averages.find(a => a.label === 'Sleep')!.avg).toBe(90);
+    expect(report.averages.find((a) => a.label === 'Sleep')!.avg).toBe(90);
   });
-
 });

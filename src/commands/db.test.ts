@@ -7,7 +7,10 @@ import { ensureSchema } from '../db/open.js';
 import { emptyDayHint } from './db.js';
 
 async function run(...argv: string[]) {
-  const proc = Bun.spawn(['bun', 'run', 'src/index.ts', '--db', ':memory:', ...argv], { stdout: 'pipe', stderr: 'pipe' });
+  const proc = Bun.spawn(['bun', 'run', 'src/index.ts', '--db', ':memory:', ...argv], {
+    stdout: 'pipe',
+    stderr: 'pipe',
+  });
   const [stdout, stderr] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
   const code = await proc.exited;
   return { stdout, stderr, code };
@@ -39,12 +42,18 @@ describe('emptyDayHint (#133)', () => {
     const db = cache(true); // holds 2026-06-01
     db.query('INSERT INTO daily_readiness (id, day) VALUES (?,?)').run('r1', '2026-06-10'); // the range spans the three daily tables
     db.query("INSERT INTO daily_stress (id, day) VALUES ('st', '2026-06-05')").run(); // not a summary: must not make the day "cached"
-    expect(emptyDayHint(db, '2026-05-20', TODAY)).toBe('No daily summaries for 2026-05-20: the cache begins at 2026-06-01. Run `oura-cli sync --from 2026-05-20` to fetch it if Oura has it.');
-    expect(emptyDayHint(db, '2026-06-12', TODAY)).toBe('No daily summaries for 2026-06-12: the cache ends at 2026-06-10. Run `oura-cli sync`; if it adds nothing, the ring has not uploaded (`oura-cli doctor` says which side is behind).');
+    expect(emptyDayHint(db, '2026-05-20', TODAY)).toBe(
+      'No daily summaries for 2026-05-20: the cache begins at 2026-06-01. Run `oura-cli sync --from 2026-05-20` to fetch it if Oura has it.',
+    );
+    expect(emptyDayHint(db, '2026-06-12', TODAY)).toBe(
+      'No daily summaries for 2026-06-12: the cache ends at 2026-06-10. Run `oura-cli sync`; if it adds nothing, the ring has not uploaded (`oura-cli doctor` says which side is behind).',
+    );
     // The loop of the issue: a day inside the cache that a sync has already asked for. No sync --from as the first move.
     const gap = emptyDayHint(db, '2026-06-05', TODAY);
     // "Most likely", not a fact: two explicit --from/--to windows leave a gap no sync covered.
-    expect(gap).toBe('No daily summaries for 2026-06-05, though the cache runs from 2026-06-01 to 2026-06-10: most likely Oura has none for that day. `oura-cli sync --from 2026-06-05` re-fetches it in case a sync skipped it.');
+    expect(gap).toBe(
+      'No daily summaries for 2026-06-05, though the cache runs from 2026-06-01 to 2026-06-10: most likely Oura has none for that day. `oura-cli sync --from 2026-06-05` re-fetches it in case a sync skipped it.',
+    );
     expect(gap).not.toContain('Nothing cached');
     // The boundary days themselves are inside the cache: a summary row whose scores are all NULL is
     // an empty panel on the first or last cached day, and neither "begins at" nor "ends at" applies.
@@ -72,7 +81,7 @@ describe('db date', () => {
 });
 
 describe('db trends', () => {
-  it.each(['abc', '0', '1.5'])('rejects a window of %j with BAD_ARGS', async days => {
+  it.each(['abc', '0', '1.5'])('rejects a window of %j with BAD_ARGS', async (days) => {
     const { stdout, stderr, code } = await run('db', 'trends', days, '--format', 'json');
     expect(stdout).toBe('');
     expect(JSON.parse(stderr).error.code).toBe('BAD_ARGS');
@@ -123,15 +132,26 @@ describe('db rows (#73)', () => {
     const db = new Database(path);
     ensureSchema(db);
     const tag = db.query('INSERT INTO enhanced_tags (id, day, end_day, start_time, end_time, tag_type_code, comment, custom_name) VALUES (?,?,?,?,?,?,?,?)');
-    for (const [id, day] of [['t1', '2026-06-13'], ['t2', '2026-06-14'], ['t3', '2026-06-15']]) tag.run(id, day, null, null, null, 'tag_generic_nap', null, null);
+    for (const [id, day] of [
+      ['t1', '2026-06-13'],
+      ['t2', '2026-06-14'],
+      ['t3', '2026-06-15'],
+    ])
+      tag.run(id, day, null, null, null, 'tag_generic_nap', null, null);
     db.close();
     try {
-      const proc = Bun.spawn(['bun', 'run', 'src/index.ts', '--db', path, 'db', 'rows', 'tags', '--from', '2026-06-01', '--to', '2026-06-30', '--limit', '2', '--format', 'json'], { stdout: 'pipe', stderr: 'pipe' });
+      const proc = Bun.spawn(
+        ['bun', 'run', 'src/index.ts', '--db', path, 'db', 'rows', 'tags', '--from', '2026-06-01', '--to', '2026-06-30', '--limit', '2', '--format', 'json'],
+        { stdout: 'pipe', stderr: 'pipe' },
+      );
       const json = JSON.parse(await new Response(proc.stdout).text()) as Array<{ id: string }>;
       expect(await proc.exited).toBe(0);
-      expect(json.map(r => r.id)).toEqual(['t1', 't2']);
+      expect(json.map((r) => r.id)).toEqual(['t1', 't2']);
 
-      const table = Bun.spawn(['bun', 'run', 'src/index.ts', '--db', path, 'db', 'rows', 'tags', '--from', '2026-06-01', '--to', '2026-06-30', '--limit', '2', '--format', 'table'], { stdout: 'pipe', stderr: 'pipe' });
+      const table = Bun.spawn(
+        ['bun', 'run', 'src/index.ts', '--db', path, 'db', 'rows', 'tags', '--from', '2026-06-01', '--to', '2026-06-30', '--limit', '2', '--format', 'table'],
+        { stdout: 'pipe', stderr: 'pipe' },
+      );
       const text = await new Response(table.stdout).text();
       expect(await table.exited).toBe(0);
       expect(text).toContain('tags (enhanced_tags): 2 of 3 rows for 2026-06-01 → 2026-06-30');
@@ -152,11 +172,16 @@ describe('db rows (#73)', () => {
     db.query('INSERT INTO daily_sleep VALUES (?,?,?,?,?)').run('s1', '2026-06-01', 80, '{}', '');
     db.close();
     try {
-      const proc = Bun.spawn(['bun', 'run', 'src/index.ts', '--db', path, 'db', 'today', '--format', 'table'], { stdout: 'pipe', stderr: 'pipe' });
+      const proc = Bun.spawn(['bun', 'run', 'src/index.ts', '--db', path, 'db', 'today', '--format', 'table'], {
+        stdout: 'pipe',
+        stderr: 'pipe',
+      });
       const text = await new Response(proc.stdout).text();
       expect(await proc.exited).toBe(0);
       expect(text).not.toContain('to download your data');
-      expect(text).toContain("Oura publishes a day's summary after that night's sleep syncs from the ring. If the ring has synced since, run `oura-cli sync` again.");
+      expect(text).toContain(
+        "Oura publishes a day's summary after that night's sleep syncs from the ring. If the ring has synced since, run `oura-cli sync` again.",
+      );
     } finally {
       for (const suffix of ['', '-wal', '-shm']) rmSync(path + suffix, { force: true });
     }
@@ -206,9 +231,19 @@ describe('db rows (#73)', () => {
     const path = join(tmpdir(), `oura-db-rows-utc-${process.pid}.db`);
     const db = new Database(path);
     ensureSchema(db);
-    db.query('INSERT INTO ring_battery_level (timestamp, level, charging, in_charger, day) VALUES (?,?,?,?,?)').run('2026-09-09T22:00:00+00:00', 80, 0, 0, '2026-09-09');
+    db.query('INSERT INTO ring_battery_level (timestamp, level, charging, in_charger, day) VALUES (?,?,?,?,?)').run(
+      '2026-09-09T22:00:00+00:00',
+      80,
+      0,
+      0,
+      '2026-09-09',
+    );
     db.close();
-    const rows = (...collection: string[]) => Bun.spawn(['bun', 'run', 'src/index.ts', '--db', path, '--tz', 'Asia/Dubai', 'db', 'rows', ...collection, '--day', '2026-09-10', '--format', 'table'], { stdout: 'pipe', stderr: 'pipe' });
+    const rows = (...collection: string[]) =>
+      Bun.spawn(['bun', 'run', 'src/index.ts', '--db', path, '--tz', 'Asia/Dubai', 'db', 'rows', ...collection, '--day', '2026-09-10', '--format', 'table'], {
+        stdout: 'pipe',
+        stderr: 'pipe',
+      });
     try {
       const battery = rows('battery');
       const lines = (await new Response(battery.stdout).text()).trimEnd().split('\n');

@@ -23,37 +23,48 @@ export type { AnyCollection, Collection, SqlValue } from './types.js';
 
 /** Order is the sync order and the order tables appear in `db stats`. */
 export const COLLECTIONS: readonly AnyCollection[] = [
-  sleep, readiness, activity, hr, spo2, stress, workout, sleepPeriods, cvAge,
-  resilience, vo2max, sleepTime, session, restMode, tags, ring, battery,
+  sleep,
+  readiness,
+  activity,
+  hr,
+  spo2,
+  stress,
+  workout,
+  sleepPeriods,
+  cvAge,
+  resilience,
+  vo2max,
+  sleepTime,
+  session,
+  restMode,
+  tags,
+  ring,
+  battery,
 ];
 
 export function names(): string[] {
-  return COLLECTIONS.map(c => c.name);
+  return COLLECTIONS.map((c) => c.name);
 }
 
 export function byName(name: string): AnyCollection | undefined {
-  return COLLECTIONS.find(c => c.name === name);
+  return COLLECTIONS.find((c) => c.name === name);
 }
 
 export function ddl(c: AnyCollection): string {
-  const cols = c.columns
-    .map(col => `    ${col.name} ${col.type}${col.pk ? ' PRIMARY KEY' : ''}${col.unique ? ' UNIQUE' : ''}`)
-    .join(',\n');
-  const indexes = (c.indexes ?? []).map(i =>
-    `CREATE ${i.unique ? 'UNIQUE ' : ''}INDEX IF NOT EXISTS ${i.name} ON ${c.table}(${i.columns.join(', ')});`,
-  );
+  const cols = c.columns.map((col) => `    ${col.name} ${col.type}${col.pk ? ' PRIMARY KEY' : ''}${col.unique ? ' UNIQUE' : ''}`).join(',\n');
+  const indexes = (c.indexes ?? []).map((i) => `CREATE ${i.unique ? 'UNIQUE ' : ''}INDEX IF NOT EXISTS ${i.name} ON ${c.table}(${i.columns.join(', ')});`);
   return [`CREATE TABLE IF NOT EXISTS ${c.table} (\n${cols}\n);`, ...indexes].join('\n');
 }
 
 export function insertSql(c: AnyCollection): string {
   const verb = c.conflict === 'replace' ? 'INSERT OR REPLACE' : 'INSERT OR IGNORE';
-  const cols = c.columns.map(col => col.name).join(', ');
+  const cols = c.columns.map((col) => col.name).join(', ');
   const marks = c.columns.map(() => '?').join(', ');
   return `${verb} INTO ${c.table} (${cols}) VALUES (${marks})`;
 }
 
 export function rowValues<Row>(c: Collection<Row>, row: Row): SqlValue[] {
-  return c.columns.map(col => col.pick(row));
+  return c.columns.map((col) => col.pick(row));
 }
 
 /**
@@ -66,11 +77,11 @@ export function rowValues<Row>(c: Collection<Row>, row: Row): SqlValue[] {
  * have none, on the columns of their unique index.
  */
 export function identityColumns(c: AnyCollection): readonly string[] {
-  const unique = c.columns.filter(col => col.unique).map(col => col.name);
+  const unique = c.columns.filter((col) => col.unique).map((col) => col.name);
   if (unique.length > 0) return unique;
-  const pk = c.columns.filter(col => col.pk).map(col => col.name);
+  const pk = c.columns.filter((col) => col.pk).map((col) => col.name);
   if (pk.length > 0) return pk;
-  return (c.indexes ?? []).find(i => i.unique)?.columns ?? [];
+  return (c.indexes ?? []).find((i) => i.unique)?.columns ?? [];
 }
 
 /**
@@ -85,8 +96,8 @@ export function identityColumns(c: AnyCollection): readonly string[] {
  */
 export function hasIdentity(c: AnyCollection, row: unknown): boolean {
   if (row == null || typeof row !== 'object') return false;
-  return identityColumns(c).every(name => {
-    const col = c.columns.find(k => k.name === name);
+  return identityColumns(c).every((name) => {
+    const col = c.columns.find((k) => k.name === name);
     const v = col?.pick(row);
     return col?.type === 'TEXT' ? typeof v === 'string' && v !== '' : typeof v === 'number' && Number.isFinite(v);
   });
@@ -122,7 +133,10 @@ function datetimeQueries(start: string, end: string, tz: string, maxDays: number
   const span = (maxDays ?? Infinity) * MS_PER_DAY;
   const out: Array<Record<string, string>> = [];
   for (let s = from; s <= to; s += span) {
-    out.push({ start_datetime: new Date(s).toISOString(), end_datetime: new Date(Math.min(s + span - 1, to)).toISOString() });
+    out.push({
+      start_datetime: new Date(s).toISOString(),
+      end_datetime: new Date(Math.min(s + span - 1, to)).toISOString(),
+    });
   }
   return out;
 }
@@ -135,9 +149,7 @@ function datetimeQueries(start: string, end: string, tz: string, maxDays: number
 export function rangeQueries(c: AnyCollection, start: string, end: string, tz: string): Array<Record<string, string>> {
   if (c.rangeParams === 'none') return [{}]; // a snapshot endpoint: one request, whatever the range
   if (start > end) return [];
-  return c.rangeParams === 'date'
-    ? dateQueries(start, end, c.maxRangeDays, c.dayRangeOffset ?? [0, 0])
-    : datetimeQueries(start, end, tz, c.maxRangeDays);
+  return c.rangeParams === 'date' ? dateQueries(start, end, c.maxRangeDays, c.dayRangeOffset ?? [0, 0]) : datetimeQueries(start, end, tz, c.maxRangeDays);
 }
 
 /**
@@ -166,7 +178,7 @@ export async function fetchCollectionByPiece(client: OuraClient, c: AnyCollectio
 
 /** Every row of `c` for the inclusive local-day range [start, end] in `tz`, across range pieces and pages. */
 export async function fetchCollection(client: OuraClient, c: AnyCollection, start: string, end: string, tz: string): Promise<unknown[]> {
-  return (await fetchCollectionByPiece(client, c, start, end, tz)).flatMap(p => p.rows);
+  return (await fetchCollectionByPiece(client, c, start, end, tz)).flatMap((p) => p.rows);
 }
 
 export function jsonSchema(c: AnyCollection): Record<string, unknown> {
@@ -179,11 +191,10 @@ export function jsonSchema(c: AnyCollection): Record<string, unknown> {
     items: {
       type: 'object',
       additionalProperties: true,
-      required: c.identity.map(i => i.field),
-      properties: Object.fromEntries(c.identity.map(i => [
-        i.field,
-        { type: 'string', ...(i.format ? { format: i.format } : {}), description: i.description },
-      ])),
+      required: c.identity.map((i) => i.field),
+      properties: Object.fromEntries(
+        c.identity.map((i) => [i.field, { type: 'string', ...(i.format ? { format: i.format } : {}), description: i.description }]),
+      ),
     },
   };
 }

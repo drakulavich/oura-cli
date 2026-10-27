@@ -18,7 +18,11 @@ export function assertValidFormat(explicit: string | undefined): asserts explici
   // A hint is optional on the envelope; these two lacked one where a user could act on it (#121).
   // A bare `--format` reaches here as "", and is worded the way `--db ""` is, not as an unknown value.
   if (explicit === '') {
-    throw new CliError('BAD_ARGS', '--format has no value', 'Pass "table" or "json", or remove --format to fall back to the terminal default (table on a TTY, json on a pipe).');
+    throw new CliError(
+      'BAD_ARGS',
+      '--format has no value',
+      'Pass "table" or "json", or remove --format to fall back to the terminal default (table on a TTY, json on a pipe).',
+    );
   }
   throw new CliError('BAD_ARGS', `Unknown --format value: "${explicit}".`, 'Valid values: table, json.');
 }
@@ -37,8 +41,10 @@ export function formatFromArgv(argv: readonly string[], isTty: boolean): OutputF
   let explicit: string | undefined;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!;
-    if (a === '--format') { explicit = argv[i + 1]; i++; }
-    else if (a.startsWith('--format=')) explicit = a.slice('--format='.length);
+    if (a === '--format') {
+      explicit = argv[i + 1];
+      i++;
+    } else if (a.startsWith('--format=')) explicit = a.slice('--format='.length);
     else if (GLOBAL_FLAGS_WITH_VALUE.has(a)) i++; // skip the value: `--token --format` is a token, not a format
   }
   try {

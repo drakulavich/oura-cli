@@ -7,7 +7,10 @@ import { shiftDay } from '../lib/time.js';
 import { assertCalendarDate, assertPositiveInt } from '../lib/validate.js';
 import { collectionOf, dataCommand } from './run-command.js';
 
-export function resolveRange(opts: { day?: string; from?: string; to?: string; days?: string; today: string }): { start: string; end: string } {
+export function resolveRange(opts: { day?: string; from?: string; to?: string; days?: string; today: string }): {
+  start: string;
+  end: string;
+} {
   const modes = [opts.day !== undefined, opts.from !== undefined || opts.to !== undefined, opts.days !== undefined].filter(Boolean).length;
   if (modes > 1) throw new CliError('BAD_ARGS', 'Use only one of --day, --from/--to, or --days.');
   if (opts.day !== undefined) {
@@ -30,7 +33,7 @@ export function resolveRange(opts: { day?: string; from?: string; to?: string; d
 
 /** A snapshot collection (`rangeParams: 'none'`) takes no range flags; silently ignoring them would be #50 again. */
 export function assertRangeAllowed(c: AnyCollection, opts: { day?: string; from?: string; to?: string; days?: string }): void {
-  if (c.rangeParams === 'none' && [opts.day, opts.from, opts.to, opts.days].some(v => v !== undefined)) {
+  if (c.rangeParams === 'none' && [opts.day, opts.from, opts.to, opts.days].some((v) => v !== undefined)) {
     throw new CliError('BAD_ARGS', `"${c.name}" is a snapshot, not a day range; it takes no --day, --from/--to or --days.`);
   }
 }
@@ -39,10 +42,14 @@ export const fetchCommand = dataCommand({
   meta: { name: 'fetch', description: "One collection's raw records from the API (JSON)." },
   args: {
     // No list of names here: it ran the help line to 250 columns. Leaving the argument out lists them (#130).
-    collection: { type: 'positional', required: true, description: 'Collection name (ring is a snapshot: no range flags)' },
-    day:  { type: 'string', description: 'Single day (YYYY-MM-DD). Default: today.' },
+    collection: {
+      type: 'positional',
+      required: true,
+      description: 'Collection name (ring is a snapshot: no range flags)',
+    },
+    day: { type: 'string', description: 'Single day (YYYY-MM-DD). Default: today.' },
     from: { type: 'string', description: 'Range start (YYYY-MM-DD); requires --to' },
-    to:   { type: 'string', description: 'Range end (YYYY-MM-DD); requires --from' },
+    to: { type: 'string', description: 'Range end (YYYY-MM-DD); requires --from' },
     days: { type: 'string', description: 'Last N days ending today' },
   },
   jsonOnly: true,
@@ -51,8 +58,10 @@ export const fetchCommand = dataCommand({
     const c = byName(args.collection);
     if (!c) throw new CliError('BAD_ARGS', `Unknown collection "${args.collection}".`, `Valid collections: ${names().join(', ')}`);
     const opts = {
-      day: args.day as string | undefined, from: args.from as string | undefined,
-      to: args.to as string | undefined, days: args.days as string | undefined,
+      day: args.day as string | undefined,
+      from: args.from as string | undefined,
+      to: args.to as string | undefined,
+      days: args.days as string | undefined,
     };
     assertRangeAllowed(c, opts);
     const { start, end } = resolveRange({ ...opts, today: ctx.today });

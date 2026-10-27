@@ -38,7 +38,10 @@ export interface Manifest {
   commands: ManifestCommand[];
 }
 
-const OUTPUT_SCHEMAS: Record<string, string> = { doctor: 'docs/schemas/doctor.json', describe: 'docs/schemas/describe.json' };
+const OUTPUT_SCHEMAS: Record<string, string> = {
+  doctor: 'docs/schemas/doctor.json',
+  describe: 'docs/schemas/describe.json',
+};
 const ENUM_ARGS: Record<string, Record<string, string[]>> = {
   fetch: { collection: names() },
   rows: { collection: names() }, // `db rows`, the cache-side twin of fetch (#73)
@@ -64,11 +67,21 @@ function describeArgs(command: string, args: ArgsDef | undefined): ManifestArg[]
     const a = raw as ArgDef & { required?: boolean; options?: readonly string[] };
     const values = ENUM_ARGS[command]?.[key] ?? (a.type === 'enum' ? [...(a.options ?? [])] : undefined);
     if (a.type === 'positional') {
-      out.push({ name: a.required ? `<${key}>` : `[${key}]`, type: 'string', required: a.required === true,
-        description: a.description, ...(values ? { values } : {}) });
+      out.push({
+        name: a.required ? `<${key}>` : `[${key}]`,
+        type: 'string',
+        required: a.required === true,
+        description: a.description,
+        ...(values ? { values } : {}),
+      });
     } else {
-      out.push({ name: `--${key}`, type: values ? 'enum' : String(a.type ?? 'string'), required: false,
-        description: a.description, ...(values ? { values } : {}) });
+      out.push({
+        name: `--${key}`,
+        type: values ? 'enum' : String(a.type ?? 'string'),
+        required: false,
+        description: a.description,
+        ...(values ? { values } : {}),
+      });
     }
   }
   return out;
@@ -87,13 +100,17 @@ function describeCommandDef(name: string, def: CommandDef): ManifestCommand {
     args: describeArgs(name, def.args as ArgsDef | undefined),
   };
   if (OUTPUT_SCHEMAS[name]) cmd.outputSchema = OUTPUT_SCHEMAS[name];
-  if (name === 'fetch') cmd.outputSchemas = Object.fromEntries(names().map(n => [n, `docs/schemas/${n}.json`]));
+  if (name === 'fetch') cmd.outputSchemas = Object.fromEntries(names().map((n) => [n, `docs/schemas/${n}.json`]));
   const subs = def.subCommands as SubCommandsDef | undefined;
   if (subs) {
     cmd.subcommands = Object.entries(subs).map(([subName, subDef]) => {
       const sub = resolved(subDef);
       const subMeta = resolvedMeta(sub.meta);
-      return { name: subName, description: subMeta.description ?? '', args: describeArgs(subName, sub.args as ArgsDef | undefined) };
+      return {
+        name: subName,
+        description: subMeta.description ?? '',
+        args: describeArgs(subName, sub.args as ArgsDef | undefined),
+      };
     });
   }
   return cmd;
@@ -106,10 +123,15 @@ export function buildManifest(version: string, commands: SubCommandsDef): Manife
     compatManifestCommand: 'oura-cli manifest',
     auth: { envVars: ['OURA_TOKEN', 'OURA_TOKEN_PATH'], tokenFile: '~/.oura-token', loginCommand: 'oura-cli login' },
     globalFlags: [
-      { name: '--format', type: 'enum', values: ['table', 'json'], description: 'Output format (auto-detected by TTY when omitted)' },
-      { name: '--db',     type: 'string', description: 'Override SQLite database path (env: OURA_DB_PATH)' },
-      { name: '--tz',     type: 'string', description: 'Display timezone (env: OURA_TZ; default auto-detected)' },
-      { name: '--token',  type: 'string', description: 'Inline access token (prefer env vars or `login`)' },
+      {
+        name: '--format',
+        type: 'enum',
+        values: ['table', 'json'],
+        description: 'Output format (auto-detected by TTY when omitted)',
+      },
+      { name: '--db', type: 'string', description: 'Override SQLite database path (env: OURA_DB_PATH)' },
+      { name: '--tz', type: 'string', description: 'Display timezone (env: OURA_TZ; default auto-detected)' },
+      { name: '--token', type: 'string', description: 'Inline access token (prefer env vars or `login`)' },
       { name: '--no-color', type: 'boolean', description: 'Disable ANSI colors in human output' },
     ],
     exitCodes: [

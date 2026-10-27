@@ -117,7 +117,11 @@ function lastDay(db: Database, table: string, end: string): string | null {
 }
 
 export async function importDaily(
-  db: Database, client: OuraClient, clock: SyncClock, log?: (msg: string) => void, window: SyncWindow = {},
+  db: Database,
+  client: OuraClient,
+  clock: SyncClock,
+  log?: (msg: string) => void,
+  window: SyncWindow = {},
   options: SyncOptions = {},
 ): Promise<ImportResult> {
   const { today, tz } = clock;
@@ -129,7 +133,7 @@ export async function importDaily(
   // leaves the untouched tables to be picked up next time, instead of hiding them behind a
   // watermark that only the first few tables advanced.
   // Snapshot collections (rangeParams 'none') have no day column and are fetched whole every run.
-  const plan = COLLECTIONS.map(c => {
+  const plan = COLLECTIONS.map((c) => {
     const last = c.rangeParams === 'none' ? null : lastDay(db, c.table, end);
     // Where the cache says this collection has to resume from. Some collections also re-read days
     // behind that (`syncLookbackDays`): Oura appends to days already stored, and a day left behind
@@ -137,19 +141,22 @@ export async function importDaily(
     const resume = window.from ?? last ?? backfillStart;
     return { c, last, resume };
   });
-  const ranged = plan.filter(p => p.c.rangeParams !== 'none');
-  const isFirstSync = ranged.every(p => p.last === null);
+  const ranged = plan.filter((p) => p.c.rangeParams !== 'none');
+  const isFirstSync = ranged.every((p) => p.last === null);
   // Reported from `resume`: a lookback is one collection re-reading its own tail, and quoting it
   // here would tell a user that every sync covers a fortnight of daily summaries.
-  const startDate = ranged.map(p => p.resume).sort()[0]!;
+  const startDate = ranged.map((p) => p.resume).sort()[0]!;
 
   // An incremental run names no window: startDate is the oldest resume day across collections, and
   // quoting it read as one request that no collection made (#132). A first sync and an explicit
   // --from do request that range, so they keep it.
-  _log(isFirstSync && window.from === undefined
-    ? `First sync — backfilling the last ${BACKFILL_DAYS} days: ${startDate} → ${end}`
-    : window.from !== undefined ? `Syncing ${startDate} → ${end}`
-    : `Syncing each collection from its last stored day, through ${end}`);
+  _log(
+    isFirstSync && window.from === undefined
+      ? `First sync — backfilling the last ${BACKFILL_DAYS} days: ${startDate} → ${end}`
+      : window.from !== undefined
+        ? `Syncing ${startDate} → ${end}`
+        : `Syncing each collection from its last stored day, through ${end}`,
+  );
   // Say it before the collection lines rather than after: the run that bypasses the guard should be
   // recognisable as such in the output someone kept, not only by the removals it went on to make.
   if (options.prune !== undefined) {
@@ -169,11 +176,11 @@ export async function importDaily(
     // The lookback is its own piece, asked for after the tail so the tail can say whether it is due.
     const lookback = lookbackRange(c, last, window.from);
     const walkedLookback = lookback !== null && lookbackDue(db, c, returned, today);
-    if (walkedLookback) returned.push(...await fetchCollectionByPiece(client, c, lookback.start, lookback.end, tz));
+    if (walkedLookback) returned.push(...(await fetchCollectionByPiece(client, c, lookback.start, lookback.end, tz)));
     // A row without its identity cannot be keyed, and its picks may throw; drop it here and say so.
-    const pieces = returned.map(piece => ({ ...piece, rows: piece.rows.filter(r => hasIdentity(c, r)) }));
-    const rows = pieces.flatMap(p => p.rows);
-    const missing = returned.flatMap(p => p.rows).length - rows.length;
+    const pieces = returned.map((piece) => ({ ...piece, rows: piece.rows.filter((r) => hasIdentity(c, r)) }));
+    const rows = pieces.flatMap((p) => p.rows);
+    const missing = returned.flatMap((p) => p.rows).length - rows.length;
     if (missing > 0) dropped[c.table] = missing;
     const droppedTail = missing > 0 ? `, ${missing} dropped (no ${identityColumns(c).join('/')})` : '';
     const stmt = db.query(insertSql(c));
@@ -183,9 +190,9 @@ export async function importDaily(
       // the same one planWindow makes for an empty piece: an empty 200 describes nothing, so it must
       // not clear a table that has rows (#105). A ring genuinely removed leaves the account with zero
       // rings, which looks identical from here; `--prune=ring` is how the user says which it was.
-      const pk = c.columns.find(col => col.pk)?.name;
+      const pk = c.columns.find((col) => col.pk)?.name;
       if (!pk) throw new Error(`Snapshot collection ${c.name} must declare a primary-key column (enforced by the registry tests).`);
-      const ids = () => new Set((db.query(`SELECT ${pk} AS id FROM ${c.table}`).all() as { id: string }[]).map(r => r.id));
+      const ids = () => new Set((db.query(`SELECT ${pk} AS id FROM ${c.table}`).all() as { id: string }[]).map((r) => r.id));
       const known = ids();
       // Nothing storable arrived. If rows did arrive and were all dropped, that is not an empty answer
       // and there is no correction for --prune to apply: the table is left alone, `dropped` says why,
@@ -199,16 +206,18 @@ export async function importDaily(
         })(rows);
       }
       const now = ids();
-      const gone = [...known].filter(id => !now.has(id)).length;
+      const gone = [...known].filter((id) => !now.has(id)).length;
       fetched[c.table] = rows.length + missing;
-      added[c.table] = [...now].filter(id => !known.has(id)).length;
+      added[c.table] = [...now].filter((id) => !known.has(id)).length;
       if (gone > 0) removed[c.table] = gone;
       if (refuse && !unstorable) refused[c.table] = { rows: known.size, collection: c.name };
       else if (rows.length === 0 && gone > 0) pruned[c.table] = { rows: gone, collection: c.name };
       const tail = gone > 0 ? `, ${gone} stale removed${pruned[c.table] ? ' (past the truncation guard)' : ''}` : '';
-      const kept = !refuse ? ''
-        : unstorable ? `, ${known.size} rows kept: the response held no storable rows`
-        : `, ${known.size} rows kept that the API did not return — an empty answer describes nothing; re-run with --prune=${c.name} to apply it`;
+      const kept = !refuse
+        ? ''
+        : unstorable
+          ? `, ${known.size} rows kept: the response held no storable rows`
+          : `, ${known.size} rows kept that the API did not return — an empty answer describes nothing; re-run with --prune=${c.name} to apply it`;
       if (droppedTail || tail || kept) _log(`  + ${c.name} (${c.table}): ${fetched[c.table]} fetched, ${added[c.table]} new${droppedTail}${tail}${kept}`);
       continue;
     }
@@ -217,11 +226,13 @@ export async function importDaily(
     // plan reads before the first insert writes, and a deferred transaction that takes its read
     // snapshot first fails with SQLITE_BUSY_SNAPSHOT — which busy_timeout does not retry — when
     // another sync commits in between.
-    const { windowPlan, gone } = db.transaction((ps: Piece[]) => {
-      const windowPlan: WindowPlan = planWindow(db, c, ps, { prune: mayPrune(c.name) });
-      for (const piece of ps) for (const r of piece.rows) stmt.run(...rowValues(c, r));
-      return { windowPlan, gone: applyWindowPlan(db, c, windowPlan) };
-    }).immediate(pieces);
+    const { windowPlan, gone } = db
+      .transaction((ps: Piece[]) => {
+        const windowPlan: WindowPlan = planWindow(db, c, ps, { prune: mayPrune(c.name) });
+        for (const piece of ps) for (const r of piece.rows) stmt.run(...rowValues(c, r));
+        return { windowPlan, gone: applyWindowPlan(db, c, windowPlan) };
+      })
+      .immediate(pieces);
     // Only once the rows are stored: marked before the transaction, a run that lost them to
     // SQLITE_BUSY would have told the same-day rerun the fortnight was done.
     if (walkedLookback) markLookbackRan(db, c, today);
@@ -237,18 +248,27 @@ export async function importDaily(
     // `db stats` and the schema speak in table names.
     // A bypass is named on its own line's tail: "12 stale removed" alone reads like any other
     // reconciliation, and under --from those rows do not come back on the next sync.
-    const tail = gone > 0
-      ? `, ${gone} stale removed${windowPlan.bypassed > 0 ? ` (${windowPlan.bypassed} past the truncation guard)` : ''}`
-      : '';
+    const tail = gone > 0 ? `, ${gone} stale removed${windowPlan.bypassed > 0 ? ` (${windowPlan.bypassed} past the truncation guard)` : ''}` : '';
     // Still not a diagnosis — the guard cannot tell a truncated response from a genuine large
     // correction, and only the user can. But there is now something to do about it either way, and
     // naming it here is the only place the situation is visible.
-    const kept = windowPlan.refused > 0
-      ? `, ${windowPlan.refused} rows kept that the API did not return — too many to drop on one response; re-run with --prune=${c.name} to apply them`
-      : '';
+    const kept =
+      windowPlan.refused > 0
+        ? `, ${windowPlan.refused} rows kept that the API did not return — too many to drop on one response; re-run with --prune=${c.name} to apply them`
+        : '';
     if (droppedTail || tail || kept) _log(`  + ${c.name} (${c.table}): ${fetched[c.table]} fetched, ${added[c.table]} new${droppedTail}${tail}${kept}`);
   }
 
-  return { startDate, endDate: end, fetched, added, removed, dropped, refused, pruned, isFirstSync,
-    ...(options.prune === undefined ? {} : { pruneScope: options.prune }) };
+  return {
+    startDate,
+    endDate: end,
+    fetched,
+    added,
+    removed,
+    dropped,
+    refused,
+    pruned,
+    isFirstSync,
+    ...(options.prune === undefined ? {} : { pruneScope: options.prune }),
+  };
 }

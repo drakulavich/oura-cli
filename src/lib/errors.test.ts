@@ -107,13 +107,20 @@ describe('formatError wraps the hint at the terminal width (#130)', () => {
   const hint = 'Use --prune=<collection> (for example --prune=hr), a comma-separated list, or --prune=all for every collection.';
 
   it('breaks the hint between words and continues under its text', () => {
-    const lines = formatError(new CliError('BAD_ARGS', 'boom', hint), 'table', 40).text.split('\n').map(l => l.replace(ANSI, ''));
+    const lines = formatError(new CliError('BAD_ARGS', 'boom', hint), 'table', 40)
+      .text.split('\n')
+      .map((l) => l.replace(ANSI, ''));
     expect(lines[0]).toBe('error: boom');
     expect(lines[1]!.startsWith('  hint: ')).toBe(true);
     expect(lines.length).toBeGreaterThan(2);
     for (const l of lines.slice(2)) expect(l.startsWith(' '.repeat(8)) && !l.startsWith(' '.repeat(9))).toBe(true);
     for (const l of lines) expect(l.length).toBeLessThanOrEqual(40);
-    expect(lines.slice(1).map(l => l.trim()).join(' ')).toBe(`hint: ${hint}`);
+    expect(
+      lines
+        .slice(1)
+        .map((l) => l.trim())
+        .join(' '),
+    ).toBe(`hint: ${hint}`);
   });
 
   it('colours the error line by stderr, not stdout (#150)', () => {

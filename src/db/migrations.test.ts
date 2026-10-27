@@ -7,7 +7,12 @@ import { COLLECTIONS, ddl } from '../collections/index.js';
 function describeTable(db: Database, table: string) {
   const columns = db.query(`PRAGMA table_info(${table})`).all();
   const indexes = (db.query(`PRAGMA index_list(${table})`).all() as { name: string; unique: number; origin: string }[])
-    .map(i => ({ name: i.name, unique: i.unique, origin: i.origin, columns: db.query(`PRAGMA index_info(${i.name})`).all() }))
+    .map((i) => ({
+      name: i.name,
+      unique: i.unique,
+      origin: i.origin,
+      columns: db.query(`PRAGMA index_info(${i.name})`).all(),
+    }))
     .sort((a, b) => a.name.localeCompare(b.name));
   return { columns, indexes };
 }
@@ -25,15 +30,30 @@ describe('registry DDL vs shipped migrations', () => {
   });
 
   it('registers all seventeen collections', () => {
-    expect(COLLECTIONS.map(c => c.name).sort()).toEqual([
-      'activity', 'battery', 'cv-age', 'hr', 'readiness', 'resilience', 'rest-mode', 'ring', 'session',
-      'sleep', 'sleep-periods', 'sleep-time', 'spo2', 'stress', 'tags', 'vo2max', 'workout',
+    expect(COLLECTIONS.map((c) => c.name).sort()).toEqual([
+      'activity',
+      'battery',
+      'cv-age',
+      'hr',
+      'readiness',
+      'resilience',
+      'rest-mode',
+      'ring',
+      'session',
+      'sleep',
+      'sleep-periods',
+      'sleep-time',
+      'spo2',
+      'stress',
+      'tags',
+      'vo2max',
+      'workout',
     ]);
   });
 });
 
 describe('migration versions', () => {
   it('are consecutive from 1, so an applied version can never be skipped or repeated', () => {
-    expect(MIGRATIONS.map(m => m.version)).toEqual(MIGRATIONS.map((_, i) => i + 1));
+    expect(MIGRATIONS.map((m) => m.version)).toEqual(MIGRATIONS.map((_, i) => i + 1));
   });
 });

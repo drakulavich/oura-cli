@@ -18,28 +18,26 @@ const [, frontmatterText, body] = text.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/
 const frontmatter = Bun.YAML.parse(frontmatterText ?? '') as Record<string, unknown>;
 
 const manifest = buildManifest('0.0.0', buildRegistry('0.0.0'));
-const globalFlags = new Set(manifest.globalFlags.map(f => f.name));
+const globalFlags = new Set(manifest.globalFlags.map((f) => f.name));
 
-const invocations = [...body!.matchAll(/`?oura-cli ((?:[^`\n#|]|\\`)+?)`?(?=\s*(?:`|#|\||$))/gm)]
-  .map(m => m[1]!.trim())
-  .filter(Boolean);
+const invocations = [...body!.matchAll(/`?oura-cli ((?:[^`\n#|]|\\`)+?)`?(?=\s*(?:`|#|\||$))/gm)].map((m) => m[1]!.trim()).filter(Boolean);
 
-const flagNames = (args: ManifestArg[]) => new Set(args.filter(a => a.name.startsWith('--')).map(a => a.name));
+const flagNames = (args: ManifestArg[]) => new Set(args.filter((a) => a.name.startsWith('--')).map((a) => a.name));
 
 function check(line: string): string | null {
   const tokens = line.split(/\s+/);
-  const cmd = manifest.commands.find(c => c.name === tokens[0]);
+  const cmd = manifest.commands.find((c) => c.name === tokens[0]);
   if (!cmd) return `unknown command "${tokens[0]}"`;
   let scope: { name: string; args: ManifestArg[] } = cmd;
   let rest = tokens.slice(1);
   if ((cmd as ManifestCommand).subcommands) {
-    const sub = (cmd as ManifestCommand).subcommands!.find(s => s.name === rest[0]);
+    const sub = (cmd as ManifestCommand).subcommands!.find((s) => s.name === rest[0]);
     if (!sub) return `unknown subcommand "${cmd.name} ${rest[0]}"`;
     scope = { name: `${cmd.name} ${sub.name}`, args: sub.args };
     rest = rest.slice(1);
   }
   const flags = flagNames(scope.args);
-  const collectionArg = scope.args.find(a => a.name === '<collection>');
+  const collectionArg = scope.args.find((a) => a.name === '<collection>');
   const positionals: string[] = [];
   for (let i = 0; i < rest.length; i++) {
     const tok = rest[i]!;
@@ -64,7 +62,7 @@ describe('skills/oura-cli/SKILL.md', () => {
     expect(frontmatter.name).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
     expect(typeof frontmatter.description).toBe('string');
     expect((frontmatter.description as string).length).toBeLessThanOrEqual(1024);
-    expect(((frontmatter.metadata as any)?.openclaw?.requires?.bins)).toEqual(['oura-cli']);
+    expect((frontmatter.metadata as any)?.openclaw?.requires?.bins).toEqual(['oura-cli']);
   });
 
   // The spec types `metadata` as string → string; OpenClaw and Hermes each read a nested object
@@ -72,7 +70,7 @@ describe('skills/oura-cli/SKILL.md', () => {
   // to those two keys, and each object keeps the shape its harness documents.
   it('confines the metadata deviation to the openclaw and hermes keys and keeps their shapes', () => {
     const spec = ['name', 'description', 'license', 'compatibility', 'metadata', 'allowed-tools'];
-    expect(Object.keys(frontmatter).filter(k => !spec.includes(k))).toEqual([]);
+    expect(Object.keys(frontmatter).filter((k) => !spec.includes(k))).toEqual([]);
     for (const k of ['name', 'description', 'license', 'compatibility']) expect(typeof frontmatter[k]).toBe('string');
 
     const metadata = frontmatter.metadata as Record<string, unknown>;
@@ -91,7 +89,7 @@ describe('skills/oura-cli/SKILL.md', () => {
     expect(openclaw.install[0].bins).toEqual(['oura-cli']);
 
     const hermes = metadata.hermes as Record<string, unknown>;
-    expect(Array.isArray(hermes.tags) && (hermes.tags as unknown[]).every(t => typeof t === 'string')).toBe(true);
+    expect(Array.isArray(hermes.tags) && (hermes.tags as unknown[]).every((t) => typeof t === 'string')).toBe(true);
     expect(typeof hermes.category).toBe('string');
   });
 
@@ -100,7 +98,7 @@ describe('skills/oura-cli/SKILL.md', () => {
   });
 
   it('names only commands, subcommands, flags and collections the CLI has', () => {
-    const problems = invocations.map(line => [line, check(line)] as const).filter(([, p]) => p);
+    const problems = invocations.map((line) => [line, check(line)] as const).filter(([, p]) => p);
     expect(problems).toEqual([]);
   });
 
@@ -109,21 +107,29 @@ describe('skills/oura-cli/SKILL.md', () => {
   });
 
   it('gives report the top-level keys the command returns, no more and no fewer (#166)', () => {
-    const row = body!.split('\n').find(l => l.includes('`oura-cli report --format json`'))!;
-    const documented = row.match(/`\{([^}]+)\}`/)![1]!.split(',').map(k => k.trim().replace(/\[\]$/, '')).sort();
+    const row = body!.split('\n').find((l) => l.includes('`oura-cli report --format json`'))!;
+    const documented = row
+      .match(/`\{([^}]+)\}`/)![1]!
+      .split(',')
+      .map((k) => k.trim().replace(/\[\]$/, ''))
+      .sort();
     const db = new Database(':memory:');
     ensureSchema(db);
     expect(documented).toEqual(Object.keys(getReport(db, 7, '2026-09-15')).sort());
   });
 
   it('lists every report recommendation code, verbatim', () => {
-    expect(body).toContain(Object.keys(RECOMMENDATIONS).map(c => `\`${c}\``).join(', '));
+    expect(body).toContain(
+      Object.keys(RECOMMENDATIONS)
+        .map((c) => `\`${c}\``)
+        .join(', '),
+    );
   });
 
   it('names only error codes from src/lib/errors.ts', () => {
     // Env vars (`OURA_TOKEN`) appear elsewhere in the same style, so only the errors section counts.
     const section = body!.slice(body!.indexOf('## Errors'), body!.indexOf('## Discovering'));
-    const named = [...section.matchAll(/`([A-Z][A-Z_]{3,})`/g)].map(m => m[1]!);
+    const named = [...section.matchAll(/`([A-Z][A-Z_]{3,})`/g)].map((m) => m[1]!);
     expect(named.length).toBeGreaterThan(3);
     for (const code of named) expect(ERROR_CODES).toContain(code);
   });
