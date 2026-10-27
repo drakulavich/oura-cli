@@ -10,8 +10,8 @@ context: |
   averages and trend deltas), `db` (query cached data), and the agent-facing
   `describe` / `manifest` / `healthcheck` / `fetch`. Output auto-switches to
   stable JSON when stdout is not a TTY, and table/text on a TTY.
-  Conventions: Bun >= 1.0 (no Node fallback); TypeScript strict with
-  `bunx tsc --noEmit`; named exports only (no default export outside
+  Conventions: Bun >= 1.4.4 (no Node fallback); TypeScript strict with
+  `bun check`; named exports only (no default export outside
   `src/index.ts`); tests required and co-located as `*.test.ts` run by `bun test`;
   new commands live under `src/commands/`, library helpers under `src/lib/`, with
   dependency rules in `docs/ARCHITECTURE.md`; errors that reach the CLI surface are

@@ -22,8 +22,9 @@
     "dev": "bun run src/index.ts",
     "test": "bun test",
     "schemas": "bun run scripts/generate-schemas.ts",
-    "typecheck": "tsc --noEmit",
-    "lint": "biome ci && knip --include files,exports,types",
+    "typecheck": "bun check --no-script",
+    "lint": "bun fmt --check && biome ci && knip --include files,exports,types",
+    "fmt": "bun fmt",
     "check": "bun run typecheck && bun run lint && bun run test"
   },
   "exports": {
@@ -51,7 +52,7 @@
     "url": "https://github.com/drakulavich/oura-cli/issues"
   },
   "engines": {
-    "bun": ">=1.0.0"
+    "bun": ">=1.4.4"
   },
   "publishConfig": {
     "access": "public"
