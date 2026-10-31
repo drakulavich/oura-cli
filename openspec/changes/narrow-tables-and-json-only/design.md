@@ -9,6 +9,6 @@
 - Trend rows that cannot fit: `--days` accepts any positive integer (`src/lib/validate.ts:13`), and `padStart` does not truncate, so a four-digit day count or a six-digit value widens its row. Today's data has neither: steps max `23700`, 28 days.
 - Measured on a copy of the real Local cache through `script` on a 60-column pty, 2026-10-31: `db trends` 6 lines over (63), `report` 2 lines over (62, 63). `db today`, `db week`, `db stats`, `db date`, `db rows` had none over. `doctor` had 1 over, its database path.
 
-## Open Issues
+## Decisions
 
-- #154 item 1 asked whether these commands should refuse "as `fetch` does". `fetch sleep --format table` exits 0 and prints `[]`, so `fetch` does not refuse either. This change makes `fetch` refuse too: it is JSON-only by design (CLAUDE.md). The 2026-10-31 decision was made on the wrong premise and needs the user's confirmation.
+- #154 item 1 asked whether these commands should refuse "as `fetch` does", but `fetch sleep --format table` exited 0 with `[]`. On 2026-10-31 the user confirmed that `fetch` refuses as well.
