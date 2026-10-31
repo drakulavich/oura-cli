@@ -6,7 +6,7 @@ import type { Database } from '../db/open.js';
 import { CliError } from '../lib/errors.js';
 import { OuraClient } from '../api/client.js';
 import { formatError, exitCodeFor } from '../lib/errors.js';
-import { assertValidFormat, resolveFormat, type OutputFormat } from '../lib/format-resolve.js';
+import { assertValidFormat, refuseTable, resolveFormat, type OutputFormat } from '../lib/format-resolve.js';
 import { pageProgress, type ProgressSink } from '../lib/progress.js';
 import { today, resolveDefaultTimezone } from '../lib/time.js';
 import { assertTimezone } from '../lib/validate.js';
@@ -120,6 +120,7 @@ export async function execute<A extends ArgsDef>(def: DataCommandDef<A>, args: P
     // errors from jsonOnly commands are still rendered for the terminal the user is on.
     format = resolveFormat({ explicit: args.format as string | undefined, isTty: io.isTty });
     assertKnownArgs({ ...commonArgs, ...(def.args ?? {}) } as ArgsDef, args as Record<string, unknown>);
+    if (def.jsonOnly) refuseTable(args.format as string | undefined);
     const outputFormat: OutputFormat = def.jsonOnly ? 'json' : format;
     const tzFlag = args.tz as string | undefined;
     const tz = assertTimezone(tzFlag !== undefined ? requireValue(tzFlag, '--tz', 'OURA_TZ or the system timezone') : resolveDefaultTimezone());

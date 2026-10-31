@@ -427,6 +427,17 @@ describe('formatTrends', () => {
     expect(out).toContain('Readiness');
   });
 
+  it('fits a 60-column terminal with a five-digit value and a three-digit day count (#153)', () => {
+    const wide: TrendRow[] = [
+      { label: 'Sleep Score', avg: 70, min: 38, max: 88, count: 365 },
+      { label: 'Steps', avg: 10000, min: 0, max: 15524, count: 365 },
+    ];
+    const lines = stripAnsi(formatTrends(wide, 365, 'table', undefined, 60)).split('\n');
+    expect(lines).toContain('  Sleep Score avg:    70  min:    38  max:    88  (365 days)');
+    expect(lines).toContain('  Steps       avg: 10000  min:     0  max: 15524  (365 days)');
+    expect(lines.filter((l) => l.length > 60)).toEqual([]);
+  });
+
   it('renders only the header when there are no trends and no hint was given', () => {
     const out = stripAnsi(formatTrends([], 14, 'table'));
     expect(out).toContain('Trends: last 14 days');

@@ -3,6 +3,7 @@ import type { ArgDef, ArgsDef, CommandDef, SubCommandsDef } from 'citty';
 import { names } from '../collections/index.js';
 import { commonArgs } from './common.js';
 import { assertKnownArgs } from './run-command.js';
+import { refuseTable } from '../lib/format-resolve.js';
 
 export interface ManifestArg {
   name: string;
@@ -151,6 +152,7 @@ export function describeCommand(version: string, getCommands: () => SubCommandsD
     args: { ...commonArgs },
     run({ args }) {
       assertKnownArgs(commonArgs as ArgsDef, args as Record<string, unknown>);
+      refuseTable(args.format);
       console.log(JSON.stringify(buildManifest(version, getCommands()), null, 2));
     },
   });
