@@ -74,7 +74,7 @@ Drop `--offline` when you also want to know whether Oura has newer data than the
 | how much data there is, personal bests | `oura-cli db stats --format json` | `{tables[], dateRange, trends[], records}` |
 | detail no summary shows (workouts, tags, sessions, HRV samples, battery, ring hardware) | `oura-cli db rows <collection> [range] --format json` | array of Oura records as cached |
 | the exact record straight from Oura | `oura-cli fetch <collection> [range]` | array of Oura records; always JSON |
-| refresh the cache | `oura-cli sync --format json` | `{import: {startDate, endDate, fetched, added, removed, dropped, refused, pruned, isFirstSync}, today}`; a non-empty `refused` names rows sync kept because the API stopped returning them, which `oura-cli sync --prune=<collection>` applies once the user agrees, and that run adds `import.pruneScope` (`"all"` or the collections named) |
+| refresh the cache | `oura-cli sync --format json` | `{import: {startDate (the oldest resume day across collections), endDate, fetched, added, removed, dropped, refused, pruned, isFirstSync}, today}`; a non-empty `refused` names rows sync kept because the API stopped returning them, which `oura-cli sync --prune=<collection>` applies once the user agrees, and that run adds `import.pruneScope` (`"all"` or the collections named) |
 
 A day object from `db today`, `db date` and `db week`:
 
