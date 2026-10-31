@@ -238,6 +238,7 @@ describe('db rows (#73)', () => {
       0,
       '2026-09-09',
     );
+    db.query('INSERT INTO enhanced_tags (id, day, tag_type_code) VALUES (?,?,?)').run('t1', '2026-09-10', 'tag_generic_coffee');
     db.close();
     const rows = (...collection: string[]) =>
       Bun.spawn(['bun', 'run', 'src/index.ts', '--db', path, '--tz', 'Asia/Dubai', 'db', 'rows', ...collection, '--day', '2026-09-10', '--format', 'table'], {
@@ -251,7 +252,10 @@ describe('db rows (#73)', () => {
       expect(lines.at(-2)).toBe('  2026-09-09T22:00:00+00:00     80         0           0  2026-09-09');
       expect(lines.at(-1)).toBe('  day is the UTC date of each sample; rows are selected by the local day in Asia/Dubai.');
       const tags = rows('tags');
-      expect(await new Response(tags.stdout).text()).not.toContain('UTC');
+      const tagsText = await new Response(tags.stdout).text();
+      expect(await tags.exited).toBe(0);
+      expect(tagsText).toContain('tag_generic_coffee');
+      expect(tagsText).not.toContain('UTC');
     } finally {
       for (const suffix of ['', '-wal', '-shm']) rmSync(path + suffix, { force: true });
     }

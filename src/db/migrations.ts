@@ -226,4 +226,11 @@ CREATE TABLE IF NOT EXISTS _sync_state (
 );
     `,
   },
+  {
+    // idx_heartrate_unique (timestamp, source) already leads with timestamp (#182).
+    version: 6,
+    sql: `
+DROP INDEX IF EXISTS idx_heartrate_ts;
+    `,
+  },
 ];

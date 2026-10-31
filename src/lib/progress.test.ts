@@ -25,6 +25,14 @@ describe('pageProgress (#45)', () => {
     ]);
   });
 
+  it('pads a shorter frame to the widest one, so page 10 → page 1 leaves no tail on screen (#181)', () => {
+    const s = sink();
+    const p = pageProgress(s, 'fetching');
+    p.onPage({ endpoint: 'heartrate', rows: 0, page: 10 });
+    p.onPage({ endpoint: 'heartrate', rows: 0, page: 1 });
+    expect(s.chunks).toEqual(['\r  fetching heartrate: page 10, 0 rows so far…', '\r  fetching heartrate: page 1, 0 rows so far… ']);
+  });
+
   it('starts the count over when the endpoint changes, as a sync moves from collection to collection', () => {
     const s = sink();
     const p = pageProgress(s, 'syncing');
@@ -41,7 +49,7 @@ describe('pageProgress (#45)', () => {
     p.onRetry({ endpoint: 'heartrate', waitMs: 1_500 });
     expect(s.chunks).toEqual([
       '\r  fetching heartrate; rate limited, retrying in 30 s…',
-      '\r  fetching heartrate: page 1, 1000 rows so far…',
+      '\r  fetching heartrate: page 1, 1000 rows so far…      ',
       '\r  fetching heartrate: page 1, 1000 rows so far; rate limited, retrying in 2 s…',
     ]);
   });

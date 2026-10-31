@@ -30,7 +30,7 @@ export function pageProgress(sink: ProgressSink, verb: string, label: (endpoint:
   const show = (text: string) => {
     widest = Math.max(widest, text.length);
     written = true;
-    sink.write(`\r${text}`);
+    sink.write(`\r${text.padEnd(widest)}`);
   };
   const status = () => (pages === 0 ? `  ${verb} ${label(endpoint!)}` : `  ${verb} ${label(endpoint!)}: page ${pages}, ${rows} rows so far`);
 
