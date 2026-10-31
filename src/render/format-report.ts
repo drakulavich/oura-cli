@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import type { ReportData } from '../db/report.js';
 import type { OutputFormat } from '../lib/format-resolve.js';
-import { padLeft } from '../lib/pad.js';
+import { padLeft, visibleWidth } from '../lib/pad.js';
 import { screenWidth } from '../lib/terminal.js';
 import { wrap } from '../lib/wrap.js';
 import { RULE, finish } from './rule.js';
@@ -168,6 +168,9 @@ export function formatReport(data: ReportData, format: OutputFormat, period: 'we
   // Averages. Each line ends with the days it averaged, as `db trends` prints: under a marked day the
   // activity and steps averages cover one day fewer than sleep and readiness (#128).
   lines.push(chalk.bold('  Averages (this period vs previous):'));
+  // 15 puts the range under the value: the two-space indent, the 12-column label, one space.
+  const average = (head: string, range: string) =>
+    max !== undefined && visibleWidth(head) + 2 + visibleWidth(range) > max ? lines.push(head, `${' '.repeat(15)}${range}`) : lines.push(`${head}  ${range}`);
   for (const a of data.averages) {
     const avgStr = fmtNumber(a.avg, a.isSteps);
     let changeStr = '';
@@ -176,13 +179,15 @@ export function formatReport(data: ReportData, format: OutputFormat, period: 'we
       const diffStr = a.isSteps ? a.diff.toLocaleString('en-US', { maximumFractionDigits: 0 }) : a.diff.toFixed(0);
       changeStr = ` ${arrow} ${a.diff >= 0 ? '+' : ''}${diffStr}`;
     }
-    lines.push(
-      `  ${a.label.padEnd(12)} ${chalk.bold(avgStr)}${changeStr}  (min: ${fmtNumber(a.min, a.isSteps)}, max: ${fmtNumber(a.max, a.isSteps)}, ${a.count} day${a.count === 1 ? '' : 's'})`,
+    average(
+      `  ${a.label.padEnd(12)} ${chalk.bold(avgStr)}${changeStr}`,
+      `(min: ${fmtNumber(a.min, a.isSteps)}, max: ${fmtNumber(a.max, a.isSteps)}, ${a.count} day${a.count === 1 ? '' : 's'})`,
     );
   }
   if (data.spo2) {
-    lines.push(
-      `  ${'SpO2'.padEnd(12)} ${chalk.bold(String(data.spo2.avg) + '%')}  (min: ${data.spo2.min}%, max: ${data.spo2.max}%, ${data.spo2.count} day${data.spo2.count === 1 ? '' : 's'})`,
+    average(
+      `  ${'SpO2'.padEnd(12)} ${chalk.bold(String(data.spo2.avg) + '%')}`,
+      `(min: ${data.spo2.min}%, max: ${data.spo2.max}%, ${data.spo2.count} day${data.spo2.count === 1 ? '' : 's'})`,
     );
   }
   lines.push('');
@@ -220,7 +225,7 @@ export function formatReport(data: ReportData, format: OutputFormat, period: 'we
   if (data.recommendations.length > 0) {
     lines.push(chalk.bold('  Recommendations:'));
     for (const key of data.recommendations) {
-      lines.push(`    • ${RECOMMENDATIONS[key] ?? key}`);
+      lines.push(...wrap(RECOMMENDATIONS[key] ?? key, max, '      ', '    • '));
     }
     lines.push('');
   }

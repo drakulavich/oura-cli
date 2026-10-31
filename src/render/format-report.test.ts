@@ -182,6 +182,28 @@ describe('formatReport — partial day', () => {
   });
 });
 
+describe('formatReport — a 60-column terminal (#153)', () => {
+  const data: ReportData = {
+    ...fixture,
+    averages: [{ label: 'Steps', avg: 8752, min: 172, max: 15524, count: 5, prevAvg: 10866, diff: -2114, isSteps: true }],
+    recommendations: ['readiness_low'],
+  };
+
+  it('moves an average wider than the screen to two lines, the range under the value', () => {
+    const lines = stripAnsi(formatReport(data, 'table', 'week', 60)).split('\n');
+    const at = lines.indexOf('  Steps        8,752 ↓ -2,114');
+    expect(lines[at + 1]).toBe('               (min: 172, max: 15,524, 5 days)');
+    expect(stripAnsi(formatReport(data, 'table', 'week', 80))).toContain('  Steps        8,752 ↓ -2,114  (min: 172, max: 15,524, 5 days)');
+  });
+
+  it('wraps a recommendation under its own text', () => {
+    const lines = stripAnsi(formatReport(data, 'table', 'week', 60)).split('\n');
+    const at = lines.indexOf('    • Low readiness — possible sleep debt. Prioritize');
+    expect(lines[at + 1]).toBe('      recovery.');
+    expect(stripAnsi(formatReport(data, 'table', 'week', 80))).toContain('    • Low readiness — possible sleep debt. Prioritize recovery.');
+  });
+});
+
 describe('formatReport — monthly buckets', () => {
   // 2026-04-14 .. 2026-05-13: 30 days at 10,000 steps, the newest still accumulating.
   const start = Date.UTC(2026, 3, 14);
