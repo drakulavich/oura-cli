@@ -2,13 +2,18 @@
 
 ### Requirement: Summary lines fit a 60-column terminal
 
-In the table Output mode on a TTY of at least 60 columns, every line that `db trends` prints, and every line of the averages and recommendations that `report` prints, SHALL be no wider than the terminal, so that Quinn reads them in a narrow pane without wrapped rows. A line that is still wider than a narrower terminal MAY wrap, as it does today.
+In the table Output mode on a TTY of at least 60 columns, every line of the averages and recommendations that `report` prints SHALL be no wider than the terminal, and so SHALL every `db trends` row whose `avg`, `min` and `max` each fit their five-character column and whose day count has at most three digits. Quinn then reads them in a narrow pane without wrapped rows.
 
 #### Scenario: Trend rows at 60 columns
-- **GIVEN** a Local cache whose trends have a three-digit day count, such as `db trends --days 120`
-- **WHEN** Quinn runs `oura-cli db trends` on a 60-column TTY
+- **GIVEN** a Steps trend of avg `10000`, min `0`, max `15524` over `365` days, and a Sleep Score trend over the same days
+- **WHEN** Quinn runs `oura-cli db trends --days 365` on a 60-column TTY
 - **THEN** no line is wider than 60 characters
-- **AND** the `avg`, `min` and `max` columns still line up from row to row
+- **AND** the `avg`, `min` and `max` columns line up from row to row
+
+#### Scenario: A trend value wider than its column
+- **GIVEN** a Steps trend whose max is `100000`
+- **WHEN** Quinn runs `oura-cli db trends` on a 60-column TTY
+- **THEN** that row is 61 characters and every other row still fits 60
 
 #### Scenario: A report average wider than the screen
 - **GIVEN** a `report` whose Steps line reads `Steps        8,752 ↓ -2,114  (min: 172, max: 15,524, 5 days)`, 62 characters
@@ -37,8 +42,9 @@ In the table Output mode on a TTY of at least 60 columns, every line that `db tr
 - **THEN** the JSON contract prints and the exit code is 0, as today
 
 #### Scenario: fetch with --format table
+- **GIVEN** no token file and no `OURA_TOKEN`
 - **WHEN** Marcus runs `oura-cli fetch sleep --format table`
-- **THEN** the exit code is 1 with `BAD_ARGS`, before any request to the Oura Cloud API
+- **THEN** the exit code is 1 with `BAD_ARGS`, not 2 with `TOKEN_MISSING`: the refusal comes before the token is read and before any request to the Oura Cloud API
 
 #### Scenario: An unknown format value
 - **WHEN** Aria runs `oura-cli manifest --format yaml`
