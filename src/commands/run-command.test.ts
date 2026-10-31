@@ -40,15 +40,20 @@ describe('execute', () => {
     expect(out[0]).toBe('table');
   });
 
-  it('forces JSON for jsonOnly commands even on a TTY with --format table', async () => {
+  it('forces JSON for jsonOnly commands on a TTY, and refuses --format table (#154)', async () => {
     const def: DataCommandDef<{}> = {
       meta: { name: 'x' },
       jsonOnly: true,
       run: () => ({ json: [1], text: () => 'no' }),
     };
-    const { io, out } = fakeIo(true);
-    await execute(def, { ...baseArgs, format: 'table' }, io);
-    expect(out[0]).toBe(JSON.stringify([1], null, 2));
+    const tty = fakeIo(true);
+    await execute(def, baseArgs, tty.io);
+    expect(tty.out[0]).toBe(JSON.stringify([1], null, 2));
+    const table = fakeIo(true);
+    await execute(def, { ...baseArgs, format: 'table' }, table.io);
+    expect(table.out).toEqual([]);
+    expect(table.err.join('')).toContain('This command prints JSON only');
+    expect(table.exits).toEqual([1]);
   });
 
   it('rejects an unknown --format for jsonOnly commands too', async () => {

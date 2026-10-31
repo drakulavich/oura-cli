@@ -2,6 +2,7 @@ import { defineCommand } from 'citty';
 import type { ArgsDef } from 'citty';
 import { CLI_DESCRIPTION, commonArgs } from './common.js';
 import { assertKnownArgs } from './run-command.js';
+import { refuseTable } from '../lib/format-resolve.js';
 import type { SubCommandsDef } from 'citty';
 import { buildManifest } from './describe.js';
 
@@ -62,6 +63,7 @@ export function manifestCommand(version: string, getCommands: () => SubCommandsD
     args: { ...commonArgs },
     run({ args }) {
       assertKnownArgs(commonArgs as ArgsDef, args as Record<string, unknown>);
+      refuseTable(args.format);
       console.log(JSON.stringify(buildOpenclawManifest(version, getCommands()), null, 2));
     },
   });

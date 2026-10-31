@@ -27,6 +27,11 @@ export function assertValidFormat(explicit: string | undefined): asserts explici
   throw new CliError('BAD_ARGS', `Unknown --format value: "${explicit}".`, 'Valid values: table, json.');
 }
 
+export function refuseTable(explicit: string | undefined): void {
+  if (explicit === 'table')
+    throw new CliError('BAD_ARGS', 'This command prints JSON only; --format table is not available.', 'Pass --format json, or leave --format out.');
+}
+
 export function resolveFormat({ explicit, isTty }: ResolveFormatArgs): OutputFormat {
   assertValidFormat(explicit);
   return explicit ?? (isTty ? 'table' : 'json');

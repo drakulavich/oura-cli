@@ -7,6 +7,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
+- `describe`, `manifest`, `healthcheck` and `fetch` refuse `--format table` with `BAD_ARGS` (exit 1) and say they print JSON only; they printed JSON and exited 0, so the flag was dropped without a word. `fetch` refuses before it reads the token. `--format json` and no `--format` are unchanged. (#154)
 - Requires Bun 1.4.4 or later (`engines.bun` was `>=1.0.0`). The type check is Bun's built-in `bun check` instead of `tsc --noEmit`, and `bun run lint` checks formatting with `bun fmt --check` first; CI and the release workflow read the Bun version from `.bun-version`.
 
 ### Fixed

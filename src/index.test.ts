@@ -201,6 +201,24 @@ describe('--format validation across every command', () => {
     },
   );
 
+  // #154: the JSON-only commands printed JSON with exit 0 for --format table, so the flag vanished.
+  it.each([[['describe']], [['manifest']], [['healthcheck']], [['fetch', 'sleep']]])('refuses --format table for the JSON-only %j', async (argv) => {
+    const { stdout, stderr, code } = await runWithoutToken(...argv, '--format', 'table');
+    // --format table also asks for the text error, as for any other command; exit 1 is BAD_ARGS.
+    expect(stdout).toBe('');
+    expect(stderr.trim().split('\n')).toEqual([
+      'error: This command prints JSON only; --format table is not available.',
+      '  hint: Pass --format json, or leave --format out.',
+    ]);
+    expect(code).toBe(1);
+  });
+
+  it('still prints JSON for a JSON-only command given --format json (#154)', async () => {
+    const { stdout, code } = await run('healthcheck', '--format', 'json');
+    expect(JSON.parse(stdout).ok).toBe(true);
+    expect(code).toBe(0);
+  });
+
   it('rejects an unknown --format for login too, in its own text envelope', async () => {
     // login is the one interactive command: CLAUDE.md keeps it on text errors, so it never
     // produces the JSON envelope the cases above assert. The rejection itself is the same.

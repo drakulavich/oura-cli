@@ -3,6 +3,7 @@ import { openDatabase, ensureSchema } from '../db/open.js';
 import type { ArgsDef } from 'citty';
 import { commonArgs } from './common.js';
 import { assertKnownArgs } from './run-command.js';
+import { refuseTable } from '../lib/format-resolve.js';
 
 export function healthcheckCommand(version: string) {
   return defineCommand({
@@ -10,6 +11,7 @@ export function healthcheckCommand(version: string) {
     args: { ...commonArgs },
     run({ args }) {
       assertKnownArgs(commonArgs as ArgsDef, args as Record<string, unknown>);
+      refuseTable(args.format);
       const start = Date.now();
       let ok = true;
       let error: string | undefined;
