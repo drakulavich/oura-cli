@@ -166,7 +166,7 @@ describe('Database', () => {
 
       const row = db.query('SELECT MAX(version) as version FROM _schema_version').get() as { version: number };
 
-      expect(row.version).toBe(5);
+      expect(row.version).toBe(6);
 
       db.close();
     });

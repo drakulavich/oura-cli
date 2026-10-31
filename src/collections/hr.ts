@@ -26,7 +26,6 @@ export const hr = defineCollection<OuraHeartRate>({
     { name: 'day', type: 'TEXT', pick: (r) => r.timestamp.slice(0, 10) },
   ],
   indexes: [
-    { name: 'idx_heartrate_ts', columns: ['timestamp'] },
     { name: 'idx_heartrate_unique', columns: ['timestamp', 'source'], unique: true },
     { name: 'idx_heartrate_day', columns: ['day'] },
   ],
