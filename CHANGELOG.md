@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-31
+
 ### Changed
 - `describe`, `manifest`, `healthcheck` and `fetch` refuse `--format table` with `BAD_ARGS` (exit 1) and say they print JSON only; they printed JSON and exited 0, so the flag was dropped without a word. `fetch` refuses before it reads the token. `--format json` and no `--format` are unchanged. (#154)
 - The skill says that `import.startDate` in `sync --format json` is the oldest resume day across collections, the window the terminal header stopped printing in #132. (#154)
