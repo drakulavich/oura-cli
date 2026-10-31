@@ -17,7 +17,7 @@
 
 ## 4. Close-out
 
-- [ ] 4.1 #154: a comment records the decisions for items 2, 3, 4 and 5 (Non-goals in `proposal.md`)
+- [x] 4.1 #154: a comment records the decisions for items 2, 3, 4 and 5 (Non-goals in `proposal.md`)
 - [x] 4.2 `bun run check` passes; `bun test --randomize` passes
 - [x] 4.3 `openspec validate narrow-tables-and-json-only --strict` passes
 
