@@ -51,14 +51,14 @@ export function getDbPath(explicit?: string): string {
 
 export function openDatabase(explicit?: string): Database {
   const dbPath = getDbPath(explicit);
-  if (dbPath !== ':memory:' && existsSync(dbPath) && statSync(dbPath).isDirectory()) {
-    throw new CliError(
-      'DB_ERROR',
-      `Cannot open database ${dbPath}: it is a directory.`,
-      `Point --db / OURA_DB_PATH at a file, such as ${join(dbPath, 'oura.db')}.`,
-    );
-  }
   try {
+    if (dbPath !== ':memory:' && statSync(dbPath, { throwIfNoEntry: false })?.isDirectory()) {
+      throw new CliError(
+        'DB_ERROR',
+        `Cannot open database ${dbPath}: it is a directory.`,
+        `Point --db / OURA_DB_PATH at a file, such as ${join(dbPath, 'oura.db')}.`,
+      );
+    }
     const onDisk = dbPath !== ':memory:';
     const isNew = onDisk && !existsSync(dbPath);
     // The cache holds all of the user's health data: owner-only, like the token file.
@@ -72,7 +72,7 @@ export function openDatabase(explicit?: string): Database {
     db.exec('PRAGMA foreign_keys = ON');
     return db;
   } catch (err) {
-    throw dbError(`Cannot open database ${dbPath}`, err);
+    throw err instanceof CliError ? err : dbError(`Cannot open database ${dbPath}`, err);
   }
 }
 

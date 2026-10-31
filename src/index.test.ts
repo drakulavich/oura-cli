@@ -283,6 +283,16 @@ describe('help fits an 80-column terminal (#130)', () => {
     }
   }, 60_000);
 
+  it('ends no help line in spaces when citty colours it, the padding sitting before the closing colour code (#147, #180)', async () => {
+    const env: Record<string, string | undefined> = { ...process.env, FORCE_COLOR: '1' };
+    delete env.NO_COLOR;
+    const proc = Bun.spawn(['bun', 'run', ENTRY, '--db', ':memory:', 'sync', '--help'], { stdout: 'pipe', env, cwd: join(import.meta.dir, '..') });
+    const stdout = await new Response(proc.stdout).text();
+    expect(await proc.exited).toBe(0);
+    expect(ANSI.test(stdout)).toBe(true);
+    expect(stdout.split('\n').filter((l) => / $/.test(l.replace(ANSI, '')))).toEqual([]);
+  });
+
   it('names a db subcommand in full on its USAGE line (#147)', async () => {
     const { stdout } = await run('db', 'rows', '--help');
     expect(

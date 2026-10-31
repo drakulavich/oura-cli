@@ -134,6 +134,31 @@ describe('formatError wraps the hint at the terminal width (#130)', () => {
     }
   });
 
+  it('decides the colour from stderr when the caller does not say (#150, #180)', () => {
+    const level = chalk.level;
+    const env = { NO_COLOR: process.env.NO_COLOR, FORCE_COLOR: process.env.FORCE_COLOR };
+    const tty = { out: process.stdout.isTTY, err: process.stderr.isTTY };
+    const setTty = (out: boolean, err: boolean) => {
+      Object.defineProperty(process.stdout, 'isTTY', { value: out, configurable: true });
+      Object.defineProperty(process.stderr, 'isTTY', { value: err, configurable: true });
+    };
+    chalk.level = 1;
+    delete process.env.NO_COLOR;
+    delete process.env.FORCE_COLOR;
+    try {
+      setTty(true, false);
+      expect(formatError(new CliError('BAD_ARGS', 'boom'), 'table', undefined).text).toBe('error: boom');
+      setTty(false, true);
+      expect(formatError(new CliError('BAD_ARGS', 'boom'), 'table', undefined).text).toBe('\u001b[31merror: boom\u001b[39m');
+    } finally {
+      setTty(tty.out, tty.err);
+      for (const [k, v] of Object.entries(env))
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      chalk.level = level;
+    }
+  });
+
   it('keeps the hint on one line when stderr is a pipe', () => {
     const lines = formatError(new CliError('BAD_ARGS', 'boom', hint), 'table', undefined).text.split('\n');
     expect(lines).toHaveLength(2);
