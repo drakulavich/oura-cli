@@ -7,7 +7,7 @@ import { refuseTable } from '../lib/format-resolve.js';
 
 export function healthcheckCommand(version: string) {
   return defineCommand({
-    meta: { name: 'healthcheck', description: 'JSON liveness probe: the database answers a query.' },
+    meta: { name: 'healthcheck', description: 'JSON liveness probe: one query to the database.' },
     args: { ...commonArgs },
     run({ args }) {
       assertKnownArgs(commonArgs as ArgsDef, args as Record<string, unknown>);

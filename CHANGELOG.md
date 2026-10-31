@@ -6,12 +6,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-31
+
 ### Changed
 - `describe`, `manifest`, `healthcheck` and `fetch` refuse `--format table` with `BAD_ARGS` (exit 1) and say they print JSON only; they printed JSON and exited 0, so the flag was dropped without a word. `fetch` refuses before it reads the token. `--format json` and no `--format` are unchanged. (#154)
 - The skill says that `import.startDate` in `sync --format json` is the oldest resume day across collections, the window the terminal header stopped printing in #132. (#154)
 - Requires Bun 1.4.4 or later (`engines.bun` was `>=1.0.0`). The type check is Bun's built-in `bun check` instead of `tsc --noEmit`, and `bun run lint` checks formatting with `bun fmt --check` first; CI and the release workflow read the Bun version from `.bun-version`.
 
 ### Fixed
+- `healthcheck --help` fits 80 columns with a two-digit minor version: its banner `(oura-cli healthcheck v0.10.0)` made the line 81 characters. The description, also in the `describe` and `manifest` output, reads "JSON liveness probe: one query to the database."
 - `sync` checks `--from`, `--to` and `--prune` before it looks for a token, as `fetch` does: `sync --to 2026-09-01` without `--from`, an impossible date or an unknown `--prune` collection is `BAD_ARGS` (exit 1), where a fresh install without a token said `TOKEN_MISSING` and the argument error surfaced only after `login`. (#145)
 - A flag given without a value is refused the same way everywhere, as `--format`, `--db` and `doctor --token` already were: `--tz`, `report --period`, `--token` on `fetch`, `sync` and the `db` commands, and `login --token ""` now say `--<flag> has no value` and name what leaving the flag out falls back to. `--tz` said `Unknown timezone ""`, `--period` said `got ""`, `--token` was dropped for the token file (a `TOKEN_MISSING` naming the file, or silently accepted by `db today`), and `login` fell through to the interactive prompt. (#148)
 - `login --path <directory>` (or `OURA_TOKEN_PATH` naming one) is `BAD_ARGS` saying the path is a directory, with a file path inside it as the example; it printed a raw `EISDIR: illegal operation on a directory` with no hint. (#149)

@@ -428,7 +428,7 @@ exports[`the published contract, over the real registry describe: matches the sn
     },
     {
       "args": [],
-      "description": "JSON liveness probe: the database answers a query.",
+      "description": "JSON liveness probe: one query to the database.",
       "name": "healthcheck",
     },
     {
@@ -749,7 +749,7 @@ exports[`the published contract, over the real registry manifest: matches the sn
       "name": "describe",
     },
     {
-      "description": "JSON liveness probe: the database answers a query.",
+      "description": "JSON liveness probe: one query to the database.",
       "examples": [
         "oura-cli healthcheck",
       ],
