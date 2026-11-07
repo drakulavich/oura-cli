@@ -30,6 +30,8 @@ updates:
       day: monday
       time: '07:00'
       timezone: Asia/Dubai
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     commit-message:
       prefix: ci
