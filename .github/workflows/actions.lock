@@ -6,6 +6,7 @@ workflows:
     '.github/workflows/ci.yml':
         - 'actions/checkout@v7.0.1'
         - 'astral-sh/setup-uv@v7.6.0'
+        - 'drakulavich/bite-the-diff@v1.1.0'
         - 'oven-sh/setup-bun@v2.2.0'
     '.github/workflows/release.yml':
         - 'actions/checkout@v7.0.1'
@@ -27,6 +28,11 @@ dependencies:
         commit: 'sha1-37802adc94f370d6bfd71619e3f0bf239e1f3b78'
         owner_id: 115962839
         repo_id: 846733598
+    'drakulavich/bite-the-diff@v1.1.0':
+        ref: 'v1.1.0'
+        commit: 'sha1-eb80a2ef0b21424dc0bd54dd4093c68f2199894b'
+        owner_id: 129260
+        repo_id: 1448341469
     'oven-sh/setup-bun@v2.2.0':
         ref: 'v2.2.0'
         commit: 'sha1-0c5077e51419868618aeaa5fe8019c62421857d6'
